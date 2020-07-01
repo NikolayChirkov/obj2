@@ -1,13 +1,11 @@
 cd ../
-mkdir bin
+if [ ! -d "bin" ]; then
+  mkdir bin
+fi
 cd bin
-mkdir obj
-cd obj
-cmake -DAETHER_CONFIG='../../test/config.h' ../../aether/obj/
-make
-
-cd ../
-mkdir test
+if [ ! -d "test" ]; then
+  mkdir test
+fi
 cd test
 cmake -DAETHER_CONFIG='../../test/config.h' ../../test/
 make
