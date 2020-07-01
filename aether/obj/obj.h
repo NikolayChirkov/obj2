@@ -130,6 +130,10 @@ class Ptr {
   operator bool() const { return ptr_ != nullptr; }
   T* operator->() const { return ptr_; }
   T* get() const { return ptr_; }
+  template <class T1>
+  friend bool operator == (T& p1, T1& p2) { return p1.ptr_ == p2.ptr_; }
+  template <class T1>
+  friend bool operator != (T& p1, T1& p2) { return !(p1 == p2); }
 
   void Init(T* p) {
     if (p != nullptr) {

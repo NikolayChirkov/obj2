@@ -208,5 +208,36 @@ public:
 };
 AETHER_IMPLEMENT_CLS(Impl12);
 
+class F : public Obj {
+public:
+  AETHER_DEFINE_CLS(F);
+  virtual ~F() {}
+
+  template <typename T>
+  T& Serializator(T& s) {
+    return s;
+  }
+};
+AETHER_IMPLEMENT_CLS(F);
+
 TEST_CASE( "Smart pointer", "obj" ) {
+  F::ptr f1(new F());
+  F::ptr f2 = f1;
+  REQUIRE(f1 == f2);
+  REQUIRE(!(f1 != f2));
+  F::ptr f3(new F());
+  REQUIRE(f1 != f3);
+  REQUIRE(!(f1 == f3));
+  F::ptr f5;
+  REQUIRE(f1 != f5);
+  REQUIRE(!(f1 == f5));
+
+  AETHER_OMSTREAM os;
+  os << f1;
+  AETHER_IMSTREAM is;
+  is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
+  F::ptr f4;
+  is >> f4;
+  REQUIRE(f1 != f4);
+  REQUIRE(!(f1 == f4));
 }
