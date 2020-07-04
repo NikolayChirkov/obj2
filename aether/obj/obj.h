@@ -199,6 +199,13 @@ class Obj {
       (*registry_)[id] = factory;
     }
 
+    static void UnregisterClass(uint32_t id) {
+      auto it = registry_->find(id);
+      if (it != registry_->end()) {
+        registry_->erase(it);
+      }
+    }
+
     static Obj* CreateClassById(uint32_t id) {
       auto it = registry_->find(id);
       if (it == registry_->end()) {
