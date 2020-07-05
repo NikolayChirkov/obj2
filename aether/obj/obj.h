@@ -130,10 +130,35 @@ class Ptr {
   operator bool() const { return ptr_ != nullptr; }
   T* operator->() const { return ptr_; }
   T* get() const { return ptr_; }
-  template <class T1>
-  friend bool operator == (T& p1, T1& p2) { return p1.ptr_ == p2.ptr_; }
-  template <class T1>
-  friend bool operator != (T& p1, T1& p2) { return !(p1 == p2); }
+
+  template<class T1, class T2>
+  friend bool operator == (const Ptr<T1>& p1, const Ptr<T2>& p2) {
+    // If one pointer is zero and another is not - not equal.
+    if (p1 ^ p2) {
+      return false;
+    }
+    // If both are zero - equal.
+    if (!p1 && !p2) {
+      return true;
+    }
+    constexpr uint32_t class_id = 0;//qcstudio::crc32::from_literal("Obj").value;
+    void* o1 = p1.ptr_->DynamicCast(class_id);
+    void* o2 = p2.ptr_->DynamicCast(class_id);
+    return o1 == o2;
+  }
+  template<class T1, class T2>
+  friend bool operator != (const Ptr<T1>& p1, const Ptr<T2>& p2) {
+    return !(p1 == p2);
+  }
+
+  template<class T1>
+  friend bool operator == (const Ptr<T1>& p1, const Ptr<T1>& p2) {
+    return p1.ptr_ == p2.ptr_;
+  }
+  template<class T1>
+  friend bool operator != (const Ptr<T1>& p1, const Ptr<T1>& p2) {
+    return !(p1 == p2);
+  }
 
   void Init(T* p) {
     if (p != nullptr) {
@@ -224,36 +249,11 @@ class Obj {
   static Obj* CreateClassById(uint32_t id) {
     return Registry<void>::CreateClassById(id);
   }
-
-  template<class T, class T1>
-  friend bool operator == (const Ptr<T>& p1, const Ptr<T1>& p2) {
-    // If one pointer is zero and another is not - not equal.
-    if (p1 ^ p2) {
-      return false;
-    }
-    // If both are zero - equal.
-    if (!p1 && !p2) {
-      return true;
-    }
-    void* o1 = p1.ptr_->DynamicCast(Obj::class_id_);
-    void* o2 = p2.ptr_->DynamicCast(Obj::class_id_);
-    return o1 == o2;
-  }
-  template<class T, class T1>
-  friend bool operator != (const Ptr<T>& p1, const Ptr<T1>& p2) {
-    return !(p1 == p2);
-  }
-
-  template<class T>
-  friend bool operator == (const Ptr<T>& p1, const Ptr<T>& p2) {
-    return p1.ptr_ == p2.ptr_;
-  }
-  template<class T>
-  friend bool operator != (const Ptr<T>& p1, const Ptr<T>& p2) {
-    return !(p1 == p2);
-  }
-
 };
+
+#define AETHER_PURE_INTERFACE(CLS) \
+  AETHER_OBJECT(CLS) \
+  AETHER_INTERFACES(CLS)
 
 #define AETHER_OBJECT(CLS) \
   typedef aether::Ptr<CLS> ptr; \
@@ -312,9 +312,6 @@ public:
 #define AETHER_IMPLEMENTATION(CLS) \
   aether::Registrar<CLS> CLS::registrar_(CLS::class_id_);
 
-#define AETHER_PURE_INTERFACE(CLS) \
-  AETHER_OBJECT(CLS) \
-  AETHER_INTERFACES(CLS)
 
 }  // namespace aether
 

@@ -255,3 +255,28 @@ TEST_CASE( "Smart pointer", "obj" ) {
   REQUIRE(f1 != f4);
   REQUIRE(!(f1 == f4));
 }
+
+TEST_CASE( "Obj::Ptr compare functions", "obj" ) {
+  B::ptr b1(new B());
+  REQUIRE(b1);
+  PureInterface1::ptr p1(b1);
+  REQUIRE(p1);
+  REQUIRE(b1 == p1);
+  PureInterface2::ptr p2(b1);
+  REQUIRE(p1 == p2);
+  PureInterface2::ptr p3(p1);
+  REQUIRE(p1 == p3);
+
+  B::ptr b2(new B());
+  REQUIRE(b1 != b2);
+  REQUIRE(p1 != b2);
+  PureInterface1::ptr p4(b2);
+  REQUIRE(p4 != p1);
+  REQUIRE(p4 != b1);
+
+  PureInterface1::ptr p5;
+  REQUIRE(p5 != b1);
+  REQUIRE(p5 != p1);
+  PureInterface2::ptr p6;
+  REQUIRE(p5 == p6);
+}
