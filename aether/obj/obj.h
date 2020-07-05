@@ -255,9 +255,14 @@ class Obj {
 
 };
 
-// DynamicCast casting
-#define AETHER_HEAD(CLS) \
+#define AETHER_CLASS(CLS) \
   typedef aether::Ptr<CLS> ptr; \
+  static aether::Registrar<CLS> registrar_; \
+  static constexpr uint32_t class_id_ = qcstudio::crc32::from_literal(#CLS).value; \
+  virtual uint32_t GetClassId() const { return class_id_; }
+
+
+#define AETHER_SERIALIZE(CLS) \
   virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s); } \
   virtual void Deserialize(AETHER_IMSTREAM& s) { Serializator(s); } \
   friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const CLS::ptr& o) {\
@@ -271,36 +276,21 @@ class Obj {
       o = CreateClassById(class_id); \
       o->Deserialize(s); \
       return s; \
-    } \
-  static constexpr uint32_t class_id_ = qcstudio::crc32::from_literal(#CLS).value; \
-  static aether::Registrar<CLS> registrar_; \
-  virtual uint32_t GetClassId() const { return class_id_; } \
+    }
+
+#define AETHER_INTERFACES(...) \
+  template <class ...> struct ClassList {};\
+  void* DynamicCastInternal(uint32_t, ClassList<>) { return nullptr; }\
+  template <class C, class ...N> void* DynamicCastInternal(uint32_t i, ClassList<C, N...>) {\
+    if (C::class_id_ != i) { return DynamicCastInternal(i, ClassList<N...>()); }\
+    return static_cast<C*>(this); \
+  } \
+  template <class ...N> void* DynamicCastInternal(uint32_t i) {\
+    return DynamicCastInternal(i, ClassList<N...>());\
+  }\
   virtual void* DynamicCast(uint32_t id) { \
-      switch (id) { \
-        case 0: \
-          return static_cast<Obj*>(this);
-
-#define AETHER_CASE1(CLS) case qcstudio::crc32::from_literal(#CLS).value: \
-  return static_cast<CLS*>(this);
-#define AETHER_CASE2(CLS, CLS1) AETHER_CASE1(CLS) AETHER_CASE1(CLS1)
-#define AETHER_CASE3(CLS, CLS1, CLS2) AETHER_CASE2(CLS, CLS1) AETHER_CASE1(CLS2)
-#define AETHER_CASE4(CLS, CLS1, CLS2, CLS3) AETHER_CASE3(CLS, CLS1, CLS2) \
-  AETHER_CASE1(CLS3)
-
-#define AETHER_DEFINE_CLS1(CLS) AETHER_HEAD(CLS) AETHER_CASE1(CLS) } return 0; }
-#define AETHER_DEFINE_CLS2(CLS, CLS1) AETHER_HEAD(CLS) AETHER_CASE2(CLS, CLS1) \
-  } return 0; }
-#define AETHER_DEFINE_CLS3(CLS, CLS1, CLS2) AETHER_HEAD(CLS) AETHER_CASE3(CLS, \
-  CLS1, CLS2) } return 0; }
-#define AETHER_DEFINE_CLS4(CLS, CLS1, CLS2, CLS3) AETHER_HEAD(CLS) \
-  AETHER_CASE4(CLS, CLS1, CLS2, CLS3) } return 0; }
-
-#define AETHER_GET_MACRO(_1, _2, _3, _4, NAME, ...) NAME
-#define AETHER_DEFINE_CLS(...) AETHER_VSPP(AETHER_GET_MACRO(__VA_ARGS__, \
-  AETHER_DEFINE_CLS4, AETHER_DEFINE_CLS3, AETHER_DEFINE_CLS2, \
-  AETHER_DEFINE_CLS1)(__VA_ARGS__))
-// VS++ bug
-#define AETHER_VSPP(x) x
+    return DynamicCastInternal<__VA_ARGS__, Obj>(id);\
+  }
 
 template <class Dummy>
 std::unordered_map<uint32_t, std::function<Obj*()>>*
@@ -314,15 +304,13 @@ public:
   }
 };
 
-#define AETHER_IMPLEMENT_CLS(CLS) aether::Registrar<CLS> \
-  CLS::registrar_(CLS::class_id_);
+#define AETHER_IMPLEMENTATION(CLS) aether::Registrar<CLS> CLS::registrar_(CLS::class_id_);
 
-#define AETHER_DEFINE_PURE_CLS(CLS) \
+#define AETHER_PURE_CLASS(CLS) \
   typedef aether::Ptr<CLS> ptr; \
   static const uint32_t class_id_ = qcstudio::crc32::from_literal(#CLS).value; \
   virtual uint32_t GetClassId() const { return class_id_; } \
-  virtual void* DynamicCast(uint32_t) { \
-    return static_cast<Obj*>(this); } \
+  virtual void* DynamicCast(uint32_t) { return static_cast<Obj*>(this); } \
   friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, CLS::ptr o) { \
     Obj::ptr op(o); \
     s << op; \
