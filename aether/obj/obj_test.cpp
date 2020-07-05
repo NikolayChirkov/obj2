@@ -21,7 +21,7 @@ using aether::Obj;
 
 class PureInterface1 : public virtual Obj {
 public:
-  AETHER_PURE_CLASS(PureInterface1);
+  AETHER_PURE_INTERFACE(PureInterface1);
 
   virtual ~PureInterface1() {};
   virtual int Get1() const = 0;
@@ -29,7 +29,7 @@ public:
 
 class A : public PureInterface1 {
 public:
-  AETHER_CLASS(A);
+  AETHER_OBJECT(A);
   AETHER_SERIALIZE(A);
   AETHER_INTERFACES(A, PureInterface1);
 
@@ -71,7 +71,7 @@ TEST_CASE( "Obj: Create, Pure, Cast, Serialize", "obj" ) {
 
 class PureInterface2 : public virtual Obj {
 public:
-  AETHER_PURE_CLASS(PureInterface2);
+  AETHER_PURE_INTERFACE(PureInterface2);
 
   virtual ~PureInterface2(){};
   virtual int Get2() const = 0;
@@ -85,7 +85,7 @@ TEST_CASE( "Unsupported interface", "obj" ) {
 
 class B : public PureInterface1, public PureInterface2 {
 public:
-  AETHER_CLASS(B);
+  AETHER_OBJECT(B);
   AETHER_SERIALIZE(B);
   AETHER_INTERFACES(B, PureInterface1, PureInterface2);
 
@@ -144,7 +144,7 @@ TEST_CASE( "MultiInterface", "obj" ) {
 
 class Pure1 : public virtual aether::Obj {
 public:
-  AETHER_PURE_CLASS(Pure1);
+  AETHER_PURE_INTERFACE(Pure1);
   virtual ~Pure1() {};
 
   template <typename T>
@@ -155,7 +155,7 @@ public:
 
 class Impl1 : public Pure1 {
 public:
-  AETHER_CLASS(Impl1);
+  AETHER_OBJECT(Impl1);
   AETHER_SERIALIZE(Impl1);
   AETHER_INTERFACES(Impl1, Pure1);
   virtual ~Impl1() {};
@@ -169,7 +169,7 @@ AETHER_IMPLEMENTATION(Impl1);
 
 class Pure2 : public virtual aether::Obj {
 public:
-  AETHER_PURE_CLASS(Pure2);
+  AETHER_PURE_INTERFACE(Pure2);
   virtual ~Pure2() {};
 
   template <typename T>
@@ -180,7 +180,7 @@ public:
 
 class Impl2 : public Pure2 {
 public:
-  AETHER_CLASS(Impl2);
+  AETHER_OBJECT(Impl2);
   AETHER_SERIALIZE(Impl2);
   AETHER_INTERFACES(Impl2, Pure2);
   virtual ~Impl2() {};
@@ -194,7 +194,7 @@ AETHER_IMPLEMENTATION(Impl2);
 
 class Pure12 : public Pure1, public Pure2 {
 public:
-  AETHER_CLASS(Pure12);
+  AETHER_OBJECT(Pure12);
   AETHER_SERIALIZE(Pure12);
   AETHER_INTERFACES(Pure12, Pure1, Pure2);
   virtual ~Pure12() {};
@@ -208,7 +208,7 @@ AETHER_IMPLEMENTATION(Pure12);
 
 class Impl12 : public Impl1, public Impl2 {
 public:
-  AETHER_CLASS(Impl12);
+  AETHER_OBJECT(Impl12);
   AETHER_SERIALIZE(Impl12);
   AETHER_INTERFACES(Impl12, Pure1, Pure2);
   virtual ~Impl12() {};
@@ -222,7 +222,7 @@ AETHER_IMPLEMENTATION(Impl12);
 
 class F : public Obj {
 public:
-  AETHER_CLASS(F);
+  AETHER_OBJECT(F);
   AETHER_SERIALIZE(F);
   AETHER_INTERFACES(F);
   virtual ~F() {}

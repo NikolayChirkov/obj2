@@ -255,17 +255,19 @@ class Obj {
 
 };
 
-#define AETHER_CLASS(CLS) \
+#define AETHER_OBJECT(CLS) \
   typedef aether::Ptr<CLS> ptr; \
   static aether::Registrar<CLS> registrar_; \
-  static constexpr uint32_t class_id_ = qcstudio::crc32::from_literal(#CLS).value; \
+  static constexpr uint32_t class_id_ = \
+      qcstudio::crc32::from_literal(#CLS).value; \
   virtual uint32_t GetClassId() const { return class_id_; }
 
 
 #define AETHER_SERIALIZE(CLS) \
   virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s); } \
   virtual void Deserialize(AETHER_IMSTREAM& s) { Serializator(s); } \
-  friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const CLS::ptr& o) {\
+  friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, \
+        const CLS::ptr& o) {\
       s << o->GetClassId(); \
       o->Serialize(s); \
       return s; \
@@ -281,8 +283,11 @@ class Obj {
 #define AETHER_INTERFACES(...) \
   template <class ...> struct ClassList {};\
   void* DynamicCastInternal(uint32_t, ClassList<>) { return nullptr; }\
-  template <class C, class ...N> void* DynamicCastInternal(uint32_t i, ClassList<C, N...>) {\
-    if (C::class_id_ != i) { return DynamicCastInternal(i, ClassList<N...>()); }\
+  template <class C, class ...N> \
+  void* DynamicCastInternal(uint32_t i, ClassList<C, N...>) {\
+    if (C::class_id_ != i) { \
+      return DynamicCastInternal(i, ClassList<N...>()); \
+    }\
     return static_cast<C*>(this); \
   } \
   template <class ...N> void* DynamicCastInternal(uint32_t i) {\
@@ -304,24 +309,12 @@ public:
   }
 };
 
-#define AETHER_IMPLEMENTATION(CLS) aether::Registrar<CLS> CLS::registrar_(CLS::class_id_);
+#define AETHER_IMPLEMENTATION(CLS) \
+  aether::Registrar<CLS> CLS::registrar_(CLS::class_id_);
 
-#define AETHER_PURE_CLASS(CLS) \
-  typedef aether::Ptr<CLS> ptr; \
-  static const uint32_t class_id_ = qcstudio::crc32::from_literal(#CLS).value; \
-  virtual uint32_t GetClassId() const { return class_id_; } \
-  virtual void* DynamicCast(uint32_t) { return static_cast<Obj*>(this); } \
-  friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, CLS::ptr o) { \
-    Obj::ptr op(o); \
-    s << op; \
-    return s; \
-  } \
-  friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, CLS::ptr& o) { \
-    Obj::ptr op; \
-    s >> op; \
-    o = op; \
-    return s; \
-  }
+#define AETHER_PURE_INTERFACE(CLS) \
+  AETHER_OBJECT(CLS) \
+  AETHER_INTERFACES(CLS)
 
 }  // namespace aether
 
