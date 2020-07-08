@@ -266,6 +266,7 @@ public:
   template<class T>
   friend class Ptr;
   std::atomic<int> reference_count_{0};
+  friend class TestAccessor;
 
   template <class Dummy>
   class Registry {
@@ -310,15 +311,22 @@ std::unordered_map<uint32_t, std::function<Obj*()>>*
 template<class T>
 void SerializeObj(T& s, const Ptr<Obj>& o) {
   s << o->GetClassId();
-  o->Serialize(s);
+  T ss;
+  o->Serialize(ss);
+  s << ss.stream_;
 }
 
 template<class T>
 Obj::ptr DeserializeObj(T& s) {
   uint32_t class_id;
   s >> class_id;
+  T ss;
+  s >> ss.stream_;
   Obj::ptr o = Obj::CreateClassById(class_id);
-  o->Deserialize(s);
+  if (o) {
+    // The stored object is supported by the run-time.
+    o->Deserialize(ss);
+  }
   return o;
 }
 
