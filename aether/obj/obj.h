@@ -188,22 +188,24 @@ class Ptr {
   }
 };
 
+class Obj;
+template<class T>
+void SerializeObj(T& s, const Ptr<Obj>& o);
+template<class T>
+Ptr<Obj> DeserializeObj(T& s);
+
 #define AETHER_SERIALIZE(CLS) \
 virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s); } \
 virtual void Deserialize(AETHER_IMSTREAM& s) { Serializator(s); } \
 friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, \
       const CLS::ptr& o) {\
-    s << o->GetClassId(); \
-    o->Serialize(s); \
-    return s; \
-  } \
+  SerializeObj(s, o); \
+  return s; \
+} \
 friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, CLS::ptr& o) { \
-    uint32_t class_id; \
-    s >> class_id; \
-    o = CreateClassById(class_id); \
-    o->Deserialize(s); \
-    return s; \
-  }
+  o = DeserializeObj(s); \
+  return s; \
+}
 
 #define AETHER_INTERFACES(...) \
   template <class ...> struct ClassList {};\
@@ -304,6 +306,21 @@ public:
 template <class Dummy>
 std::unordered_map<uint32_t, std::function<Obj*()>>*
   Obj::Registry<Dummy>::registry_;
+
+template<class T>
+void SerializeObj(T& s, const Ptr<Obj>& o) {
+  s << o->GetClassId();
+  o->Serialize(s);
+}
+
+template<class T>
+Obj::ptr DeserializeObj(T& s) {
+  uint32_t class_id;
+  s >> class_id;
+  Obj::ptr o = Obj::CreateClassById(class_id);
+  o->Deserialize(s);
+  return o;
+}
 
 }  // namespace aether
 
