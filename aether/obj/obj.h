@@ -141,7 +141,7 @@ class Ptr {
     if (!p1 && !p2) {
       return true;
     }
-    constexpr uint32_t class_id = 0;//qcstudio::crc32::from_literal("Obj").value;
+    constexpr uint32_t class_id = qcstudio::crc32::from_literal("Obj").value;
     void* o1 = p1.ptr_->DynamicCast(class_id);
     void* o2 = p2.ptr_->DynamicCast(class_id);
     return o1 == o2;
@@ -188,24 +188,82 @@ class Ptr {
   }
 };
 
+#define AETHER_SERIALIZE(CLS) \
+virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s); } \
+virtual void Deserialize(AETHER_IMSTREAM& s) { Serializator(s); } \
+friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, \
+      const CLS::ptr& o) {\
+    s << o->GetClassId(); \
+    o->Serialize(s); \
+    return s; \
+  } \
+friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, CLS::ptr& o) { \
+    uint32_t class_id; \
+    s >> class_id; \
+    o = CreateClassById(class_id); \
+    o->Deserialize(s); \
+    return s; \
+  }
+
+#define AETHER_INTERFACES(...) \
+  template <class ...> struct ClassList {};\
+  void* DynamicCastInternal(uint32_t, ClassList<>) { return nullptr; }\
+  template <class C, class ...N> \
+  void* DynamicCastInternal(uint32_t i, ClassList<C, N...>) {\
+    if (C::class_id_ != i) { \
+      return DynamicCastInternal(i, ClassList<N...>()); \
+    }\
+    return static_cast<C*>(this); \
+  } \
+  template <class ...N> void* DynamicCastInternal(uint32_t i) {\
+    return DynamicCastInternal(i, ClassList<N...>());\
+  }\
+  virtual void* DynamicCast(uint32_t id) { \
+    return DynamicCastInternal<__VA_ARGS__, Obj>(id);\
+  }
+
+#define AETHER_OBJECT(CLS) \
+  typedef aether::Ptr<CLS> ptr; \
+  static aether::Obj::Registrar<CLS> registrar_; \
+  static constexpr uint32_t class_id_ = \
+      qcstudio::crc32::from_literal(#CLS).value; \
+  virtual uint32_t GetClassId() const { return class_id_; }
+
+#define AETHER_PURE_INTERFACE(CLS) \
+  AETHER_OBJECT(CLS) \
+  AETHER_INTERFACES(CLS)
+
+#define AETHER_IMPLEMENTATION(CLS) \
+  aether::Obj::Registrar<CLS> CLS::registrar_(CLS::class_id_);
+
 class Obj {
- public:
-  typedef Ptr<Obj> ptr;
+protected:
+  template<class T>
+  struct Registrar {
+    Registrar(uint32_t id) {
+      Obj::Registry<void>::RegisterClass(id, []{ return new T(); });
+    }
+  };
+  
+public:
+  static Obj* CreateClassById(uint32_t id) {
+    return Registry<void>::CreateClassById(id);
+  }
+
   virtual ~Obj() {}
-  virtual void Serialize(AETHER_OMSTREAM& s) {}
-  virtual void Deserialize(AETHER_IMSTREAM& s) {}
-  friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const Obj::ptr& o) {
-    s << o->GetClassId();
-    o->Serialize(s);
+  
+  AETHER_OBJECT(Obj);
+  AETHER_INTERFACES(Obj);
+  AETHER_SERIALIZE(Obj);
+  template <typename T>
+  T& Serializator(T& s) {
     return s;
   }
-  friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, Obj::ptr& o) {
-    uint32_t class_id;
-    s >> class_id;
-    o = CreateClassById(class_id);
-    o->Deserialize(s);
-    return s;
-  }
+
+ protected:
+  template<class T>
+  friend class Ptr;
+  std::atomic<int> reference_count_{0};
 
   template <class Dummy>
   class Registry {
@@ -219,7 +277,7 @@ class Obj {
       if (registry_->find(id) != registry_->end()) {
         throw std::runtime_error("Class name already registered or Crc32 "
                                  "collision detected. Please choose another "
-                                 "name for class.");
+                                 "name for the class.");
       }
       (*registry_)[id] = factory;
     }
@@ -241,77 +299,11 @@ class Obj {
   private:
     static std::unordered_map<uint32_t, std::function<Obj*()>>* registry_;
   };
-  virtual void* DynamicCast(uint32_t id) = 0;
-  static constexpr uint32_t class_id_ = 0;
-  virtual uint32_t GetClassId() const = 0;
-  std::atomic<int> reference_count_{0};
-
-  static Obj* CreateClassById(uint32_t id) {
-    return Registry<void>::CreateClassById(id);
-  }
 };
-
-#define AETHER_PURE_INTERFACE(CLS) \
-  AETHER_OBJECT(CLS) \
-  AETHER_INTERFACES(CLS)
-
-#define AETHER_OBJECT(CLS) \
-  typedef aether::Ptr<CLS> ptr; \
-  static aether::Registrar<CLS> registrar_; \
-  static constexpr uint32_t class_id_ = \
-      qcstudio::crc32::from_literal(#CLS).value; \
-  virtual uint32_t GetClassId() const { return class_id_; }
-
-
-#define AETHER_SERIALIZE(CLS) \
-  virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s); } \
-  virtual void Deserialize(AETHER_IMSTREAM& s) { Serializator(s); } \
-  friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, \
-        const CLS::ptr& o) {\
-      s << o->GetClassId(); \
-      o->Serialize(s); \
-      return s; \
-    } \
-  friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, CLS::ptr& o) { \
-      uint32_t class_id; \
-      s >> class_id; \
-      o = CreateClassById(class_id); \
-      o->Deserialize(s); \
-      return s; \
-    }
-
-#define AETHER_INTERFACES(...) \
-  template <class ...> struct ClassList {};\
-  void* DynamicCastInternal(uint32_t, ClassList<>) { return nullptr; }\
-  template <class C, class ...N> \
-  void* DynamicCastInternal(uint32_t i, ClassList<C, N...>) {\
-    if (C::class_id_ != i) { \
-      return DynamicCastInternal(i, ClassList<N...>()); \
-    }\
-    return static_cast<C*>(this); \
-  } \
-  template <class ...N> void* DynamicCastInternal(uint32_t i) {\
-    return DynamicCastInternal(i, ClassList<N...>());\
-  }\
-  virtual void* DynamicCast(uint32_t id) { \
-    return DynamicCastInternal<__VA_ARGS__, Obj>(id);\
-  }
 
 template <class Dummy>
 std::unordered_map<uint32_t, std::function<Obj*()>>*
   Obj::Registry<Dummy>::registry_;
-
-template< class T>
-class Registrar {
-public:
-  Registrar(uint32_t id) {
-    Obj::Registry<void>::RegisterClass(id, []{ return new T(); });
-  }
-};
-
-#define AETHER_IMPLEMENTATION(CLS) \
-  aether::Registrar<CLS> CLS::registrar_(CLS::class_id_);
-
 
 }  // namespace aether
 
