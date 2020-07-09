@@ -194,13 +194,14 @@ void SerializeObj(T& s, const Ptr<Obj>& o);
 template<class T>
 Ptr<Obj> DeserializeObj(T& s);
 
-#define AETHER_SERIALIZE(CLS, BASE) \
+#define AETHER_SERIALIZE_(CLS, BASE) \
 virtual void Serialize(AETHER_OMSTREAM& s) { \
   AETHER_OMSTREAM cur_obj; \
   Serializator(cur_obj); \
   AETHER_OMSTREAM whole; \
   whole << cur_obj.stream_; \
-  if constexpr (qcstudio::crc32::from_literal(#BASE).value != qcstudio::crc32::from_literal("Obj").value) { \
+  if (qcstudio::crc32::from_literal(#BASE).value != \
+      qcstudio::crc32::from_literal("Obj").value) { \
     whole << qcstudio::crc32::from_literal(#BASE).value; \
     BASE::Serialize(whole); \
   } \
@@ -208,7 +209,8 @@ virtual void Serialize(AETHER_OMSTREAM& s) { \
 } \
 virtual void Deserialize(AETHER_IMSTREAM& s) { \
   Serializator(s); \
-  if constexpr (qcstudio::crc32::from_literal(#BASE).value != qcstudio::crc32::from_literal("Obj").value) { \
+  if (qcstudio::crc32::from_literal(#BASE).value != \
+      qcstudio::crc32::from_literal("Obj").value) { \
     uint32_t class_id; \
     uint32_t full_size; \
     uint32_t cur_obj_size; \
@@ -216,8 +218,7 @@ virtual void Deserialize(AETHER_IMSTREAM& s) { \
     BASE::Deserialize(s); \
   } \
 } \
-friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, \
-      const CLS::ptr& o) {\
+friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const CLS::ptr& o) { \
   SerializeObj(s, o); \
   return s; \
 } \
@@ -225,6 +226,15 @@ friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, CLS::ptr& o) { \
   o = DeserializeObj(s); \
   return s; \
 }
+
+#define AETHER_SERIALIZE_CLS1(CLS) AETHER_SERIALIZE_(CLS, Obj)
+#define AETHER_SERIALIZE_CLS2(CLS, CLS1) AETHER_SERIALIZE_(CLS, CLS1)
+#define AETHER_GET_MACRO(_1, _2, NAME, ...) NAME
+#define AETHER_SERIALIZE(...) AETHER_VSPP(AETHER_GET_MACRO(__VA_ARGS__, \
+AETHER_SERIALIZE_CLS2, AETHER_SERIALIZE_CLS1)(__VA_ARGS__))
+// VS++ bug
+#define AETHER_VSPP(x) x
+
 
 #define AETHER_INTERFACES(...) \
   template <class ...> struct ClassList {};\
@@ -265,17 +275,17 @@ protected:
       Obj::Registry<void>::RegisterClass(id, []{ return new T(); });
     }
   };
-  
+
 public:
   static Obj* CreateClassById(uint32_t id) {
     return Registry<void>::CreateClassById(id);
   }
 
   virtual ~Obj() {}
-  
+
   AETHER_OBJECT(Obj);
   AETHER_INTERFACES(Obj);
-  AETHER_SERIALIZE(Obj, Obj);
+  AETHER_SERIALIZE(Obj);
   template <typename T>
   T& Serializator(T& s) {
     return s;
@@ -347,17 +357,19 @@ Obj::ptr DeserializeObj(T& s) {
       o->Deserialize(s);
       return o;
     } else {
-      // Skip serialized data of the inherited object and move to the base object
+      // Skip serialized data of the inherited object.
+      // TODO: use seek for performance
       for (int i = 0; i < cur_obj_size; i++) {
         uint8_t c;
         s >> c;
       }
-      if (full_size == cur_obj_size) {
+      // object size is included into the full stream, add +4.
+      if (full_size == cur_obj_size + sizeof(uint32_t)) {
         return {};
       }
     }
   }
-  
+
 }
 
 }  // namespace aether
