@@ -280,3 +280,94 @@ TEST_CASE( "Obj::Ptr compare functions", "obj" ) {
   PureInterface2::ptr p6;
   REQUIRE(p5 == p6);
 }
+
+
+
+namespace aether {
+class TestAccessor {
+public:
+  template<class T>
+  static void UnregisterClass() {
+    aether::Obj::Registry<void>::UnregisterClass(T::class_id_);
+  }
+};
+}
+
+class V1 : public Obj {
+public:
+  AETHER_OBJECT(V1);
+  AETHER_SERIALIZE(V1);
+  AETHER_INTERFACES(V1);
+
+  int i = 123;
+  template <typename T>
+  T& Serializator(T& s) {
+    return s & i;
+  }
+};
+AETHER_IMPLEMENTATION(V1);
+
+class V2 : public V1 {
+public:
+  AETHER_OBJECT(V2);
+  AETHER_SERIALIZE(V2, V1);
+  AETHER_INTERFACES(V2, V1);
+
+  float f = 3.14f;
+  template <typename T>
+  T& Serializator(T& s) {
+    return s & f;
+  }
+};
+AETHER_IMPLEMENTATION(V2);
+
+TEST_CASE( "Versioning", "obj" ) {
+  V1::ptr v1(new V1());
+  v1->i = 111;
+  V2::ptr v2(new V2());
+  v2->i = 222;
+  v2->f = 2.71f;
+  AETHER_OMSTREAM os;
+  os << v2 << v1;
+  REQUIRE(os.stream_.size() == 48);
+  {
+    AETHER_IMSTREAM is;
+    is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
+    Obj::ptr o1, o2;
+    is >> o2 >> o1;
+    V1::ptr v11 = o1;
+    REQUIRE(v11);
+    REQUIRE(v11->i == 111);
+    V2::ptr v22 = o2;
+    REQUIRE(v22);
+    REQUIRE(v22->i == 222);
+    REQUIRE(v22->f == 2.71f);
+    REQUIRE(is.stream_.empty());
+  }
+  {
+    AETHER_IMSTREAM is;
+    is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
+    Obj::ptr o1, o2;
+    aether::TestAccessor::UnregisterClass<V2>();
+    is >> o2 >> o1;
+    V1::ptr v11 = o1;
+    REQUIRE(v11);
+    REQUIRE(v11->i == 111);
+    V2::ptr v22 = o2;
+    REQUIRE(!v22);
+    V1::ptr v21 = o2;
+    REQUIRE(v21);
+    REQUIRE(v21->i == 222);
+    REQUIRE(is.stream_.empty());
+  }
+  {
+    AETHER_IMSTREAM is;
+    is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
+    Obj::ptr o1, o2;
+    aether::TestAccessor::UnregisterClass<V1>();
+    is >> o2 >> o1;
+    REQUIRE(!V1::ptr(o2));
+    REQUIRE(!V1::ptr(o1));
+    REQUIRE(is.stream_.empty());
+  }
+}
