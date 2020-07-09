@@ -218,6 +218,13 @@ virtual void Deserialize(AETHER_IMSTREAM& s) { \
     BASE::Deserialize(s); \
   } \
 } \
+virtual void DeserializeBase(AETHER_IMSTREAM& s, uint32_t id) { \
+  if (qcstudio::crc32::from_literal(#CLS).value != id) { \
+    BASE::DeserializeBase(s, id); \
+  } else { \
+    CLS::Deserialize(s); \
+  } \
+} \
 friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const CLS::ptr& o) { \
   SerializeObj(s, o); \
   return s; \
@@ -346,15 +353,21 @@ void SerializeObj(T& s, const Ptr<Obj>& o) {
 template<class T>
 Obj::ptr DeserializeObj(T& s) {
   while(true) {
-    uint32_t class_id;
+    uint32_t base_id;
     uint32_t full_size;
     uint32_t cur_obj_size;
-    s >> class_id >> full_size >> cur_obj_size;
-    //extern std::unordered_map<uint32_t, uint32_t> base_to_derived_;
-    Obj::ptr o = Obj::CreateClassById(class_id);
+    s >> base_id >> full_size >> cur_obj_size;
+    extern std::unordered_map<uint32_t, uint32_t> base_to_derived_;
+    uint32_t derived_id = base_to_derived_[base_id];
+    Obj::ptr o = Obj::CreateClassById(base_id);
     if (o) {
       // The stored object is supported by the run-time.
-      o->Deserialize(s);
+      uint32_t derived_id = base_to_derived_[base_id];
+      if (derived_id != base_id) {
+        o->DeserializeBase(s, base_id);
+      } else {
+        o->Deserialize(s);
+      }
       return o;
     } else {
       // Skip serialized data of the inherited object.
