@@ -194,9 +194,28 @@ void SerializeObj(T& s, const Ptr<Obj>& o);
 template<class T>
 Ptr<Obj> DeserializeObj(T& s);
 
-#define AETHER_SERIALIZE(CLS) \
-virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s); } \
-virtual void Deserialize(AETHER_IMSTREAM& s) { Serializator(s); } \
+#define AETHER_SERIALIZE(CLS, BASE) \
+virtual void Serialize(AETHER_OMSTREAM& s) { \
+  AETHER_OMSTREAM cur_obj; \
+  Serializator(cur_obj); \
+  AETHER_OMSTREAM whole; \
+  whole << cur_obj.stream_; \
+  if constexpr (qcstudio::crc32::from_literal(#BASE).value != qcstudio::crc32::from_literal("Obj").value) { \
+    whole << qcstudio::crc32::from_literal(#BASE).value; \
+    BASE::Serialize(whole); \
+  } \
+  s << whole.stream_; \
+} \
+virtual void Deserialize(AETHER_IMSTREAM& s) { \
+  Serializator(s); \
+  if constexpr (qcstudio::crc32::from_literal(#BASE).value != qcstudio::crc32::from_literal("Obj").value) { \
+    uint32_t class_id; \
+    uint32_t full_size; \
+    uint32_t cur_obj_size; \
+    s >> class_id >> full_size >> cur_obj_size; \
+    BASE::Deserialize(s); \
+  } \
+} \
 friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, \
       const CLS::ptr& o) {\
   SerializeObj(s, o); \
@@ -256,7 +275,7 @@ public:
   
   AETHER_OBJECT(Obj);
   AETHER_INTERFACES(Obj);
-  AETHER_SERIALIZE(Obj);
+  AETHER_SERIALIZE(Obj, Obj);
   template <typename T>
   T& Serializator(T& s) {
     return s;
@@ -311,23 +330,34 @@ std::unordered_map<uint32_t, std::function<Obj*()>>*
 template<class T>
 void SerializeObj(T& s, const Ptr<Obj>& o) {
   s << o->GetClassId();
-  T ss;
-  o->Serialize(ss);
-  s << ss.stream_;
+  o->Serialize(s);
 }
 
 template<class T>
 Obj::ptr DeserializeObj(T& s) {
-  uint32_t class_id;
-  s >> class_id;
-  T ss;
-  s >> ss.stream_;
-  Obj::ptr o = Obj::CreateClassById(class_id);
-  if (o) {
-    // The stored object is supported by the run-time.
-    o->Deserialize(ss);
+  while(true) {
+    uint32_t class_id;
+    uint32_t full_size;
+    uint32_t cur_obj_size;
+    s >> class_id >> full_size >> cur_obj_size;
+    //extern std::unordered_map<uint32_t, uint32_t> base_to_derived_;
+    Obj::ptr o = Obj::CreateClassById(class_id);
+    if (o) {
+      // The stored object is supported by the run-time.
+      o->Deserialize(s);
+      return o;
+    } else {
+      // Skip serialized data of the inherited object and move to the base object
+      for (int i = 0; i < cur_obj_size; i++) {
+        uint8_t c;
+        s >> c;
+      }
+      if (full_size == cur_obj_size) {
+        return {};
+      }
+    }
   }
-  return o;
+  
 }
 
 }  // namespace aether
