@@ -225,6 +225,8 @@ virtual void DeserializeBase(AETHER_IMSTREAM& s, uint32_t id) { \
     CLS::Deserialize(s); \
   } \
 } \
+static constexpr uint32_t base_id_ = \
+  qcstudio::crc32::from_literal(#BASE).value; \
 friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const CLS::ptr& o) { \
   SerializeObj(s, o); \
   return s; \
@@ -272,14 +274,14 @@ AETHER_SERIALIZE_CLS2, AETHER_SERIALIZE_CLS1)(__VA_ARGS__))
   AETHER_INTERFACES(CLS)
 
 #define AETHER_IMPLEMENTATION(CLS) \
-  aether::Obj::Registrar<CLS> CLS::registrar_(CLS::class_id_);
+  aether::Obj::Registrar<CLS> CLS::registrar_(CLS::class_id_, CLS::base_id_);
 
 class Obj {
 protected:
   template<class T>
   struct Registrar {
-    Registrar(uint32_t id) {
-      Obj::Registry<void>::RegisterClass(id, []{ return new T(); });
+    Registrar(uint32_t id, uint32_t base_id) {
+      Obj::Registry<void>::RegisterClass(id, base_id, []{ return new T(); });
     }
   };
 
@@ -307,11 +309,12 @@ public:
   template <class Dummy>
   class Registry {
    public:
-    static void RegisterClass(uint32_t id, std::function<Obj*()> factory) {
+    static void RegisterClass(uint32_t id, uint32_t base_id, std::function<Obj*()> factory) {
       static bool initialized = false;
       if (!initialized) {
         initialized = true;
         registry_ = new std::unordered_map<uint32_t, std::function<Obj*()>>();
+        base_to_derived_ = new std::unordered_map<uint32_t, uint32_t>();
       }
       if (registry_->find(id) != registry_->end()) {
         throw std::runtime_error("Class name already registered or Crc32 "
@@ -319,6 +322,9 @@ public:
                                  "name for the class.");
       }
       (*registry_)[id] = factory;
+      if (base_id != qcstudio::crc32::from_literal("Obj").value) {
+        (*base_to_derived_)[base_id] = id;
+      }
     }
 
     static void UnregisterClass(uint32_t id) {
@@ -326,10 +332,21 @@ public:
       if (it != registry_->end()) {
         registry_->erase(it);
       }
+      for (auto it = base_to_derived_->begin(); it != base_to_derived_->end(); ) {
+        it = it->second == id ? base_to_derived_->erase(it) : std::next(it);
+      }
     }
 
-    static Obj* CreateClassById(uint32_t id) {
-      auto it = registry_->find(id);
+    static Obj* CreateClassById(uint32_t base_id) {
+      uint32_t derived_id = base_id;
+      while (true) {
+        auto d = base_to_derived_->find(derived_id);
+        if (d == base_to_derived_->end() || derived_id == d->second) {
+          break;
+        }
+        derived_id = d->second;
+      }
+      auto it = registry_->find(derived_id);
       if (it == registry_->end()) {
         return nullptr;
       }
@@ -337,12 +354,16 @@ public:
     }
   private:
     static std::unordered_map<uint32_t, std::function<Obj*()>>* registry_;
+    static std::unordered_map<uint32_t, uint32_t>* base_to_derived_;
   };
 };
 
 template <class Dummy>
 std::unordered_map<uint32_t, std::function<Obj*()>>*
   Obj::Registry<Dummy>::registry_;
+template <class Dummy>
+std::unordered_map<uint32_t, uint32_t>*
+  Obj::Registry<Dummy>::base_to_derived_;
 
 template<class T>
 void SerializeObj(T& s, const Ptr<Obj>& o) {
@@ -357,13 +378,10 @@ Obj::ptr DeserializeObj(T& s) {
     uint32_t full_size;
     uint32_t cur_obj_size;
     s >> base_id >> full_size >> cur_obj_size;
-    extern std::unordered_map<uint32_t, uint32_t> base_to_derived_;
-    uint32_t derived_id = base_to_derived_[base_id];
+    // The stored object is supported by the run-time.
     Obj::ptr o = Obj::CreateClassById(base_id);
     if (o) {
-      // The stored object is supported by the run-time.
-      uint32_t derived_id = base_to_derived_[base_id];
-      if (derived_id != base_id) {
+      if (o->GetClassId() != base_id) {
         o->DeserializeBase(s, base_id);
       } else {
         o->Deserialize(s);
