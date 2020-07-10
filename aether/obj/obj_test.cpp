@@ -299,7 +299,7 @@ public:
   AETHER_SERIALIZE(V1);
   AETHER_INTERFACES(V1);
 
-  int i = 123;
+  int i = 11;
   template <typename T>
   T& Serializator(T& s) {
     return s & i;
@@ -313,7 +313,7 @@ public:
   AETHER_SERIALIZE(V2, V1);
   AETHER_INTERFACES(V2, V1);
 
-  float f = 3.14f;
+  float f = 2.2f;
   template <typename T>
   T& Serializator(T& s) {
     return s & f;
@@ -321,53 +321,92 @@ public:
 };
 AETHER_IMPLEMENTATION(V2);
 
+class V3 : public V2 {
+public:
+  AETHER_OBJECT(V3);
+  AETHER_SERIALIZE(V3, V2);
+  AETHER_INTERFACES(V3, V2, V1);
+
+  std::string s_{"text33"};
+  template <typename T>
+  T& Serializator(T& s) {
+    return s & s_;
+  }
+};
+AETHER_IMPLEMENTATION(V3);
+
 TEST_CASE( "Versioning", "obj" ) {
   V1::ptr v1(new V1());
   v1->i = 111;
   V2::ptr v2(new V2());
   v2->i = 222;
-  v2->f = 2.71f;
-  AETHER_OMSTREAM os;
-  os << v2 << v1;
-  REQUIRE(os.stream_.size() == 48);
+  v2->f = 2.22f;
+  V3::ptr v3(new V3());
+  v3->i = 333;
+  v3->f = 3.33f;
+  v3->s_ = "text333";
   {
+    // Upgrade serialized version: v1 -> v3, v2 -> v3, v3 -> v3
+    AETHER_OMSTREAM os;
+    os << v3 << v2 << v1;
+    REQUIRE(os.stream_.size() == 103);
     AETHER_IMSTREAM is;
     is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
-    Obj::ptr o1, o2;
-    is >> o2 >> o1;
-    V1::ptr v11 = o1;
-    REQUIRE(v11);
-    REQUIRE(v11->i == 111);
+    Obj::ptr o1, o2, o3;
+    is >> o3 >> o2 >> o1;
+    REQUIRE(is.stream_.empty());
+    V3::ptr v31 = o1;
+    REQUIRE(v31);
+    REQUIRE(v31->i == 111);
+    REQUIRE(v31->f == 2.2f);
+    REQUIRE(v31->s_ == "text33");
+    V3::ptr v32 = o2;
+    REQUIRE(v32);
+    REQUIRE(v32->i == 222);
+    REQUIRE(v32->f == 2.22f);
+    REQUIRE(v32->s_ == "text33");
+    V3::ptr v33 = o3;
+    REQUIRE(v33);
+    REQUIRE(v33->i == 333);
+    REQUIRE(v33->f == 3.33f);
+    REQUIRE(v33->s_ == "text333");
+  }
+  {
+    // Downgrade serialized version: v3 -> v2, v2 -> v2
+    AETHER_OMSTREAM os;
+    os << v3 << v2;
+    REQUIRE(os.stream_.size() == 87);
+    AETHER_IMSTREAM is;
+    is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
+    Obj::ptr o2, o3;
+    aether::TestAccessor::UnregisterClass<V3>();
+    is >> o3 >> o2;
+    REQUIRE(is.stream_.empty());
     V2::ptr v22 = o2;
     REQUIRE(v22);
     REQUIRE(v22->i == 222);
-    REQUIRE(v22->f == 2.71f);
-    REQUIRE(is.stream_.empty());
+    REQUIRE(v22->f == 2.22f);
+    V2::ptr v23 = o3;
+    REQUIRE(v23);
+    REQUIRE(v23->i == 333);
+    REQUIRE(v23->f == 3.33f);
   }
   {
+    // Downgrade serialized version: v3 -> v1, v2 -> v1
+    AETHER_OMSTREAM os;
+    os << v3 << v2;
+    REQUIRE(os.stream_.size() == 87);
     AETHER_IMSTREAM is;
     is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
-    Obj::ptr o1, o2;
+    Obj::ptr o2, o3;
     aether::TestAccessor::UnregisterClass<V2>();
-    is >> o2 >> o1;
-    V1::ptr v11 = o1;
-    REQUIRE(v11);
-    REQUIRE(v11->i == 111);
-    V2::ptr v22 = o2;
-    REQUIRE(!v22);
-    V1::ptr v21 = o2;
-    REQUIRE(v21);
-    REQUIRE(v21->i == 222);
+    is >> o3 >> o2;
     REQUIRE(is.stream_.empty());
-  }
-  {
-    AETHER_IMSTREAM is;
-    is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
-    Obj::ptr o1, o2;
-    aether::TestAccessor::UnregisterClass<V1>();
-    is >> o2 >> o1;
-    REQUIRE(!V1::ptr(o2));
-    REQUIRE(!V1::ptr(o1));
-    REQUIRE(is.stream_.empty());
+    V1::ptr v12 = o2;
+    REQUIRE(v12);
+    REQUIRE(v12->i == 222);
+    V1::ptr v13 = o3;
+    REQUIRE(v13);
+    REQUIRE(v13->i == 333);
   }
 }
