@@ -281,6 +281,21 @@ TEST_CASE( "Obj::Ptr compare functions", "obj" ) {
   REQUIRE(p5 == p6);
 }
 
+TEST_CASE( "Load into specific pointer", "obj" ) {
+  F::ptr f1(new F());
+  F::ptr f2(new F());
+  AETHER_OMSTREAM os;
+  os << f1 << f2;
+  REQUIRE(os.stream_.size() == 24);
+  AETHER_IMSTREAM is;
+  is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
+  A::ptr o1;
+  F::ptr o2;
+  is >> o1 >> o2;
+  REQUIRE(is.stream_.empty());
+  REQUIRE(!o1);
+  REQUIRE(o2);
+}
 
 
 namespace aether {
@@ -391,6 +406,25 @@ TEST_CASE( "Versioning", "obj" ) {
     REQUIRE(v23->i == 333);
     REQUIRE(v23->f == 3.33f);
   }
+  {
+    // Upgrading by loading into the pointer
+    AETHER_OMSTREAM os;
+    os << v2 << v1;
+    REQUIRE(os.stream_.size() == 48);
+    AETHER_IMSTREAM is;
+    is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
+    V2::ptr o2;
+    V2::ptr o1;
+    is >> o2 >> o1;
+    REQUIRE(is.stream_.empty());
+    REQUIRE(o2);
+    REQUIRE(o2->i == 222);
+    REQUIRE(o2->f == 2.22f);
+    REQUIRE(o1);
+    REQUIRE(o1->i == 111);
+    REQUIRE(o1->f == 2.2f);
+  }
+
   {
     // Downgrade serialized version: v3 -> v1, v2 -> v1
     AETHER_OMSTREAM os;
