@@ -286,11 +286,28 @@ protected:
   };
 
 public:
-  static Obj* CreateClassById(uint32_t id) {
+  static Obj* CreateClassById(uint32_t id, uint32_t instance_id) {
+    Obj* o = Registry<void>::GetObject(instance_id);
+    if (o) {
+      return o;
+    }
     return Registry<void>::CreateClassById(id);
   }
 
-  virtual ~Obj() {}
+  Obj() {
+    // All newly created objects use unique instance id.
+    static uint32_t instance_id = 0;
+    while (Registry<void>::GetObject(++instance_id)) {
+    }
+    instance_id_ = instance_id;
+    Registry<void>::AddObject(this);
+  }
+  Obj(uint32_t instance_id) : instance_id_(instance_id) {
+    Registry<void>::AddObject(this);
+  }
+  virtual ~Obj() {
+    Registry<void>::RemoveObject(this);
+  }
 
   AETHER_OBJECT(Obj);
   AETHER_INTERFACES(Obj);
@@ -300,6 +317,7 @@ public:
     return s;
   }
 
+  uint32_t instance_id_ = 0;
  protected:
   template<class T>
   friend class Ptr;
@@ -315,6 +333,7 @@ public:
         initialized = true;
         registry_ = new std::unordered_map<uint32_t, std::function<Obj*()>>();
         base_to_derived_ = new std::unordered_map<uint32_t, uint32_t>();
+        instances_ = new std::unordered_map<uint32_t, Obj*>();
       }
       if (registry_->find(id) != registry_->end()) {
         throw std::runtime_error("Class name already registered or Crc32 "
@@ -352,9 +371,25 @@ public:
       }
       return it->second();
     }
+    
+    static Obj* GetObject(uint32_t instance_id) {
+      auto it = instances_->find(instance_id);
+      if (it == instances_->end()) {
+        return nullptr;
+      }
+      return it->second;
+    }
+    static void AddObject(Obj* o) {
+      (*instances_)[o->instance_id_] = o;
+    }
+    static void RemoveObject(Obj* o) {
+      instances_->erase(instances_->find(o->instance_id_));
+    }
   private:
     static std::unordered_map<uint32_t, std::function<Obj*()>>* registry_;
     static std::unordered_map<uint32_t, uint32_t>* base_to_derived_;
+    // TODO: synchronize access from multiple threads.
+    static std::unordered_map<uint32_t, Obj*>* instances_;
   };
 };
 
@@ -364,22 +399,26 @@ std::unordered_map<uint32_t, std::function<Obj*()>>*
 template <class Dummy>
 std::unordered_map<uint32_t, uint32_t>*
   Obj::Registry<Dummy>::base_to_derived_;
+template <class Dummy>
+std::unordered_map<uint32_t, Obj*>*
+  Obj::Registry<Dummy>::instances_;
 
 template<class T>
 void SerializeObj(T& s, const Ptr<Obj>& o) {
-  s << o->GetClassId();
+  s << o->instance_id_ << o->GetClassId();
   o->Serialize(s);
 }
 
 template<class T>
 Obj::ptr DeserializeObj(T& s) {
   while(true) {
+    uint32_t instance_id;
     uint32_t base_id;
     uint32_t full_size;
     uint32_t cur_obj_size;
-    s >> base_id >> full_size >> cur_obj_size;
+    s >> instance_id >> base_id >> full_size >> cur_obj_size;
     // The stored object is supported by the run-time.
-    Obj::ptr o = Obj::CreateClassById(base_id);
+    Obj::ptr o = Obj::CreateClassById(base_id, instance_id);
     if (o) {
       if (o->GetClassId() != base_id) {
         o->DeserializeBase(s, base_id);
