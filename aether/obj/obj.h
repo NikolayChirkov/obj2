@@ -18,13 +18,28 @@ limitations under the License.
 #include <functional>
 #include <stdexcept>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "../../third_party/crc32/crc32.h"
 
 //#ifndef AETHER_OMSTREAM
 #include "../../third_party/aether/stream/aether/mstream/mstream.h"
-#define AETHER_OMSTREAM aether::omstream
-#define AETHER_IMSTREAM aether::imstream
+namespace aether {
+class Instances {
+public:
+  std::unordered_set<uint32_t> serialized_ids_;
+  bool Add(uint32_t serialized_id) {
+    auto it = serialized_ids_.find(serialized_id);
+    if (it != serialized_ids_.end()) {
+      return false;
+    }
+    serialized_ids_.insert(serialized_id);
+    return true;
+  }
+};
+}
+using AETHER_OMSTREAM = aether::omstream<aether::Instances>;
+using AETHER_IMSTREAM = aether::imstream<aether::Instances>;
 //#endif
 
 namespace aether {
@@ -286,12 +301,20 @@ protected:
   };
 
 public:
+  static Obj* GetInstance(uint32_t instance_id) {
+    return Registry<void>::GetObject(instance_id);
+  }
   static Obj* CreateClassById(uint32_t id, uint32_t instance_id) {
     Obj* o = Registry<void>::GetObject(instance_id);
     if (o) {
       return o;
     }
-    return Registry<void>::CreateClassById(id);
+    o = Registry<void>::CreateClassById(id);
+    // The instance is registered in constructor with incorrect id.
+    Registry<void>::RemoveObject(o);
+    o->instance_id_ = instance_id;
+    Registry<void>::AddObject(o);
+    return o;
   }
 
   Obj() {
@@ -300,9 +323,6 @@ public:
     while (Registry<void>::GetObject(++instance_id)) {
     }
     instance_id_ = instance_id;
-    Registry<void>::AddObject(this);
-  }
-  Obj(uint32_t instance_id) : instance_id_(instance_id) {
     Registry<void>::AddObject(this);
   }
   virtual ~Obj() {
@@ -405,7 +425,12 @@ std::unordered_map<uint32_t, Obj*>*
 
 template<class T>
 void SerializeObj(T& s, const Ptr<Obj>& o) {
-  s << o->instance_id_ << o->GetClassId();
+  s << o->instance_id_;
+  if (!s.custom_.Add(o->instance_id_)) {
+    // The object is already serialized. Store just a reference.
+    return;
+  }
+  s << o->GetClassId();
   o->Serialize(s);
 }
 
@@ -413,10 +438,14 @@ template<class T>
 Obj::ptr DeserializeObj(T& s) {
   while(true) {
     uint32_t instance_id;
+    s >> instance_id;
+    if (!s.custom_.Add(instance_id)) {
+      return Obj::GetInstance(instance_id);
+    }
     uint32_t base_id;
     uint32_t full_size;
     uint32_t cur_obj_size;
-    s >> instance_id >> base_id >> full_size >> cur_obj_size;
+    s >> base_id >> full_size >> cur_obj_size;
     // The stored object is supported by the run-time.
     Obj::ptr o = Obj::CreateClassById(base_id, instance_id);
     if (o) {
