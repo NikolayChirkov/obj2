@@ -49,7 +49,7 @@ AETHER_IMPLEMENTATION(A);
 
 TEST_CASE( "Obj: Create, Pure, Cast, Serialize", "obj" ) {
   const char* cls = "A";
-  A::ptr a(Obj::CreateClassById(qcstudio::crc32::from_string(cls).value));
+  A::ptr a(Obj::CreateClassById(qcstudio::crc32::from_string(cls).value, 1));
   REQUIRE(a);
   PureInterface1::ptr p(a);
   REQUIRE(p);

@@ -17,10 +17,10 @@ limitations under the License.
 
 #include <aether/mstream/mstream.h>
 #ifndef AETHER_OMSTREAM
-  #define AETHER_OMSTREAM aether::tomstream
+//  #define AETHER_OMSTREAM aether::tomstream
 #endif
 #ifndef AETHER_IMSTREAM
-  #define AETHER_IMSTREAM aether::timstream
+//  #define AETHER_IMSTREAM aether::timstream
 #endif
 
 // #include "../../third_party/cppformat/format.h"
