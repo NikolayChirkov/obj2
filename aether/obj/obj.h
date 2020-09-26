@@ -319,7 +319,8 @@ public:
 
   Obj() {
     // All newly created objects use unique instance id.
-    static uint32_t instance_id = 0;
+    // 0 is reserved for null pointer.
+    static uint32_t instance_id = 1;
     while (Registry<void>::GetObject(++instance_id)) {
     }
     instance_id_ = instance_id;
@@ -425,6 +426,10 @@ std::unordered_map<uint32_t, Obj*>*
 
 template<class T>
 void SerializeObj(T& s, const Ptr<Obj>& o) {
+  if (!o) {
+    s << decltype(Obj::instance_id_)(0);
+    return;
+  }
   s << o->instance_id_;
   if (!s.custom_.Add(o->instance_id_)) {
     // The object is already serialized. Store just a reference.
@@ -439,6 +444,9 @@ Obj::ptr DeserializeObj(T& s) {
   while(true) {
     uint32_t instance_id;
     s >> instance_id;
+    if (instance_id == 0) {
+      return nullptr;
+    }
     if (!s.custom_.Add(instance_id)) {
       return Obj::GetInstance(instance_id);
     }
