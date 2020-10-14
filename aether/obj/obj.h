@@ -28,6 +28,7 @@ namespace aether {
 class Instances {
 public:
   std::unordered_set<uint32_t> serialized_ids_;
+  std::string path_;
   bool Add(uint32_t serialized_id) {
     auto it = serialized_ids_.find(serialized_id);
     if (it != serialized_ids_.end()) {
