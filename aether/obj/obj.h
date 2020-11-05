@@ -213,6 +213,7 @@ Ptr<Obj> DeserializeObj(T& s);
 #define AETHER_SERIALIZE_(CLS, BASE) \
 virtual void Serialize(AETHER_OMSTREAM& s) { \
   AETHER_OMSTREAM cur_obj; \
+  cur_obj.custom_.serialized_ids_ = s.custom_.serialized_ids_; \
   Serializator(cur_obj); \
   AETHER_OMSTREAM whole; \
   whole << cur_obj.stream_; \
@@ -222,6 +223,7 @@ virtual void Serialize(AETHER_OMSTREAM& s) { \
     BASE::Serialize(whole); \
   } \
   s << whole.stream_; \
+  for (auto v : cur_obj.custom_.serialized_ids_) s.custom_.serialized_ids_.insert(v); \
 } \
 virtual void Deserialize(AETHER_IMSTREAM& s) { \
   Serializator(s); \
