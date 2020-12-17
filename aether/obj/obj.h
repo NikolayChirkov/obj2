@@ -496,8 +496,9 @@ Obj::ptr DeserializeObj(T& s) {
   is >> class_id;
   o = Obj::CreateClassById(class_id, instance_id);
   o->instance_id_ = instance_id;
-  o->Deserialize(is);
+  // Add object to the list of already loaded before deserialization to avoid infinite loop of cyclic references.
   s.custom_->AddObject(o, instance_id);
+  o->Deserialize(is);
   return o;
 }
 
