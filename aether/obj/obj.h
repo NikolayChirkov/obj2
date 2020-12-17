@@ -185,6 +185,7 @@ class Ptr {
 
   void release() {
     if (ptr_ != nullptr) {
+      // reference_count_ is set to 0 to resolve cyclic references.
       if (--ptr_->reference_count_ == 0) {
         delete ptr_;
       }
@@ -507,8 +508,8 @@ void Ptr<T>::Unload() {
   AETHER_OMSTREAM os;
   os.custom_ = &domain;
   os << *this;
+  release();
   domain.ReleaseObjects();
-//  release();
 }
 
 void Domain::ReleaseObjects() {
@@ -520,9 +521,13 @@ void Domain::ReleaseObjects() {
     int domain_refs = reference_counts_[it.second->instance_id_];
     if (total_refs == domain_refs) {
       // The object is referenced only within the domain so must be released.
+      it.second->reference_count_ = 0;
       objects_to_release.push_back(it.second.ptr_);
+    }
   }
+  objects_.clear();
   for (auto it : objects_to_release) {
+    delete it;
   }
 }
 
