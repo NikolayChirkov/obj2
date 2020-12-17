@@ -19,51 +19,96 @@ limitations under the License.
 #include <stdexcept>
 #include <unordered_map>
 #include <unordered_set>
+#include <set>
+#include <filesystem>
 
 #include "../../third_party/crc32/crc32.h"
 
 //#ifndef AETHER_OMSTREAM
 #include "../../third_party/aether/stream/aether/mstream/mstream.h"
 namespace aether {
-class Instances {
-public:
-  std::unordered_set<uint32_t> serialized_ids_;
-  std::string path_;
-  bool Add(uint32_t serialized_id) {
-    auto it = serialized_ids_.find(serialized_id);
-    if (it != serialized_ids_.end()) {
-      return false;
-    }
-    serialized_ids_.insert(serialized_id);
-    return true;
-  }
-};
+class Domain;
 }
-using AETHER_OMSTREAM = aether::omstream<aether::Instances>;
-using AETHER_IMSTREAM = aether::imstream<aether::Instances>;
+using AETHER_OMSTREAM = aether::omstream<aether::Domain*>;
+using AETHER_IMSTREAM = aether::imstream<aether::Domain*>;
 //#endif
+extern void LoadStream(const std::filesystem::path& fname, AETHER_IMSTREAM& is);
+extern void SaveStream(const std::filesystem::path& fname, const AETHER_OMSTREAM& os);
 
 namespace aether {
+
+class InstanceId {
+public:
+  using Type = uint32_t;
+  InstanceId() = default;
+  InstanceId(const Type& i, Type flags) : id_(i), flags_(flags) {}
+  void GenerateUnique() {
+    static int i=0;
+    id_ = ++i;//std::rand());
+  }
+  void Invalidate() { id_ = 0; }
+  void SetId(Type i) { id_ = i; }
+  Type GetId() const { return id_; }
+  enum Flags {
+    kDomain = ~(std::numeric_limits<Type>::max() >> 1),
+    kLoaded = kDomain >> 1,
+  };
+  Type GetFlags() const { return flags_; }
+  void SetFlags(Type flags) { flags_ |= flags; }
+  void ClearFlags(Type flags) { flags_ &= ~flags; }
+  void ClearAndSetFlags(Type flags) { flags_ = flags; }
+
+  bool IsValid() const { return id_ != 0; }
+  friend bool operator == (const InstanceId& i1, const InstanceId& i2) {
+    return i1.id_ == i2.id_;
+  }
+  friend bool operator != (const InstanceId& i1, const InstanceId& i2) {
+    return !(i1 == i2);
+  }
+  friend bool operator < (const InstanceId& i1, const InstanceId& i2) {
+    return i1.id_ < i2.id_;
+  }
+  friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const InstanceId& i) {
+    s << (i.id_ | i.flags_);
+    return s;
+  }
+  friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, InstanceId& i) {
+    s >> i.id_;
+    i.flags_ = i.id_ & (~kIdBitMask);
+    i.id_ &= kIdBitMask;
+    return s;
+  }
+protected:
+  Type id_;
+  Type flags_;
+  constexpr static Type kIdBitMask = ~(kDomain | kLoaded);
+};
 
 template <class T>
 class Ptr {
  public:
-
-  Ptr clone() const {
-    AETHER_OMSTREAM os;
-    os << *this;
-    AETHER_IMSTREAM is;
-    is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
-    Ptr cloned;
-    is >> cloned;
-    return cloned;
+  InstanceId instance_id_;
+  void Unload();
+  void Load();
+  Ptr clone() const;
+  
+  template <class T1> Ptr(T1* p) {
+    InitCast(p);
+    if (ptr_) instance_id_ = ptr_->instance_id_;
+  }
+  template <class T1> Ptr(const Ptr<T1>& p) {
+    InitCast(p.ptr_);
+    instance_id_ = p.instance_id_;
   }
 
-  template <class T1> Ptr(T1* p) { InitCast(p); }
-  template <class T1> Ptr(const Ptr<T1>& p) { InitCast(p.ptr_); }
-
-  Ptr(T* p) { Init(p); }
-  Ptr(const Ptr& p) { Init(p.ptr_); }
+  Ptr(T* p) {
+    Init(p);
+    if (ptr_) instance_id_ = ptr_->instance_id_;
+  }
+  Ptr(const Ptr& p) {
+    Init(p.ptr_);
+    instance_id_ = p.instance_id_;
+  }
 
   template <class T1>
   Ptr& operator = (const Ptr<T1>& p) {
@@ -73,6 +118,7 @@ class Ptr {
     }
     release();
     InitCast(p.ptr_);
+    instance_id_ = p.instance_id_;
     return *this;
   }
 
@@ -84,13 +130,17 @@ class Ptr {
     }
     release();
     Init(p.ptr_);
+    instance_id_ = p.instance_id_;
     return *this;
   }
 
-  template <class T1> Ptr(Ptr<T1>&& p) { MoveCast(p); }
+  template <class T1> Ptr(Ptr<T1>&& p) {
+    MoveCast(p);
+  }
 
   Ptr(Ptr&& p) {
     ptr_ = p.ptr_;
+    instance_id_ = p.instance_id_;
     p.ptr_ = nullptr;
   }
 
@@ -120,6 +170,7 @@ class Ptr {
     // Another object is comming.
     release();
     ptr_ = p.ptr_;
+    instance_id_ = p.instance_id_;
     if (ptr_) {
       p.ptr_ = nullptr;
     } else {
@@ -155,7 +206,7 @@ class Ptr {
     }
     // If both are zero - equal.
     if (!p1 && !p2) {
-      return true;
+      return p1.instance_id_ == p2.instance_id_;
     }
     constexpr uint32_t class_id = qcstudio::crc32::from_literal("Obj").value;
     void* o1 = p1.ptr_->DynamicCast(class_id);
@@ -193,6 +244,7 @@ class Ptr {
   }
 
   template <class T1> void MoveCast(Ptr<T1>& p) {
+    instance_id_ = p.instance_id_;
     if (p.ptr_ != nullptr) {
       ptr_ = reinterpret_cast<T*>(p.ptr_->DynamicCast(T::class_id_));
       if (ptr_ != nullptr) {
@@ -206,45 +258,17 @@ class Ptr {
 
 class Obj;
 template<class T>
-void SerializeObj(T& s, const Ptr<Obj>& o);
+void SerializeObj(T& s, Ptr<Obj> o);
 template<class T>
 Ptr<Obj> DeserializeObj(T& s);
 
 #define AETHER_SERIALIZE_(CLS, BASE) \
 virtual void Serialize(AETHER_OMSTREAM& s) { \
-  AETHER_OMSTREAM cur_obj; \
-  cur_obj.custom_.serialized_ids_ = s.custom_.serialized_ids_; \
-  Serializator(cur_obj); \
-  AETHER_OMSTREAM whole; \
-  whole << cur_obj.stream_; \
-  if (qcstudio::crc32::from_literal(#BASE).value != \
-      qcstudio::crc32::from_literal("Obj").value) { \
-    whole << qcstudio::crc32::from_literal(#BASE).value; \
-    BASE::Serialize(whole); \
-  } \
-  s << whole.stream_; \
-  for (auto v : cur_obj.custom_.serialized_ids_) s.custom_.serialized_ids_.insert(v); \
+  Serializator(s); \
 } \
 virtual void Deserialize(AETHER_IMSTREAM& s) { \
   Serializator(s); \
-  if (qcstudio::crc32::from_literal(#BASE).value != \
-      qcstudio::crc32::from_literal("Obj").value) { \
-    uint32_t class_id; \
-    uint32_t full_size; \
-    uint32_t cur_obj_size; \
-    s >> class_id >> full_size >> cur_obj_size; \
-    BASE::Deserialize(s); \
-  } \
 } \
-virtual void DeserializeBase(AETHER_IMSTREAM& s, uint32_t id) { \
-  if (qcstudio::crc32::from_literal(#CLS).value != id) { \
-    BASE::DeserializeBase(s, id); \
-  } else { \
-    CLS::Deserialize(s); \
-  } \
-} \
-static constexpr uint32_t base_id_ = \
-  qcstudio::crc32::from_literal(#BASE).value; \
 friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const CLS::ptr& o) { \
   SerializeObj(s, o); \
   return s; \
@@ -292,7 +316,44 @@ AETHER_SERIALIZE_CLS2, AETHER_SERIALIZE_CLS1)(__VA_ARGS__))
   AETHER_INTERFACES(CLS)
 
 #define AETHER_IMPLEMENTATION(CLS) \
-  aether::Obj::Registrar<CLS> CLS::registrar_(CLS::class_id_, CLS::base_id_);
+  aether::Obj::Registrar<CLS> CLS::registrar_(CLS::class_id_, 0);
+
+class Domain {
+public:
+  std::filesystem::path path_;
+  std::map<InstanceId, Ptr<Obj>> objects_;
+//  std::set<InstanceId> saved_ids_;
+//  std::map<InstanceId, std::vector<uint8_t>> data_;
+  std::map<InstanceId, int> reference_counts_;
+  void IncrementReferenceCount(InstanceId instance_id) {
+    reference_counts_[instance_id]++;
+  }
+  inline void ReleaseObjects();
+
+  Ptr<Obj> FindObject(InstanceId instance_id) const {
+    auto it = objects_.find(instance_id);
+    if (it != objects_.end()) {
+      return it->second;
+    }
+    return {};
+  }
+  
+  void AddObject(Ptr<Obj> o, InstanceId instance_id) {
+    objects_[instance_id] = o;
+  }
+  
+//  void RemoveObject(InstanceId instance_id) {
+//    auto it = objects_.find(instance_id);
+//    if (it == objects_.end()) return;
+//    objects_.erase(it);
+//  }
+//  bool IsSaved(InstanceId instance_id) const {
+//    return saved_ids_.find(instance_id) != saved_ids_.end();
+//  }
+//  void AddSaved(const InstanceId& instance_id) {
+//    saved_ids_.insert(instance_id);
+//  }
+};
 
 class Obj {
 protected:
@@ -304,47 +365,28 @@ protected:
   };
 
 public:
-  static Obj* GetInstance(uint32_t instance_id) {
-    return Registry<void>::GetObject(instance_id);
-  }
-  static Obj* CreateClassById(uint32_t id, uint32_t instance_id) {
-    Obj* o = Registry<void>::GetObject(instance_id);
-    if (o) {
-      return o;
-    }
-    o = Registry<void>::CreateClassById(id);
-    // The instance is registered in constructor with incorrect id.
-    Registry<void>::RemoveObject(o);
+  static Obj* CreateClassById(uint32_t id, InstanceId instance_id) {
+    Obj* o = Registry<void>::CreateClassById(id);
     o->instance_id_ = instance_id;
-    Registry<void>::AddObject(o);
     return o;
   }
 
   Obj() {
-    // All newly created objects use unique instance id.
-    // 0 is reserved for null pointer.
-    static uint32_t instance_id = 1;
-    while (Registry<void>::GetObject(++instance_id)) {
-    }
-    instance_id_ = instance_id;
-    Registry<void>::AddObject(this);
+    instance_id_.GenerateUnique();
+    instance_id_.SetFlags(InstanceId::kLoaded);
   }
-  virtual ~Obj() {
-    Registry<void>::RemoveObject(this);
-  }
+  virtual ~Obj() {}
 
   AETHER_OBJECT(Obj);
   AETHER_INTERFACES(Obj);
   AETHER_SERIALIZE(Obj);
   template <typename T>
-  T& Serializator(T& s) {
-    return s;
-  }
+  void Serializator(T& s) {}
 
-  uint32_t instance_id_ = 0;
+  InstanceId instance_id_;
  protected:
-  template<class T>
-  friend class Ptr;
+  template<class T> friend class Ptr;
+  friend class Domain;
   std::atomic<int> reference_count_{0};
   friend class TestAccessor;
 
@@ -357,7 +399,6 @@ public:
         initialized = true;
         registry_ = new std::unordered_map<uint32_t, std::function<Obj*()>>();
         base_to_derived_ = new std::unordered_map<uint32_t, uint32_t>();
-        instances_ = new std::unordered_map<uint32_t, Obj*>();
       }
       if (registry_->find(id) != registry_->end()) {
         throw std::runtime_error("Class name already registered or Crc32 "
@@ -396,24 +437,9 @@ public:
       return it->second();
     }
     
-    static Obj* GetObject(uint32_t instance_id) {
-      auto it = instances_->find(instance_id);
-      if (it == instances_->end()) {
-        return nullptr;
-      }
-      return it->second;
-    }
-    static void AddObject(Obj* o) {
-      (*instances_)[o->instance_id_] = o;
-    }
-    static void RemoveObject(Obj* o) {
-      instances_->erase(instances_->find(o->instance_id_));
-    }
   private:
     static std::unordered_map<uint32_t, std::function<Obj*()>>* registry_;
     static std::unordered_map<uint32_t, uint32_t>* base_to_derived_;
-    // TODO: synchronize access from multiple threads.
-    static std::unordered_map<uint32_t, Obj*>* instances_;
   };
 };
 
@@ -423,63 +449,118 @@ std::unordered_map<uint32_t, std::function<Obj*()>>*
 template <class Dummy>
 std::unordered_map<uint32_t, uint32_t>*
   Obj::Registry<Dummy>::base_to_derived_;
-template <class Dummy>
-std::unordered_map<uint32_t, Obj*>*
-  Obj::Registry<Dummy>::instances_;
+
 
 template<class T>
-void SerializeObj(T& s, const Ptr<Obj>& o) {
+void SerializeObj(T& s, Ptr<Obj> o) {
   if (!o) {
-    s << decltype(Obj::instance_id_)(0);
+    s << o.instance_id_;
     return;
   }
+  s.custom_->IncrementReferenceCount(o->instance_id_);
   s << o->instance_id_;
-  if (!s.custom_.Add(o->instance_id_)) {
-    // The object is already serialized. Store just a reference.
+  // Object is already serialized.
+  if (s.custom_->FindObject(o->instance_id_)) {
     return;
   }
-  s << o->GetClassId();
-  o->Serialize(s);
+  s.custom_->AddObject(o, o->instance_id_);
+
+  AETHER_OMSTREAM os;
+  os.custom_ = s.custom_;
+  os << o->GetClassId();
+  o->Serialize(os);
+  SaveStream(s.custom_->path_ / std::to_string(o->instance_id_.GetId()), os);
 }
 
 template<class T>
 Obj::ptr DeserializeObj(T& s) {
-  while(true) {
-    uint32_t instance_id;
-    s >> instance_id;
-    if (instance_id == 0) {
-      return nullptr;
-    }
-    if (!s.custom_.Add(instance_id)) {
-      return Obj::GetInstance(instance_id);
-    }
-    uint32_t base_id;
-    uint32_t full_size;
-    uint32_t cur_obj_size;
-    s >> base_id >> full_size >> cur_obj_size;
-    // The stored object is supported by the run-time.
-    Obj::ptr o = Obj::CreateClassById(base_id, instance_id);
-    if (o) {
-      if (o->GetClassId() != base_id) {
-        o->DeserializeBase(s, base_id);
-      } else {
-        o->Deserialize(s);
-      }
-      return o;
-    } else {
-      // Skip serialized data of the inherited object.
-      // TODO: use seek for performance
-      for (int i = 0; i < cur_obj_size; i++) {
-        uint8_t c;
-        s >> c;
-      }
-      // object size is included into the full stream, add +4.
-      if (full_size == cur_obj_size + sizeof(uint32_t)) {
-        return {};
-      }
-    }
+  InstanceId instance_id;
+  s >> instance_id;
+  Obj::ptr o;
+  if (!instance_id.IsValid() || !(instance_id.GetFlags() & InstanceId::kLoaded)) {
+    o.instance_id_ = instance_id;
+    return o;
   }
 
+  // If object is already deserialized.
+  o = s.custom_->FindObject(instance_id);
+  if (o) {
+    return o;
+  }
+
+  AETHER_IMSTREAM is;
+  is.custom_ = s.custom_;
+  LoadStream(s.custom_->path_ / std::to_string(instance_id.GetId()), is);
+  uint32_t class_id;
+  is >> class_id;
+  o = Obj::CreateClassById(class_id, instance_id);
+  o->instance_id_ = instance_id;
+  o->Deserialize(is);
+  s.custom_->AddObject(o, instance_id);
+  return o;
+}
+
+template<typename T>
+void Ptr<T>::Unload() {
+  Domain domain;
+  domain.path_ = "state";
+  AETHER_OMSTREAM os;
+  os.custom_ = &domain;
+  os << *this;
+  domain.ReleaseObjects();
+//  release();
+}
+
+void Domain::ReleaseObjects() {
+  std::vector<Obj*> objects_to_release;
+  for (auto it : objects_) {
+    // The object's total references count. 2 additional references come with Domain.
+    int total_refs = it.second->reference_count_ - 2;
+    // The object's reference count within the domain.
+    int domain_refs = reference_counts_[it.second->instance_id_];
+    if (total_refs == domain_refs) {
+      // The object is referenced only within the domain so must be released.
+      objects_to_release.push_back(it.second.ptr_);
+  }
+  for (auto it : objects_to_release) {
+  }
+}
+
+template<typename T>
+void Ptr<T>::Load() {
+  if (*this || !(instance_id_.GetFlags() & InstanceId::kLoaded)) {
+    return;
+  }
+  AETHER_IMSTREAM is;
+  aether::Domain domain;
+  domain.path_ = "state";
+  is.custom_ = &domain;
+  AETHER_OMSTREAM os;
+  os << aether::InstanceId{instance_id_.GetId(), aether::InstanceId::kDomain | aether::InstanceId::kLoaded};
+  is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
+  is >> *this;
+}
+
+template<typename T>
+Ptr<T> Ptr<T>::clone() const {
+//  AETHER_OMSTREAM os;
+//  Ptr<T> o = *this;
+//  if (instance_id_.IsLoaded()) {
+//    aether::Domain domain;
+//    os.custom_ = &domain;
+//    os << o;
+//    o = {};
+//    AETHER_IMSTREAM is;
+//    is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
+//    is.custom_ = &domain;
+//    is >> o;
+//  } else {
+//    os.custom_ = &domain;
+//    o.Load(domain);
+//  }
+//  o.instance_id_.GenerateUnique();
+//  return o;
+  return {};
 }
 
 }  // namespace aether
