@@ -19,9 +19,6 @@ limitations under the License.
 #include <functional>
 #include <stdexcept>
 #include <unordered_map>
-#include <unordered_set>
-#include <set>
-#include <filesystem>
 
 #include "../../third_party/crc32/crc32.h"
 
@@ -325,7 +322,6 @@ class Domain {
 public:
   StoreFacility store_facility_;
   LoadFacility load_facility_;
-  std::filesystem::path path_;
   std::map<InstanceId, Ptr<Obj>> objects_;
   std::map<InstanceId, int> reference_counts_;
   void IncrementReferenceCount(InstanceId instance_id) {
@@ -460,7 +456,7 @@ void SerializeObj(T& s, Ptr<Obj> o) {
   os.custom_ = s.custom_;
   os << o->GetClassId();
   o->Serialize(os);
-  s.custom_->store_facility_(s.custom_->path_ / std::to_string(o->instance_id_.GetId()), os);
+  s.custom_->store_facility_(std::to_string(o->instance_id_.GetId()), os);
 }
 
 template<class T>
@@ -481,7 +477,7 @@ Obj::ptr DeserializeObj(T& s) {
 
   AETHER_IMSTREAM is;
   is.custom_ = s.custom_;
-  s.custom_->load_facility_(s.custom_->path_ / std::to_string(instance_id.GetId()), is);
+  s.custom_->load_facility_(std::to_string(instance_id.GetId()), is);
   uint32_t class_id;
   is >> class_id;
   o = Obj::CreateClassById(class_id, instance_id);
@@ -495,7 +491,6 @@ Obj::ptr DeserializeObj(T& s) {
 template<typename T>
 void Ptr<T>::Unload(StoreFacility store_facility) {
   Domain domain;
-  domain.path_ = "state";
   domain.store_facility_ = store_facility;
   AETHER_OMSTREAM os;
   os.custom_ = &domain;
@@ -528,7 +523,6 @@ void Ptr<T>::Load(LoadFacility load_facility) {
   }
   AETHER_IMSTREAM is;
   aether::Domain domain;
-  domain.path_ = "state";
   domain.load_facility_ = load_facility;
   is.custom_ = &domain;
   AETHER_OMSTREAM os;
