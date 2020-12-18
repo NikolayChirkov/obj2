@@ -13,7 +13,6 @@ limitations under the License.
 #ifndef AETHER_OBJ_H_
 #define AETHER_OBJ_H_
 
-#include <atomic>
 #include <algorithm>
 #include <cstdint>
 #include <functional>
@@ -183,15 +182,7 @@ class Ptr {
     release();
   }
 
-  void release() {
-    if (ptr_ != nullptr) {
-      // reference_count_ is set to 0 to resolve cyclic references.
-      if (--ptr_->reference_count_ == 0) {
-        delete ptr_;
-      }
-      ptr_ = nullptr;
-    }
-  }
+  void release();
 
   T* ptr_ = nullptr;
   Ptr() = default;
@@ -259,7 +250,7 @@ class Ptr {
 
 class Obj;
 template<class T>
-void SerializeObj(T& s, Ptr<Obj> o);
+void SerializeObj(T& s, Obj* o, InstanceId instance_id);
 template<class T>
 Ptr<Obj> DeserializeObj(T& s);
 
@@ -271,7 +262,7 @@ virtual void Deserialize(AETHER_IMSTREAM& s) { \
   Serializator(s); \
 } \
 friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const CLS::ptr& o) { \
-  SerializeObj(s, o); \
+  SerializeObj(s, o.ptr_, o.instance_id_); \
   return s; \
 } \
 friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, CLS::ptr& o) { \
@@ -323,22 +314,22 @@ class Domain {
 public:
   StoreFacility store_facility_;
   LoadFacility load_facility_;
-  std::map<InstanceId, Ptr<Obj>> objects_;
+  std::map<InstanceId, Obj*> objects_;
   std::map<InstanceId, int> reference_counts_;
   void IncrementReferenceCount(InstanceId instance_id) {
     reference_counts_[instance_id]++;
   }
-  inline void ReleaseObjects();
+  inline bool ReleaseObjects(Obj* obj);
 
-  Ptr<Obj> FindObject(InstanceId instance_id) const {
+  Obj* FindObject(InstanceId instance_id) const {
     auto it = objects_.find(instance_id);
     if (it != objects_.end()) {
       return it->second;
     }
-    return {};
+    return nullptr;
   }
   
-  void AddObject(Ptr<Obj> o, InstanceId instance_id) {
+  void AddObject(Obj* o, InstanceId instance_id) {
     objects_[instance_id] = o;
   }
 };
@@ -368,13 +359,13 @@ public:
   AETHER_INTERFACES(Obj);
   AETHER_SERIALIZE(Obj);
   template <typename T>
-  void Serializator(T& s) {}
+  void Serializator(T& s) const {}
 
   InstanceId instance_id_;
  protected:
   template<class T> friend class Ptr;
   friend class Domain;
-  std::atomic<int> reference_count_{0};
+  int reference_count_ = 0;
   friend class TestAccessor;
 
   template <class Dummy>
@@ -439,9 +430,9 @@ std::unordered_map<uint32_t, uint32_t>*
 
 
 template<class T>
-void SerializeObj(T& s, Ptr<Obj> o) {
+void SerializeObj(T& s, Obj* o, InstanceId instance_id) {
   if (!o) {
-    s << o.instance_id_;
+    s << instance_id;
     return;
   }
   s.custom_->IncrementReferenceCount(o->instance_id_);
@@ -470,9 +461,9 @@ Obj::ptr DeserializeObj(T& s) {
   }
 
   // If object is already deserialized.
-  o = s.custom_->FindObject(instance_id);
-  if (o) {
-    return o;
+  Obj* obj = s.custom_->FindObject(instance_id);
+  if (obj) {
+    return obj;
   }
 
   AETHER_IMSTREAM is;
@@ -480,11 +471,11 @@ Obj::ptr DeserializeObj(T& s) {
   s.custom_->load_facility_(std::to_string(instance_id.GetId()), is);
   uint32_t class_id;
   is >> class_id;
-  o = Obj::CreateClassById(class_id, instance_id);
-  o->instance_id_ = instance_id;
+  obj = Obj::CreateClassById(class_id, instance_id);
+  obj->instance_id_ = instance_id;
   // Add object to the list of already loaded before deserialization to avoid infinite loop of cyclic references.
-  s.custom_->AddObject(o, instance_id);
-  o->Deserialize(is);
+  s.custom_->AddObject(obj, instance_id);
+  obj->Deserialize(is);
   return o;
 }
 
@@ -497,6 +488,35 @@ void Ptr<T>::Serialize(StoreFacility store_facility) const {
   os << *this;
 }
 
+static bool first = true;
+template<typename T>
+void Ptr<T>::release() {
+  if (ptr_ != nullptr) {
+    if (first) {
+      first = false;
+      Domain domain;
+      domain.store_facility_ = [](const std::string& path, const AETHER_OMSTREAM& os){
+      };
+      AETHER_OMSTREAM os;
+      os.custom_ = &domain;
+      os << *this;
+      //domain.AddObject(*this, this->instance_id_);
+      if (!domain.ReleaseObjects(ptr_)) {
+        ptr_->reference_count_--;
+      }
+      first = true;
+      ptr_ = nullptr;
+      return;
+    }
+    
+    // reference_count_ is set to 0 to resolve cyclic references.
+    if (--ptr_->reference_count_ == 0) {
+      delete ptr_;
+    }
+    ptr_ = nullptr;
+  }
+}
+
 template<typename T>
 void Ptr<T>::Unload() {
   Domain domain;
@@ -506,24 +526,31 @@ void Ptr<T>::Unload() {
   os.custom_ = &domain;
   os << *this;
   release();
-  domain.ReleaseObjects();
+  //domain.ReleaseObjects();
 }
 
-void Domain::ReleaseObjects() {
+bool Domain::ReleaseObjects(Obj* obj) {
   std::vector<Obj*> objects_to_release;
+  bool release_root = false;
   for (auto it : objects_) {
     // The object's total references count. 2 additional references come with Domain.
-    int total_refs = it.second->reference_count_ - 2;
+    int total_refs = it.second->reference_count_ - 0;
     // The object's reference count within the domain.
     int domain_refs = reference_counts_[it.second->instance_id_];
     if (total_refs == domain_refs) {
       // The object is referenced only within the domain so must be released.
       it.second->reference_count_ = 0;
-      objects_to_release.push_back(it.second.ptr_);
+      objects_to_release.push_back(it.second);
     }
   }
   objects_.clear();
-  std::for_each(objects_to_release.begin(), objects_to_release.end(), [](auto o){ delete o;});
+  std::for_each(objects_to_release.begin(), objects_to_release.end(), [&release_root, obj](auto o) {
+    if (o == obj) {
+      release_root = true;
+    }
+    delete o;
+  });
+  return release_root;
 }
 
 template<typename T>
