@@ -14,6 +14,7 @@ limitations under the License.
 #define AETHER_OBJ_H_
 
 #include <atomic>
+#include <algorithm>
 #include <cstdint>
 #include <functional>
 #include <stdexcept>
@@ -32,8 +33,6 @@ class Domain;
 using AETHER_OMSTREAM = aether::omstream<aether::Domain*>;
 using AETHER_IMSTREAM = aether::imstream<aether::Domain*>;
 //#endif
-extern void LoadStream(const std::filesystem::path& fname, AETHER_IMSTREAM& is);
-extern void SaveStream(const std::filesystem::path& fname, const AETHER_OMSTREAM& os);
 
 namespace aether {
 
@@ -83,14 +82,18 @@ protected:
   constexpr static Type kIdBitMask = ~(kLoaded);
 };
 
+using StoreFacility = std::function<void(const std::string& path, const AETHER_OMSTREAM& os)>;
+using LoadFacility = std::function<void(const std::string& path, AETHER_IMSTREAM& is)>;
+
 template <class T>
 class Ptr {
  public:
   InstanceId instance_id_;
-  void Unload();
-  void Load();
+  void Unload(StoreFacility s);
+  void Load(LoadFacility l);
   Ptr Clone() const;
-  
+  Ptr<T> DeepClone() const;
+
   template <class T1> Ptr(T1* p) {
     InitCast(p);
     if (ptr_) instance_id_ = ptr_->instance_id_;
@@ -320,10 +323,10 @@ AETHER_SERIALIZE_CLS2, AETHER_SERIALIZE_CLS1)(__VA_ARGS__))
 
 class Domain {
 public:
+  StoreFacility store_facility_;
+  LoadFacility load_facility_;
   std::filesystem::path path_;
   std::map<InstanceId, Ptr<Obj>> objects_;
-//  std::set<InstanceId> saved_ids_;
-//  std::map<InstanceId, std::vector<uint8_t>> data_;
   std::map<InstanceId, int> reference_counts_;
   void IncrementReferenceCount(InstanceId instance_id) {
     reference_counts_[instance_id]++;
@@ -341,18 +344,6 @@ public:
   void AddObject(Ptr<Obj> o, InstanceId instance_id) {
     objects_[instance_id] = o;
   }
-  
-//  void RemoveObject(InstanceId instance_id) {
-//    auto it = objects_.find(instance_id);
-//    if (it == objects_.end()) return;
-//    objects_.erase(it);
-//  }
-//  bool IsSaved(InstanceId instance_id) const {
-//    return saved_ids_.find(instance_id) != saved_ids_.end();
-//  }
-//  void AddSaved(const InstanceId& instance_id) {
-//    saved_ids_.insert(instance_id);
-//  }
 };
 
 class Obj {
@@ -469,7 +460,7 @@ void SerializeObj(T& s, Ptr<Obj> o) {
   os.custom_ = s.custom_;
   os << o->GetClassId();
   o->Serialize(os);
-  SaveStream(s.custom_->path_ / std::to_string(o->instance_id_.GetId()), os);
+  s.custom_->store_facility_(s.custom_->path_ / std::to_string(o->instance_id_.GetId()), os);
 }
 
 template<class T>
@@ -490,7 +481,7 @@ Obj::ptr DeserializeObj(T& s) {
 
   AETHER_IMSTREAM is;
   is.custom_ = s.custom_;
-  LoadStream(s.custom_->path_ / std::to_string(instance_id.GetId()), is);
+  s.custom_->load_facility_(s.custom_->path_ / std::to_string(instance_id.GetId()), is);
   uint32_t class_id;
   is >> class_id;
   o = Obj::CreateClassById(class_id, instance_id);
@@ -502,9 +493,10 @@ Obj::ptr DeserializeObj(T& s) {
 }
 
 template<typename T>
-void Ptr<T>::Unload() {
+void Ptr<T>::Unload(StoreFacility store_facility) {
   Domain domain;
   domain.path_ = "state";
+  domain.store_facility_ = store_facility;
   AETHER_OMSTREAM os;
   os.custom_ = &domain;
   os << *this;
@@ -530,13 +522,14 @@ void Domain::ReleaseObjects() {
 }
 
 template<typename T>
-void Ptr<T>::Load() {
+void Ptr<T>::Load(LoadFacility load_facility) {
   if (*this || !(instance_id_.GetFlags() & InstanceId::kLoaded)) {
     return;
   }
   AETHER_IMSTREAM is;
   aether::Domain domain;
   domain.path_ = "state";
+  domain.load_facility_ = load_facility;
   is.custom_ = &domain;
   AETHER_OMSTREAM os;
   os << InstanceId{instance_id_.GetId(), InstanceId::kLoaded};
@@ -544,9 +537,18 @@ void Ptr<T>::Load() {
   is >> *this;
 }
 
-template<typename T>
-Ptr<T> Ptr<T>::Clone() const {
+template<typename T> Ptr<T> Ptr<T>::Clone() const {
+  if (*this) {
+    // Clone loaded object.
+  }
   return {};
+}
+
+template<typename T> Ptr<T> Ptr<T>::DeepClone() const {
+  if (*this) {
+    // Clone loaded object with cloning hierarchy.
+  }
+  return Clone();
 }
 
 }  // namespace aether
