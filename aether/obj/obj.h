@@ -38,9 +38,9 @@ public:
   using Type = uint32_t;
   InstanceId() = default;
   InstanceId(const Type& i, Type flags) : id_(i), flags_(flags) {}
-  void GenerateUnique() {
+  static Type GenerateUnique() {
     static int i=0;
-    id_ = ++i;//std::rand());
+    return ++i;//std::rand());
   }
   void Invalidate() { id_ = 0; }
   void SetId(Type i) { id_ = i; }
@@ -86,6 +86,7 @@ template <class T>
 class Ptr {
  public:
   InstanceId instance_id_;
+  void Serialize(StoreFacility s) const;
   void Unload(StoreFacility s);
   void Load(LoadFacility l);
   Ptr Clone() const;
@@ -359,8 +360,7 @@ public:
   }
 
   Obj() {
-    instance_id_.GenerateUnique();
-    instance_id_.SetFlags(InstanceId::kLoaded);
+    instance_id_ = {InstanceId::GenerateUnique(), InstanceId::kLoaded};
   }
   virtual ~Obj() {}
 
@@ -489,6 +489,15 @@ Obj::ptr DeserializeObj(T& s) {
 }
 
 template<typename T>
+void Ptr<T>::Serialize(StoreFacility store_facility) const {
+  Domain domain;
+  domain.store_facility_ = store_facility;
+  AETHER_OMSTREAM os;
+  os.custom_ = &domain;
+  os << *this;
+}
+
+template<typename T>
 void Ptr<T>::Unload(StoreFacility store_facility) {
   Domain domain;
   domain.store_facility_ = store_facility;
@@ -534,6 +543,16 @@ void Ptr<T>::Load(LoadFacility load_facility) {
 template<typename T> Ptr<T> Ptr<T>::Clone() const {
   if (*this) {
     // Clone loaded object.
+    AETHER_IMSTREAM s;
+    Serialize([&s](const std::string& path, const AETHER_OMSTREAM& os){
+      s.stream_ = os.stream_;
+    });
+    Obj::ptr o;
+    o.instance_id_ = {InstanceId::GenerateUnique(), InstanceId::kLoaded};
+    o.Load([&s](const std::string& path, AETHER_IMSTREAM& is){
+      is = s;
+    });
+    return o;
   }
   return {};
 }
