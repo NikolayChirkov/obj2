@@ -87,7 +87,7 @@ class Ptr {
  public:
   InstanceId instance_id_;
   void Serialize(StoreFacility s) const;
-  void Unload(StoreFacility s);
+  void Unload();
   void Load(LoadFacility l);
   Ptr Clone() const;
   Ptr<T> DeepClone() const;
@@ -498,9 +498,10 @@ void Ptr<T>::Serialize(StoreFacility store_facility) const {
 }
 
 template<typename T>
-void Ptr<T>::Unload(StoreFacility store_facility) {
+void Ptr<T>::Unload() {
   Domain domain;
-  domain.store_facility_ = store_facility;
+  domain.store_facility_ = [](const std::string& path, const AETHER_OMSTREAM& os){
+  };
   AETHER_OMSTREAM os;
   os.custom_ = &domain;
   os << *this;
