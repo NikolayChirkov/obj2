@@ -50,8 +50,7 @@ public:
   void SetId(Type i) { id_ = i; }
   Type GetId() const { return id_; }
   enum Flags {
-    kDomain = ~(std::numeric_limits<Type>::max() >> 1),
-    kLoaded = kDomain >> 1,
+    kLoaded = ~(std::numeric_limits<Type>::max() >> 1),
   };
   Type GetFlags() const { return flags_; }
   void SetFlags(Type flags) { flags_ |= flags; }
@@ -81,7 +80,7 @@ public:
 protected:
   Type id_;
   Type flags_;
-  constexpr static Type kIdBitMask = ~(kDomain | kLoaded);
+  constexpr static Type kIdBitMask = ~(kLoaded);
 };
 
 template <class T>
@@ -90,7 +89,7 @@ class Ptr {
   InstanceId instance_id_;
   void Unload();
   void Load();
-  Ptr clone() const;
+  Ptr Clone() const;
   
   template <class T1> Ptr(T1* p) {
     InitCast(p);
@@ -527,9 +526,7 @@ void Domain::ReleaseObjects() {
     }
   }
   objects_.clear();
-  for (auto it : objects_to_release) {
-    delete it;
-  }
+  std::for_each(objects_to_release.begin(), objects_to_release.end(), [](auto o){ delete o;});
 }
 
 template<typename T>
@@ -542,30 +539,13 @@ void Ptr<T>::Load() {
   domain.path_ = "state";
   is.custom_ = &domain;
   AETHER_OMSTREAM os;
-  os << aether::InstanceId{instance_id_.GetId(), aether::InstanceId::kDomain | aether::InstanceId::kLoaded};
+  os << InstanceId{instance_id_.GetId(), InstanceId::kLoaded};
   is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
   is >> *this;
 }
 
 template<typename T>
-Ptr<T> Ptr<T>::clone() const {
-//  AETHER_OMSTREAM os;
-//  Ptr<T> o = *this;
-//  if (instance_id_.IsLoaded()) {
-//    aether::Domain domain;
-//    os.custom_ = &domain;
-//    os << o;
-//    o = {};
-//    AETHER_IMSTREAM is;
-//    is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
-//    is.custom_ = &domain;
-//    is >> o;
-//  } else {
-//    os.custom_ = &domain;
-//    o.Load(domain);
-//  }
-//  o.instance_id_.GenerateUnique();
-//  return o;
+Ptr<T> Ptr<T>::Clone() const {
   return {};
 }
 
