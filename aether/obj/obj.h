@@ -17,6 +17,7 @@ limitations under the License.
 #include <cstdint>
 #include <functional>
 #include <stdexcept>
+#include <set>
 #include <unordered_map>
 
 #include "../../third_party/crc32/crc32.h"
@@ -25,6 +26,7 @@ limitations under the License.
 #include "../../third_party/aether/stream/aether/mstream/mstream.h"
 namespace aether {
 class Domain;
+class Obj;
 }
 using AETHER_OMSTREAM = aether::omstream<aether::Domain*>;
 using AETHER_IMSTREAM = aether::imstream<aether::Domain*>;
@@ -319,7 +321,7 @@ public:
   void IncrementReferenceCount(InstanceId instance_id) {
     reference_counts_[instance_id]++;
   }
-  inline bool ReleaseObjects(Obj* obj);
+  inline int ReleaseObjects(Obj* obj);
 
   Obj* FindObject(InstanceId instance_id) const {
     auto it = objects_.find(instance_id);
@@ -494,19 +496,52 @@ void Ptr<T>::release() {
   if (ptr_ != nullptr) {
     if (first) {
       first = false;
+      
       Domain domain;
-      domain.store_facility_ = [](const std::string& path, const AETHER_OMSTREAM& os){
-      };
-      AETHER_OMSTREAM os;
-      os.custom_ = &domain;
-      os << *this;
-      //domain.AddObject(*this, this->instance_id_);
-      if (!domain.ReleaseObjects(ptr_)) {
-        ptr_->reference_count_--;
+      domain.store_facility_ = [](const std::string& path, const AETHER_OMSTREAM& os) {};
+      AETHER_OMSTREAM os2;
+      os2.custom_ = &domain;
+      os2 << *this;
+      std::set<Obj*> del_list;
+      for (auto it : domain.objects_) {
+        del_list.insert(it.second);
+      }
+
+      extern Obj* root_;
+      if (ptr_ != root_) {
+        Domain root;
+        root.store_facility_ = [](const std::string& path, const AETHER_OMSTREAM& os) {};
+        AETHER_OMSTREAM os1;
+        os1.custom_ = &root;
+        os1 << root_;
+        std::set<Obj*> root_list;
+        for (auto it : root.objects_) {
+          root_list.insert(it.second);
+        }
+
+        for (auto it = del_list.begin(); it != del_list.end();) {
+          if (root_list.find(*it) != root_list.end()) {
+            it = del_list.erase(it);
+          } else {
+            ++it;
+          }
+        }
+      }
+      for (auto o : del_list) {
+        // Disable releasing through pointers.
+        o->reference_count_ = 0;
+      }
+      for (auto o : del_list) {
+        // Manual release.
+        delete o;
+        if (ptr_ == o) {
+          ptr_ = nullptr;
+        }
       }
       first = true;
-      ptr_ = nullptr;
-      return;
+      if (ptr_ == nullptr) {
+        return;
+      }
     }
     
     // reference_count_ is set to 0 to resolve cyclic references.
@@ -517,71 +552,76 @@ void Ptr<T>::release() {
   }
 }
 
+// Returnes domain references count for the provided object
+int Domain::ReleaseObjects(Obj* root) {
+  int root_references = 0;
+//  std::vector<Obj*> objects_to_release;
+//  for (auto it : objects_) {
+//    // The object's total references count. 2 additional references come with Domain.
+//    int total_refs = it.second->reference_count_;
+//    // The object's reference count within the domain.
+//    int domain_refs = reference_counts_[it.second->instance_id_];
+//    if (total_refs == domain_refs) {
+//      // The object is referenced only within the domain so must be released.
+//      if (it.second != root) {
+//        it.second->reference_count_ = 0;
+//      }
+//      objects_to_release.push_back(it.second);
+//    }
+//  }
+//  objects_.clear();
+//  std::for_each(objects_to_release.begin(), objects_to_release.end(), [&root_references, root](auto o) {
+//    if (o == root) {
+//      root_references++;
+//    } else {
+//      delete o;
+//    }
+//  });
+  return root_references;
+}
+
 template<typename T>
 void Ptr<T>::Unload() {
-  Domain domain;
-  domain.store_facility_ = [](const std::string& path, const AETHER_OMSTREAM& os){
-  };
-  AETHER_OMSTREAM os;
-  os.custom_ = &domain;
-  os << *this;
-  release();
+//  Domain domain;
+//  domain.store_facility_ = [](const std::string& path, const AETHER_OMSTREAM& os){
+//  };
+//  AETHER_OMSTREAM os;
+//  os.custom_ = &domain;
+//  os << *this;
+//  release();
   //domain.ReleaseObjects();
 }
 
-bool Domain::ReleaseObjects(Obj* obj) {
-  std::vector<Obj*> objects_to_release;
-  bool release_root = false;
-  for (auto it : objects_) {
-    // The object's total references count. 2 additional references come with Domain.
-    int total_refs = it.second->reference_count_ - 0;
-    // The object's reference count within the domain.
-    int domain_refs = reference_counts_[it.second->instance_id_];
-    if (total_refs == domain_refs) {
-      // The object is referenced only within the domain so must be released.
-      it.second->reference_count_ = 0;
-      objects_to_release.push_back(it.second);
-    }
-  }
-  objects_.clear();
-  std::for_each(objects_to_release.begin(), objects_to_release.end(), [&release_root, obj](auto o) {
-    if (o == obj) {
-      release_root = true;
-    }
-    delete o;
-  });
-  return release_root;
-}
 
 template<typename T>
 void Ptr<T>::Load(LoadFacility load_facility) {
-  if (*this || !(instance_id_.GetFlags() & InstanceId::kLoaded)) {
-    return;
-  }
-  AETHER_IMSTREAM is;
-  aether::Domain domain;
-  domain.load_facility_ = load_facility;
-  is.custom_ = &domain;
-  AETHER_OMSTREAM os;
-  os << InstanceId{instance_id_.GetId(), InstanceId::kLoaded};
-  is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
-  is >> *this;
+//  if (*this || !(instance_id_.GetFlags() & InstanceId::kLoaded)) {
+//    return;
+//  }
+//  AETHER_IMSTREAM is;
+//  aether::Domain domain;
+//  domain.load_facility_ = load_facility;
+//  is.custom_ = &domain;
+//  AETHER_OMSTREAM os;
+//  os << InstanceId{instance_id_.GetId(), InstanceId::kLoaded};
+//  is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
+//  is >> *this;
 }
 
 template<typename T> Ptr<T> Ptr<T>::Clone() const {
-  if (*this) {
-    // Clone loaded object.
-    AETHER_IMSTREAM s;
-    Serialize([&s](const std::string& path, const AETHER_OMSTREAM& os){
-      s.stream_ = os.stream_;
-    });
-    Obj::ptr o;
-    o.instance_id_ = {InstanceId::GenerateUnique(), InstanceId::kLoaded};
-    o.Load([&s](const std::string& path, AETHER_IMSTREAM& is){
-      is = s;
-    });
-    return o;
-  }
+//  if (*this) {
+//    // Clone loaded object.
+//    AETHER_IMSTREAM s;
+//    Serialize([&s](const std::string& path, const AETHER_OMSTREAM& os){
+//      s.stream_ = os.stream_;
+//    });
+//    Obj::ptr o;
+//    o.instance_id_ = {InstanceId::GenerateUnique(), InstanceId::kLoaded};
+//    o.Load([&s](const std::string& path, AETHER_IMSTREAM& is){
+//      is = s;
+//    });
+//    return o;
+//  }
   return {};
 }
 
