@@ -192,8 +192,7 @@ class Ptr {
   T* operator->() const { return ptr_; }
   T* get() const { return ptr_; }
 
-  template<class T1, class T2>
-  friend bool operator == (const Ptr<T1>& p1, const Ptr<T2>& p2) {
+  template <class T1, class T2> friend bool operator == (const Ptr<T1>& p1, const Ptr<T2>& p2) {
     // If one pointer is zero and another is not - not equal.
     if (p1 ^ p2) {
       return false;
@@ -207,17 +206,14 @@ class Ptr {
     void* o2 = p2.ptr_->DynamicCast(class_id);
     return o1 == o2;
   }
-  template<class T1, class T2>
-  friend bool operator != (const Ptr<T1>& p1, const Ptr<T2>& p2) {
+  template <class T1, class T2> friend bool operator != (const Ptr<T1>& p1, const Ptr<T2>& p2) {
     return !(p1 == p2);
   }
 
-  template<class T1>
-  friend bool operator == (const Ptr<T1>& p1, const Ptr<T1>& p2) {
+  template <class T1> friend bool operator == (const Ptr<T1>& p1, const Ptr<T1>& p2) {
     return p1.ptr_ == p2.ptr_;
   }
-  template<class T1>
-  friend bool operator != (const Ptr<T1>& p1, const Ptr<T1>& p2) {
+  template <class T1> friend bool operator != (const Ptr<T1>& p1, const Ptr<T1>& p2) {
     return !(p1 == p2);
   }
 
@@ -250,11 +246,8 @@ class Ptr {
   }
 };
 
-class Obj;
-template<class T>
-void SerializeObj(T& s, Obj* o, InstanceId instance_id);
-template<class T>
-Ptr<Obj> DeserializeObj(T& s);
+template <class T> void SerializeObj(T& s, Obj* o, InstanceId instance_id);
+template <class T> Ptr<Obj> DeserializeObj(T& s);
 
 #define AETHER_SERIALIZE_(CLS, BASE) \
 virtual void Serialize(AETHER_OMSTREAM& s) { \
@@ -282,10 +275,8 @@ AETHER_SERIALIZE_CLS2, AETHER_SERIALIZE_CLS1)(__VA_ARGS__))
 
 
 #define AETHER_INTERFACES(...) \
-  template <class ...> struct ClassList {};\
-  void* DynamicCastInternal(uint32_t, ClassList<>) { return nullptr; }\
-  template <class C, class ...N> \
-  void* DynamicCastInternal(uint32_t i, ClassList<C, N...>) {\
+  template <class ...> struct ClassList {}; void* DynamicCastInternal(uint32_t, ClassList<>) { return nullptr; }\
+  template <class C, class ...N> void* DynamicCastInternal(uint32_t i, ClassList<C, N...>) {\
     if (C::class_id_ != i) { \
       return DynamicCastInternal(i, ClassList<N...>()); \
     }\
@@ -337,8 +328,7 @@ public:
 
 class Obj {
 protected:
-  template<class T>
-  struct Registrar {
+  template <class T> struct Registrar {
     Registrar(uint32_t id, uint32_t base_id) {
       Obj::Registry<void>::RegisterClass(id, base_id, []{ return new T(); });
     }
@@ -353,25 +343,25 @@ public:
 
   Obj() {
     instance_id_ = {InstanceId::GenerateUnique(), InstanceId::kLoaded};
+    if (!Registry<void>::root_) {
+      Registry<void>::root_ = this;
+    }
   }
-  virtual ~Obj() {}
+  virtual ~Obj() {
+    if (Registry<void>::root_ == this) {
+      Registry<void>::root_ = nullptr;
+    }
+  }
 
   AETHER_OBJECT(Obj);
   AETHER_INTERFACES(Obj);
   AETHER_SERIALIZE(Obj);
-  template <typename T>
-  void Serializator(T& s) const {}
+  template <typename T> void Serializator(T& s) const {}
 
   InstanceId instance_id_;
  protected:
-  template<class T> friend class Ptr;
-  friend class Domain;
-  int reference_count_ = 0;
-  friend class TestAccessor;
-
-  template <class Dummy>
-  class Registry {
-   public:
+  template <class Dummy> class Registry {
+  public:
     static void RegisterClass(uint32_t id, uint32_t base_id, std::function<Obj*()> factory) {
       static bool initialized = false;
       if (!initialized) {
@@ -389,7 +379,7 @@ public:
         (*base_to_derived_)[base_id] = id;
       }
     }
-
+    
     static void UnregisterClass(uint32_t id) {
       auto it = registry_->find(id);
       if (it != registry_->end()) {
@@ -399,7 +389,7 @@ public:
         it = it->second == id ? base_to_derived_->erase(it) : std::next(it);
       }
     }
-
+    
     static Obj* CreateClassById(uint32_t base_id) {
       uint32_t derived_id = base_id;
       while (true) {
@@ -416,22 +406,25 @@ public:
       return it->second();
     }
     
+    static Obj* root_;
+    static bool first_release_;
   private:
     static std::unordered_map<uint32_t, std::function<Obj*()>>* registry_;
     static std::unordered_map<uint32_t, uint32_t>* base_to_derived_;
   };
+  template <class T> friend class Ptr;
+  friend class Domain;
+  int reference_count_ = 0;
+  friend class TestAccessor;
 };
 
-template <class Dummy>
-std::unordered_map<uint32_t, std::function<Obj*()>>*
-  Obj::Registry<Dummy>::registry_;
-template <class Dummy>
-std::unordered_map<uint32_t, uint32_t>*
-  Obj::Registry<Dummy>::base_to_derived_;
+template <class Dummy> std::unordered_map<uint32_t, std::function<Obj*()>>* Obj::Registry<Dummy>::registry_;
+template <class Dummy> std::unordered_map<uint32_t, uint32_t>* Obj::Registry<Dummy>::base_to_derived_;
+template <class Dummy> Obj* Obj::Registry<Dummy>::root_ = nullptr;
+template <class Dummy> bool Obj::Registry<Dummy>::first_release_ = true;
 
 
-template<class T>
-void SerializeObj(T& s, Obj* o, InstanceId instance_id) {
+template <class T> void SerializeObj(T& s, Obj* o, InstanceId instance_id) {
   if (!o) {
     s << instance_id;
     return;
@@ -451,8 +444,7 @@ void SerializeObj(T& s, Obj* o, InstanceId instance_id) {
   s.custom_->store_facility_(std::to_string(o->instance_id_.GetId()), os);
 }
 
-template<class T>
-Obj::ptr DeserializeObj(T& s) {
+template <class T> Obj::ptr DeserializeObj(T& s) {
   InstanceId instance_id;
   s >> instance_id;
   Obj::ptr o;
@@ -482,8 +474,7 @@ Obj::ptr DeserializeObj(T& s) {
   return o;
 }
 
-template<typename T>
-void Ptr<T>::Serialize(StoreFacility store_facility) const {
+template <typename T> void Ptr<T>::Serialize(StoreFacility store_facility) const {
   Domain domain;
   domain.store_facility_ = store_facility;
   AETHER_OMSTREAM os;
@@ -491,12 +482,10 @@ void Ptr<T>::Serialize(StoreFacility store_facility) const {
   os << *this;
 }
 
-static bool first = true;
-template<typename T>
-void Ptr<T>::release() {
+template <typename T> void Ptr<T>::release() {
   if (ptr_ != nullptr) {
-    if (first) {
-      first = false;
+    if (Obj::Registry<void>::first_release_) {
+      Obj::Registry<void>::first_release_ = false;
       
       Domain domain;
       domain.store_facility_ = [](const std::string& path, const AETHER_OMSTREAM& os) {};
@@ -508,13 +497,12 @@ void Ptr<T>::release() {
         del_list.insert(it.second);
       }
 
-      extern Obj* root_;
-      if (ptr_ != root_) {
+      if (ptr_ != Obj::Registry<void>::root_) {
         Domain root;
         root.store_facility_ = [](const std::string& path, const AETHER_OMSTREAM& os) {};
         AETHER_OMSTREAM os1;
         os1.custom_ = &root;
-        os1 << root_;
+        os1 << Obj::Registry<void>::root_;
         std::set<Obj*> root_list;
         for (auto it : root.objects_) {
           root_list.insert(it.second);
@@ -535,11 +523,12 @@ void Ptr<T>::release() {
       for (auto o : del_list) {
         // Manual release.
         delete o;
+        // clean the object.
         if (ptr_ == o) {
           ptr_ = nullptr;
         }
       }
-      first = true;
+      Obj::Registry<void>::first_release_ = true;
       if (ptr_ == nullptr) {
         return;
       }
@@ -553,14 +542,12 @@ void Ptr<T>::release() {
   }
 }
 
-template<typename T>
-void Ptr<T>::Unload() {
+template <typename T> void Ptr<T>::Unload() {
   release();
 }
 
 
-template<typename T>
-void Ptr<T>::Load(LoadFacility load_facility) {
+template <typename T> void Ptr<T>::Load(LoadFacility load_facility) {
   if (*this || !(instance_id_.GetFlags() & InstanceId::kLoaded)) {
     return;
   }
@@ -574,7 +561,7 @@ void Ptr<T>::Load(LoadFacility load_facility) {
   is >> *this;
 }
 
-template<typename T> Ptr<T> Ptr<T>::Clone() const {
+template <typename T> Ptr<T> Ptr<T>::Clone() const {
 //  if (*this) {
 //    // Clone loaded object.
 //    AETHER_IMSTREAM s;
@@ -591,7 +578,7 @@ template<typename T> Ptr<T> Ptr<T>::Clone() const {
   return {};
 }
 
-template<typename T> Ptr<T> Ptr<T>::DeepClone() const {
+template <typename T> Ptr<T> Ptr<T>::DeepClone() const {
   if (*this) {
     // Clone loaded object with cloning hierarchy.
   }
