@@ -548,7 +548,7 @@ template <typename T> void Ptr<T>::Unload() {
 
 
 template <typename T> void Ptr<T>::Load(LoadFacility load_facility) {
-  if (*this || !(instance_id_.GetFlags() & InstanceId::kLoaded)) {
+  if (*this) {
     return;
   }
   AETHER_IMSTREAM is;
