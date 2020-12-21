@@ -321,7 +321,6 @@ public:
   void IncrementReferenceCount(InstanceId instance_id) {
     reference_counts_[instance_id]++;
   }
-  inline int ReleaseObjects(Obj* obj);
 
   Obj* FindObject(InstanceId instance_id) const {
     auto it = objects_.find(instance_id);
@@ -478,6 +477,8 @@ Obj::ptr DeserializeObj(T& s) {
   // Add object to the list of already loaded before deserialization to avoid infinite loop of cyclic references.
   s.custom_->AddObject(obj, instance_id);
   obj->Deserialize(is);
+  o.ptr_ = obj;
+  o.instance_id_ = instance_id;
   return o;
 }
 
@@ -552,60 +553,25 @@ void Ptr<T>::release() {
   }
 }
 
-// Returnes domain references count for the provided object
-int Domain::ReleaseObjects(Obj* root) {
-  int root_references = 0;
-//  std::vector<Obj*> objects_to_release;
-//  for (auto it : objects_) {
-//    // The object's total references count. 2 additional references come with Domain.
-//    int total_refs = it.second->reference_count_;
-//    // The object's reference count within the domain.
-//    int domain_refs = reference_counts_[it.second->instance_id_];
-//    if (total_refs == domain_refs) {
-//      // The object is referenced only within the domain so must be released.
-//      if (it.second != root) {
-//        it.second->reference_count_ = 0;
-//      }
-//      objects_to_release.push_back(it.second);
-//    }
-//  }
-//  objects_.clear();
-//  std::for_each(objects_to_release.begin(), objects_to_release.end(), [&root_references, root](auto o) {
-//    if (o == root) {
-//      root_references++;
-//    } else {
-//      delete o;
-//    }
-//  });
-  return root_references;
-}
-
 template<typename T>
 void Ptr<T>::Unload() {
-//  Domain domain;
-//  domain.store_facility_ = [](const std::string& path, const AETHER_OMSTREAM& os){
-//  };
-//  AETHER_OMSTREAM os;
-//  os.custom_ = &domain;
-//  os << *this;
-//  release();
-  //domain.ReleaseObjects();
+  release();
 }
 
 
 template<typename T>
 void Ptr<T>::Load(LoadFacility load_facility) {
-//  if (*this || !(instance_id_.GetFlags() & InstanceId::kLoaded)) {
-//    return;
-//  }
-//  AETHER_IMSTREAM is;
-//  aether::Domain domain;
-//  domain.load_facility_ = load_facility;
-//  is.custom_ = &domain;
-//  AETHER_OMSTREAM os;
-//  os << InstanceId{instance_id_.GetId(), InstanceId::kLoaded};
-//  is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
-//  is >> *this;
+  if (*this || !(instance_id_.GetFlags() & InstanceId::kLoaded)) {
+    return;
+  }
+  AETHER_IMSTREAM is;
+  aether::Domain domain;
+  domain.load_facility_ = load_facility;
+  is.custom_ = &domain;
+  AETHER_OMSTREAM os;
+  os << InstanceId{instance_id_.GetId(), InstanceId::kLoaded};
+  is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
+  is >> *this;
 }
 
 template<typename T> Ptr<T> Ptr<T>::Clone() const {
