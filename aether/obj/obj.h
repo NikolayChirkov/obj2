@@ -351,6 +351,22 @@ public:
     if (Registry<void>::root_ == this) {
       Registry<void>::root_ = nullptr;
     }
+    auto it = Registry<void>::all_objects_.find(instance_id_.GetId());
+    if (it != Registry<void>::all_objects_.end()) {
+      Registry<void>::all_objects_.erase(it);
+    }
+  }
+  
+  void AddObject() {
+    Registry<void>::all_objects_[instance_id_.GetId()] = this;
+  }
+  
+  static Obj* FindObject(InstanceId instance_id) {
+    auto it = Registry<void>::all_objects_.find(instance_id.GetId());
+    if (it != Registry<void>::all_objects_.end()) {
+      return it->second;
+    }
+    return nullptr;
   }
 
   AETHER_OBJECT(Obj);
@@ -407,6 +423,7 @@ public:
     }
     
     static Obj* root_;
+    static std::map<uint32_t, Obj*> all_objects_;
     static bool first_release_;
   private:
     static std::unordered_map<uint32_t, std::function<Obj*()>>* registry_;
@@ -422,6 +439,8 @@ template <class Dummy> std::unordered_map<uint32_t, std::function<Obj*()>>* Obj:
 template <class Dummy> std::unordered_map<uint32_t, uint32_t>* Obj::Registry<Dummy>::base_to_derived_;
 template <class Dummy> Obj* Obj::Registry<Dummy>::root_ = nullptr;
 template <class Dummy> bool Obj::Registry<Dummy>::first_release_ = true;
+template <class Dummy> std::map<uint32_t, Obj*> Obj::Registry<Dummy>::all_objects_;
+
 
 
 template <class T> void SerializeObj(T& s, Obj* o, InstanceId instance_id) {
@@ -454,7 +473,7 @@ template <class T> Obj::ptr DeserializeObj(T& s) {
   }
 
   // If object is already deserialized.
-  Obj* obj = s.custom_->FindObject(instance_id);
+  Obj* obj = Obj::FindObject(instance_id);
   if (obj) {
     return obj;
   }
@@ -468,6 +487,7 @@ template <class T> Obj::ptr DeserializeObj(T& s) {
   obj->instance_id_ = instance_id;
   // Add object to the list of already loaded before deserialization to avoid infinite loop of cyclic references.
   s.custom_->AddObject(obj, instance_id);
+  obj->AddObject();
   obj->Deserialize(is);
   o.ptr_ = obj;
   o.instance_id_ = instance_id;
