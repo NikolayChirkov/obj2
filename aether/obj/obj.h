@@ -18,6 +18,7 @@ limitations under the License.
 #include <functional>
 #include <stdexcept>
 #include <set>
+#include <unordered_set>
 #include <unordered_map>
 
 #include "../../third_party/crc32/crc32.h"
@@ -307,23 +308,16 @@ class Domain {
 public:
   StoreFacility store_facility_;
   LoadFacility load_facility_;
-  std::map<InstanceId, Obj*> objects_;
-  std::map<InstanceId, int> reference_counts_;
-  void IncrementReferenceCount(InstanceId instance_id) {
-    reference_counts_[instance_id]++;
+  std::unordered_set<Obj*> objects_;
+  bool FindAndAddObject(Obj* o) {
+    auto it = objects_.find(o);
+    if (it != objects_.end()) {
+      return true;
+    }
+    objects_.insert(o);
+    return false;
   }
 
-  Obj* FindObject(InstanceId instance_id) const {
-    auto it = objects_.find(instance_id);
-    if (it != objects_.end()) {
-      return it->second;
-    }
-    return nullptr;
-  }
-  
-  void AddObject(Obj* o, InstanceId instance_id) {
-    objects_[instance_id] = o;
-  }
 };
 
 class Obj {
@@ -448,13 +442,11 @@ template <class T> void SerializeObj(T& s, Obj* o, InstanceId instance_id) {
     s << instance_id;
     return;
   }
-  s.custom_->IncrementReferenceCount(o->instance_id_);
   s << o->instance_id_;
   // Object is already serialized.
-  if (s.custom_->FindObject(o->instance_id_)) {
+  if (s.custom_->FindAndAddObject(o)) {
     return;
   }
-  s.custom_->AddObject(o, o->instance_id_);
 
   AETHER_OMSTREAM os;
   os.custom_ = s.custom_;
@@ -486,7 +478,6 @@ template <class T> Obj::ptr DeserializeObj(T& s) {
   obj = Obj::CreateClassById(class_id, instance_id);
   obj->instance_id_ = instance_id;
   // Add object to the list of already loaded before deserialization to avoid infinite loop of cyclic references.
-  s.custom_->AddObject(obj, instance_id);
   obj->AddObject();
   obj->Deserialize(is);
   o.ptr_ = obj;
@@ -514,7 +505,7 @@ template <typename T> void Ptr<T>::release() {
       os2 << *this;
       std::set<Obj*> del_list;
       for (auto it : domain.objects_) {
-        del_list.insert(it.second);
+        del_list.insert(it);
       }
 
       if (ptr_ != Obj::Registry<void>::root_) {
@@ -525,7 +516,7 @@ template <typename T> void Ptr<T>::release() {
         os1 << Obj::Registry<void>::root_;
         std::set<Obj*> root_list;
         for (auto it : root.objects_) {
-          root_list.insert(it.second);
+          root_list.insert(it);
         }
 
         for (auto it = del_list.begin(); it != del_list.end();) {
