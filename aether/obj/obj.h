@@ -248,14 +248,14 @@ class Ptr {
   }
 };
 
-template <class T> void SerializeObj(T& s, Obj* o, InstanceId instance_id);
+template <class T, class T1> void SerializeObj(T& s, const Ptr<T1>& o1);
 template <class T> Ptr<Obj> DeserializeObj(T& s);
 
 #define AETHER_SERIALIZE_(CLS, BASE) \
   virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s); } \
   virtual void Deserialize(AETHER_IMSTREAM& s) { Serializator(s); } \
   friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const CLS::ptr& o) { \
-    SerializeObj(s, o.ptr_, o.instance_id_); \
+    SerializeObj(s, o); \
     return s; \
   } \
   friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, CLS::ptr& o) { o = DeserializeObj(s); return s; }
@@ -422,14 +422,14 @@ template <class Dummy> bool Obj::Registry<Dummy>::first_release_ = true;
 template <class Dummy> std::map<uint32_t, Obj*> Obj::Registry<Dummy>::all_objects_;
 
 
-template <class T> void SerializeObj(T& s, Obj* o, InstanceId instance_id) {
+template <class T, class T1> void SerializeObj(T& s, const Ptr<T1>& o) {
   if (!o) {
-    s << instance_id;
+    s << o.instance_id_;
     return;
   }
   s << o->instance_id_;
   // Object is already serialized.
-  if (s.custom_->FindAndAddObject(o)) {
+  if (s.custom_->FindAndAddObject(o.ptr_)) {
     return;
   }
 
