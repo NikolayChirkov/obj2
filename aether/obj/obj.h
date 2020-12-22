@@ -56,15 +56,9 @@ public:
   void ClearAndSetFlags(Type flags) { flags_ = flags; }
 
   bool IsValid() const { return id_ != 0; }
-  friend bool operator == (const InstanceId& i1, const InstanceId& i2) {
-    return i1.id_ == i2.id_;
-  }
-  friend bool operator != (const InstanceId& i1, const InstanceId& i2) {
-    return !(i1 == i2);
-  }
-  friend bool operator < (const InstanceId& i1, const InstanceId& i2) {
-    return i1.id_ < i2.id_;
-  }
+  friend bool operator == (const InstanceId& i1, const InstanceId& i2) { return i1.id_ == i2.id_; }
+  friend bool operator != (const InstanceId& i1, const InstanceId& i2) { return !(i1 == i2); }
+  friend bool operator < (const InstanceId& i1, const InstanceId& i2) { return i1.id_ < i2.id_; }
   friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const InstanceId& i) {
     s << (i.id_ | i.flags_);
     return s;
@@ -75,6 +69,8 @@ public:
     i.id_ &= kIdBitMask;
     return s;
   }
+  
+  std::string ToString() const { return std::to_string(GetId()); }
 protected:
   Type id_;
   Type flags_;
@@ -88,11 +84,29 @@ template <class T>
 class Ptr {
  public:
   InstanceId instance_id_;
+  void SetId(InstanceId::Type i) {
+    instance_id_.SetId(i);
+    if (ptr_) ptr_->instance_id_.SetId(i);
+  }
+  InstanceId::Type GetId() const { return instance_id_.GetId(); }
+  InstanceId::Type GetFlags() const { return instance_id_.GetFlags(); }
+  void SetFlags(InstanceId::Type flags) {
+    instance_id_.SetFlags(flags);
+    if (ptr_) ptr_->instance_id_.SetFlags(flags);
+  }
+  void ClearFlags(InstanceId::Type flags) {
+    instance_id_.ClearFlags(flags);
+    if (ptr_) ptr_->instance_id_.ClearFlags(flags);
+  }
+  void ClearAndSetFlags(InstanceId::Type flags) {
+    instance_id_.ClearAndSetFlags(flags);
+    if (ptr_) ptr_->instance_id_.ClearAndSetFlags(flags);
+  }
+  
   void Serialize(StoreFacility s) const;
   void Unload();
   void Load(LoadFacility l);
   Ptr Clone() const;
-  Ptr<T> DeepClone() const;
 
   template <class T1> Ptr(T1* p) {
     InitCast(p);
@@ -112,8 +126,7 @@ class Ptr {
     instance_id_ = p.instance_id_;
   }
 
-  template <class T1>
-  Ptr& operator = (const Ptr<T1>& p) {
+  template <class T1> Ptr& operator = (const Ptr<T1>& p) {
     // The object is the same. Perform comparison of pointers of Obj-classes.
     if (*this == p) {
       return *this;
@@ -136,9 +149,7 @@ class Ptr {
     return *this;
   }
 
-  template <class T1> Ptr(Ptr<T1>&& p) {
-    MoveCast(p);
-  }
+  template <class T1> Ptr(Ptr<T1>&& p) { MoveCast(p); }
 
   Ptr(Ptr&& p) {
     ptr_ = p.ptr_;
@@ -146,8 +157,7 @@ class Ptr {
     p.ptr_ = nullptr;
   }
 
-  template <class T1>
-  Ptr& operator = (Ptr<T1>&& p) {
+  template <class T1> Ptr& operator = (Ptr<T1>&& p) {
     // Moving the same object: release the source. Pointers with different
     // classes so don't compare them.
     if (*this == p) {
@@ -181,9 +191,7 @@ class Ptr {
     return *this;
   }
 
-  ~Ptr() {
-    release();
-  }
+  ~Ptr() { release(); }
 
   void release();
 
@@ -207,16 +215,9 @@ class Ptr {
     void* o2 = p2.ptr_->DynamicCast(class_id);
     return o1 == o2;
   }
-  template <class T1, class T2> friend bool operator != (const Ptr<T1>& p1, const Ptr<T2>& p2) {
-    return !(p1 == p2);
-  }
-
-  template <class T1> friend bool operator == (const Ptr<T1>& p1, const Ptr<T1>& p2) {
-    return p1.ptr_ == p2.ptr_;
-  }
-  template <class T1> friend bool operator != (const Ptr<T1>& p1, const Ptr<T1>& p2) {
-    return !(p1 == p2);
-  }
+  template <class T1, class T2> friend bool operator != (const Ptr<T1>& p1, const Ptr<T2>& p2) { return !(p1 == p2); }
+  template <class T1> friend bool operator == (const Ptr<T1>& p1, const Ptr<T1>& p2) { return p1.ptr_ == p2.ptr_; }
+  template <class T1> friend bool operator != (const Ptr<T1>& p1, const Ptr<T1>& p2) { return !(p1 == p2); }
 
   void Init(T* p) {
     if (p != nullptr) {
@@ -251,20 +252,13 @@ template <class T> void SerializeObj(T& s, Obj* o, InstanceId instance_id);
 template <class T> Ptr<Obj> DeserializeObj(T& s);
 
 #define AETHER_SERIALIZE_(CLS, BASE) \
-virtual void Serialize(AETHER_OMSTREAM& s) { \
-  Serializator(s); \
-} \
-virtual void Deserialize(AETHER_IMSTREAM& s) { \
-  Serializator(s); \
-} \
-friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const CLS::ptr& o) { \
-  SerializeObj(s, o.ptr_, o.instance_id_); \
-  return s; \
-} \
-friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, CLS::ptr& o) { \
-  o = DeserializeObj(s); \
-  return s; \
-}
+  virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s); } \
+  virtual void Deserialize(AETHER_IMSTREAM& s) { Serializator(s); } \
+  friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const CLS::ptr& o) { \
+    SerializeObj(s, o.ptr_, o.instance_id_); \
+    return s; \
+  } \
+  friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, CLS::ptr& o) { o = DeserializeObj(s); return s; }
 
 #define AETHER_SERIALIZE_CLS1(CLS) AETHER_SERIALIZE_(CLS, Obj)
 #define AETHER_SERIALIZE_CLS2(CLS, CLS1) AETHER_SERIALIZE_(CLS, CLS1)
@@ -283,18 +277,13 @@ AETHER_SERIALIZE_CLS2, AETHER_SERIALIZE_CLS1)(__VA_ARGS__))
     }\
     return static_cast<C*>(this); \
   } \
-  template <class ...N> void* DynamicCastInternal(uint32_t i) {\
-    return DynamicCastInternal(i, ClassList<N...>());\
-  }\
-  virtual void* DynamicCast(uint32_t id) { \
-    return DynamicCastInternal<__VA_ARGS__, Obj>(id);\
-  }
+  template <class ...N> void* DynamicCastInternal(uint32_t i) { return DynamicCastInternal(i, ClassList<N...>()); }\
+  virtual void* DynamicCast(uint32_t id) { return DynamicCastInternal<__VA_ARGS__, Obj>(id); }
 
 #define AETHER_OBJECT(CLS) \
   typedef aether::Ptr<CLS> ptr; \
   static aether::Obj::Registrar<CLS> registrar_; \
-  static constexpr uint32_t class_id_ = \
-      qcstudio::crc32::from_literal(#CLS).value; \
+  static constexpr uint32_t class_id_ = qcstudio::crc32::from_literal(#CLS).value; \
   virtual uint32_t GetClassId() const { return class_id_; }
 
 #define AETHER_PURE_INTERFACE(CLS) \
@@ -317,7 +306,6 @@ public:
     objects_.insert(o);
     return false;
   }
-
 };
 
 class Obj {
@@ -351,9 +339,7 @@ public:
     }
   }
   
-  void AddObject() {
-    Registry<void>::all_objects_[instance_id_.GetId()] = this;
-  }
+  void AddObject() { Registry<void>::all_objects_[instance_id_.GetId()] = this; }
   
   static Obj* FindObject(InstanceId instance_id) {
     auto it = Registry<void>::all_objects_.find(instance_id.GetId());
@@ -436,7 +422,6 @@ template <class Dummy> bool Obj::Registry<Dummy>::first_release_ = true;
 template <class Dummy> std::map<uint32_t, Obj*> Obj::Registry<Dummy>::all_objects_;
 
 
-
 template <class T> void SerializeObj(T& s, Obj* o, InstanceId instance_id) {
   if (!o) {
     s << instance_id;
@@ -452,7 +437,7 @@ template <class T> void SerializeObj(T& s, Obj* o, InstanceId instance_id) {
   os.custom_ = s.custom_;
   os << o->GetClassId();
   o->Serialize(os);
-  s.custom_->store_facility_(std::to_string(o->instance_id_.GetId()), os);
+  s.custom_->store_facility_(o->instance_id_.ToString(), os);
 }
 
 template <class T> Obj::ptr DeserializeObj(T& s) {
@@ -472,7 +457,7 @@ template <class T> Obj::ptr DeserializeObj(T& s) {
 
   AETHER_IMSTREAM is;
   is.custom_ = s.custom_;
-  s.custom_->load_facility_(std::to_string(instance_id.GetId()), is);
+  s.custom_->load_facility_(instance_id.ToString(), is);
   uint32_t class_id;
   is >> class_id;
   obj = Obj::CreateClassById(class_id, instance_id);
@@ -553,10 +538,7 @@ template <typename T> void Ptr<T>::release() {
   }
 }
 
-template <typename T> void Ptr<T>::Unload() {
-  release();
-}
-
+template <typename T> void Ptr<T>::Unload() { release(); }
 
 template <typename T> void Ptr<T>::Load(LoadFacility load_facility) {
   if (*this) {
@@ -587,13 +569,6 @@ template <typename T> Ptr<T> Ptr<T>::Clone() const {
 //    return o;
 //  }
   return {};
-}
-
-template <typename T> Ptr<T> Ptr<T>::DeepClone() const {
-  if (*this) {
-    // Clone loaded object with cloning hierarchy.
-  }
-  return Clone();
 }
 
 }  // namespace aether
