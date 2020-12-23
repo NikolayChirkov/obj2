@@ -51,9 +51,7 @@ public:
     kLoaded = ~(std::numeric_limits<Type>::max() >> 1),
   };
   Type GetFlags() const { return flags_; }
-  void SetFlags(Type flags) { flags_ |= flags; }
-  void ClearFlags(Type flags) { flags_ &= ~flags; }
-  void ClearAndSetFlags(Type flags) { flags_ = flags; }
+  void SetFlags(Type flags) { flags_ = flags; }
 
   bool IsValid() const { return id_ != 0; }
   friend bool operator == (const InstanceId& i1, const InstanceId& i2) { return i1.id_ == i2.id_; }
@@ -93,14 +91,6 @@ class Ptr {
   void SetFlags(InstanceId::Type flags) {
     instance_id_.SetFlags(flags);
     if (ptr_) ptr_->instance_id_.SetFlags(flags);
-  }
-  void ClearFlags(InstanceId::Type flags) {
-    instance_id_.ClearFlags(flags);
-    if (ptr_) ptr_->instance_id_.ClearFlags(flags);
-  }
-  void ClearAndSetFlags(InstanceId::Type flags) {
-    instance_id_.ClearAndSetFlags(flags);
-    if (ptr_) ptr_->instance_id_.ClearAndSetFlags(flags);
   }
   
   void Serialize(StoreFacility s) const;
