@@ -161,7 +161,9 @@ class Ptr {
     }
     // Another object is comming.
     release();
-    Init(reinterpret_cast<T*>(p.ptr_->DynamicCast(T::class_id_)));
+    // Placeholder also must be moved.
+    void* ptr = p.ptr_->DynamicCast(T::class_id_);
+    Init(reinterpret_cast<T*>(ptr ? ptr : p.ptr_));
     p.release();
     p.Init(nullptr);
     return *this;
@@ -415,8 +417,11 @@ template <class T> Obj::ptr DeserializeObj(T& s) {
   }
   
 //  if (!instance_id.IsValid() || !(instance_id.GetFlags() & InstanceId::kLoaded)) {
-//    return o;
-//  }
+  if (!(instance_id.GetFlags() & InstanceId::kLoaded)) {
+    Obj::ptr o;
+    o.ptr_->id_ = instance_id;
+    return o;
+  }
 
   AETHER_IMSTREAM is;
   is.custom_ = s.custom_;
@@ -505,7 +510,13 @@ template <typename T> void Ptr<T>::release() {
   ptr_ = nullptr;
 }
 
-template <typename T> void Ptr<T>::Unload() { Init(nullptr); }
+template <typename T> void Ptr<T>::Unload() {
+  // Preserve ID to allow further Load().
+  auto temp_id =  ptr_->id_;
+  release();
+  ptr_ = NewPlaceholder();
+  ptr_->id_ = temp_id;
+}
 
 template <typename T> void Ptr<T>::Load(LoadFacility load_facility) {
   if (!IsPlaceholder()) {
