@@ -95,9 +95,7 @@ class Ptr {
   Ptr& operator = (const Ptr& p) {
     // The object is the same. It's ok to compare pointers because the class is
     // also the same. Copy to itself also detected here.
-    if (ptr_ == p.ptr_) {
-      return *this;
-    }
+    if (ptr_ == p.ptr_) return *this;
     Release();
     Init(p.ptr_);
     return *this;
@@ -105,9 +103,7 @@ class Ptr {
 
   template <class T1> Ptr& operator = (const Ptr<T1>& p) {
     // The object is the same. Perform comparison of pointers casted to base Obj.
-    if (p.ptr_->DynamicCast(kObjClassId) == ptr_->DynamicCast(kObjClassId)) {
-      return *this;
-    }
+    if (p.ptr_->DynamicCast(kObjClassId) == ptr_->DynamicCast(kObjClassId)) return *this;
     Release();
     InitCast(p.ptr_);
     return *this;
@@ -126,9 +122,7 @@ class Ptr {
 
   Ptr& operator = (Ptr&& p) {
     // Moving to itself.
-    if (this == &p) {
-      return *this;
-    }
+    if (this == &p) return *this;
     if (ptr_ == p.ptr_) {
       p.Release();
       p.Init(nullptr);
@@ -242,9 +236,7 @@ AETHER_SERIALIZE_CLS2, AETHER_SERIALIZE_CLS1)(__VA_ARGS__))
 #define AETHER_INTERFACES(...) \
   template <class ...> struct ClassList {}; void* DynamicCastInternal(uint32_t, ClassList<>) { return nullptr; }\
   template <class C, class ...N> void* DynamicCastInternal(uint32_t i, ClassList<C, N...>) {\
-    if (C::class_id_ != i) { \
-      return DynamicCastInternal(i, ClassList<N...>()); \
-    }\
+    if (C::class_id_ != i) return DynamicCastInternal(i, ClassList<N...>()); \
     return static_cast<C*>(this); \
   } \
   template <class ...N> void* DynamicCastInternal(uint32_t i) { return DynamicCastInternal(i, ClassList<N...>()); }\
@@ -291,27 +283,19 @@ public:
 
   Obj() {
     id_ = {InstanceId::GenerateUnique(), InstanceId::kLoaded};
-    if (!Registry<void>::root_) {
-      Registry<void>::root_ = this;
-    }
+    if (!Registry<void>::root_) Registry<void>::root_ = this;
   }
   virtual ~Obj() {
-    if (Registry<void>::root_ == this) {
-      Registry<void>::root_ = nullptr;
-    }
+    if (Registry<void>::root_ == this) Registry<void>::root_ = nullptr;
     auto it = Registry<void>::all_objects_.find(id_.GetId());
-    if (it != Registry<void>::all_objects_.end()) {
-      Registry<void>::all_objects_.erase(it);
-    }
+    if (it != Registry<void>::all_objects_.end()) Registry<void>::all_objects_.erase(it);
   }
   
   void AddObject() { Registry<void>::all_objects_[id_.GetId()] = this; }
   
   static Obj* FindObject(InstanceId instance_id) {
     auto it = Registry<void>::all_objects_.find(instance_id.GetId());
-    if (it != Registry<void>::all_objects_.end()) {
-      return it->second;
-    }
+    if (it != Registry<void>::all_objects_.end()) return it->second;
     return nullptr;
   }
 
@@ -332,21 +316,16 @@ public:
         base_to_derived_ = new std::unordered_map<uint32_t, uint32_t>();
       }
       if (registry_->find(id) != registry_->end()) {
-        throw std::runtime_error("Class name already registered or Crc32 "
-                                 "collision detected. Please choose another "
+        throw std::runtime_error("Class name already registered or Crc32 collision detected. Please choose another "
                                  "name for the class.");
       }
       (*registry_)[id] = factory;
-      if (base_id != qcstudio::crc32::from_literal("Obj").value) {
-        (*base_to_derived_)[base_id] = id;
-      }
+      if (base_id != qcstudio::crc32::from_literal("Obj").value) (*base_to_derived_)[base_id] = id;
     }
     
     static void UnregisterClass(uint32_t id) {
       auto it = registry_->find(id);
-      if (it != registry_->end()) {
-        registry_->erase(it);
-      }
+      if (it != registry_->end()) registry_->erase(it);
       for (auto it = base_to_derived_->begin(); it != base_to_derived_->end(); ) {
         it = it->second == id ? base_to_derived_->erase(it) : std::next(it);
       }
@@ -356,15 +335,11 @@ public:
       uint32_t derived_id = base_id;
       while (true) {
         auto d = base_to_derived_->find(derived_id);
-        if (d == base_to_derived_->end() || derived_id == d->second) {
-          break;
-        }
+        if (d == base_to_derived_->end() || derived_id == d->second) break;
         derived_id = d->second;
       }
       auto it = registry_->find(derived_id);
-      if (it == registry_->end()) {
-        return nullptr;
-      }
+      if (it == registry_->end()) return nullptr;
       return it->second();
     }
     
@@ -397,13 +372,7 @@ template <class T, class T1> void SerializeObj(T& s, const Ptr<T1>& o) {
     return;
   }
   s << o.ptr_->id_;
-  if (!o) {
-    return;
-  }
-  // Object is already serialized.
-  if (s.custom_->FindAndAddObject(o.ptr_)) {
-    return;
-  }
+  if (!o || s.custom_->FindAndAddObject(o.ptr_)) return;
 
   AETHER_OMSTREAM os;
   os.custom_ = s.custom_;
@@ -427,14 +396,8 @@ template <typename T> void Ptr<T>::Release() {
     std::vector<Obj*> release;
     std::vector<Obj*> keep;
     for (auto it : domain.objects_) {
-      auto o = it.first;
-      int c0 = o->reference_count_;
-      int c1 = it.second;
-      if (c0 == c1) {
-        release.push_back(o);
-      } else {
-        keep.push_back(o);
-      }
+      if (it.first->reference_count_ == it.second) release.push_back(it.first);
+      else keep.push_back(it.first);
     }
     
     // If a candidate for releasing is referenced directly or indirectly by the object that is kept then don't release.
@@ -442,27 +405,19 @@ template <typename T> void Ptr<T>::Release() {
       domain.objects_.clear();
       k->Serialize(os2);
       for (auto it = release.begin(); it != release.end(); ) {
-        if (domain.objects_.find(*it) != domain.objects_.end()) {
-          it = release.erase(it);
-        } else {
-          ++it;
-        }
+        if (domain.objects_.find(*it) != domain.objects_.end()) it = release.erase(it);
+        else ++it;
       }
     }
 
-    for (auto r : release) {
-      r->reference_count_ = 0;
-    }
-    for (auto r : release) {
-      delete r;
-    }
+    // Maually release each object without recursive releasing.
+    for (auto r : release) r->reference_count_ = 0;
+    for (auto r : release) delete r;
     Obj::Registry<void>::first_release_ = true;
   }
   
   // reference_count_ is set to 0 to resolve cyclic references.
-  if (--ptr_->reference_count_ == 0) {
-    delete ptr_;
-  }
+  if (--ptr_->reference_count_ == 0) delete ptr_;
 }
 
 
@@ -472,9 +427,7 @@ template <typename T> void Ptr<T>::Release() {
 template <class T> Obj::ptr DeserializeObj(T& s) {
   InstanceId instance_id;
   s >> instance_id;
-  if (!instance_id.IsValid()) {
-    return {};
-  }
+  if (!instance_id.IsValid()) return {};
   if(!(instance_id.GetFlags() & InstanceId::kLoaded)) {
     Obj::ptr o;
     // Distinguish 'unloaded' from 'nullptr'
@@ -484,9 +437,7 @@ template <class T> Obj::ptr DeserializeObj(T& s) {
 
   // If object is already deserialized.
   Obj* obj = Obj::FindObject(instance_id);
-  if (obj) {
-    return obj;
-  }
+  if (obj) return obj;
   
   AETHER_IMSTREAM is;
   is.custom_ = s.custom_;
@@ -526,9 +477,7 @@ template <typename T> void Ptr<T>::Unload() {
 }
 
 template <typename T> void Ptr<T>::Load(LoadFacility load_facility) {
-  if (!IsPlaceholder()) {
-    return;
-  }
+  if (!IsPlaceholder()) return;
   AETHER_IMSTREAM is;
   aether::Domain domain;
   domain.load_facility_ = load_facility;
@@ -542,19 +491,6 @@ template <typename T> void Ptr<T>::Load(LoadFacility load_facility) {
 }
 
 template <typename T> Ptr<T> Ptr<T>::Clone() const {
-//  if (*this) {
-//    // Clone loaded object.
-//    AETHER_IMSTREAM s;
-//    Serialize([&s](const std::string& path, const AETHER_OMSTREAM& os){
-//      s.stream_ = os.stream_;
-//    });
-//    Obj::ptr o;
-//    o.id_ = {InstanceId::GenerateUnique(), InstanceId::kLoaded};
-//    o.Load([&s](const std::string& path, AETHER_IMSTREAM& is){
-//      is = s;
-//    });
-//    return o;
-//  }
   return {};
 }
 
