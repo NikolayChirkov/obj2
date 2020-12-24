@@ -266,14 +266,11 @@ class Domain {
 public:
   StoreFacility store_facility_;
   LoadFacility load_facility_;
-  std::unordered_set<Obj*> objects_;
+  std::unordered_map<Obj*, int> objects_;
   bool FindAndAddObject(Obj* o) {
-    auto it = objects_.find(o);
-    if (it != objects_.end()) {
-      return true;
-    }
-    objects_.insert(o);
-    return false;
+    auto& c = objects_[o];
+    c++;
+    return c > 1;
   }
 };
 
@@ -391,6 +388,7 @@ template <class Dummy> bool Obj::Registry<Dummy>::first_release_ = true;
 template <class Dummy> std::map<uint32_t, Obj*> Obj::Registry<Dummy>::all_objects_;
 
 
+
 template <class T, class T1> void SerializeObj(T& s, const Ptr<T1>& o) {
   if (!o && !(o.GetFlags() & InstanceId::kLoadable)) {
     InstanceId id1;
@@ -413,6 +411,63 @@ template <class T, class T1> void SerializeObj(T& s, const Ptr<T1>& o) {
   o->Serialize(os);
   s.custom_->store_facility_(o->id_.ToString(), os);
 }
+
+template <typename T> void Ptr<T>::Release() {
+  assert(ptr_);
+  if (Obj::Registry<void>::first_release_) {
+    Obj::Registry<void>::first_release_ = false;
+    
+    // Count all references to all objects which are accessible from this pointer that is going to be released.
+    Domain domain;
+    domain.store_facility_ = [](const std::string& path, const AETHER_OMSTREAM& os) {};
+    AETHER_OMSTREAM os2;
+    os2.custom_ = &domain;
+    os2 << *this;
+    
+    std::vector<Obj*> release;
+    std::vector<Obj*> keep;
+    for (auto it : domain.objects_) {
+      auto o = it.first;
+      int c0 = o->reference_count_;
+      int c1 = it.second;
+      if (c0 == c1) {
+        release.push_back(o);
+      } else {
+        keep.push_back(o);
+      }
+    }
+    
+    // If a candidate for releasing is referenced directly or indirectly by the object that is kept then don't release.
+    for (auto k : keep) {
+      domain.objects_.clear();
+      k->Serialize(os2);
+      for (auto it = release.begin(); it != release.end(); ) {
+        if (domain.objects_.find(*it) != domain.objects_.end()) {
+          it = release.erase(it);
+        } else {
+          ++it;
+        }
+      }
+    }
+
+    for (auto r : release) {
+      r->reference_count_ = 0;
+    }
+    for (auto r : release) {
+      delete r;
+    }
+    Obj::Registry<void>::first_release_ = true;
+  }
+  
+  // reference_count_ is set to 0 to resolve cyclic references.
+  if (--ptr_->reference_count_ == 0) {
+    delete ptr_;
+  }
+}
+
+
+
+
 
 template <class T> Obj::ptr DeserializeObj(T& s) {
   InstanceId instance_id;
@@ -459,65 +514,6 @@ template <typename T> void Ptr<T>::Serialize(StoreFacility store_facility) const
   AETHER_OMSTREAM os;
   os.custom_ = &domain;
   os << *this;
-}
-
-template <typename T> void Ptr<T>::Release() {
-  assert(ptr_);
-  if (Obj::Registry<void>::first_release_) {
-    Obj::Registry<void>::first_release_ = false;
-    
-    Domain domain;
-    domain.store_facility_ = [](const std::string& path, const AETHER_OMSTREAM& os) {};
-    AETHER_OMSTREAM os2;
-    os2.custom_ = &domain;
-    os2 << *this;
-    std::set<Obj*> del_list;
-    for (auto it : domain.objects_) {
-      del_list.insert(it);
-    }
-
-    if (ptr_ != Obj::Registry<void>::root_) {
-      Domain root;
-      root.store_facility_ = [](const std::string& path, const AETHER_OMSTREAM& os) {};
-      AETHER_OMSTREAM os1;
-      os1.custom_ = &root;
-      os1 << Obj::Registry<void>::root_;
-      std::set<Obj*> root_list;
-      for (auto it : root.objects_) {
-        root_list.insert(it);
-      }
-
-      for (auto it = del_list.begin(); it != del_list.end();) {
-        if (root_list.find(*it) != root_list.end()) {
-          it = del_list.erase(it);
-        } else {
-          ++it;
-        }
-      }
-    }
-    for (auto o : del_list) {
-      // Disable releasing through pointers.
-      o->reference_count_ = 0;
-    }
-    for (auto o : del_list) {
-      // Manual release.
-      delete o;
-      // clean the object.
-      if (ptr_ == o) {
-        ptr_ = nullptr;
-      }
-    }
-    Obj::Registry<void>::first_release_ = true;
-    if (ptr_ == nullptr) {
-      return;
-    }
-  }
-  
-  // reference_count_ is set to 0 to resolve cyclic references.
-  if (--ptr_->reference_count_ == 0) {
-    delete ptr_;
-  }
-  ptr_ = nullptr;
 }
 
 template <typename T> void Ptr<T>::Unload() {
