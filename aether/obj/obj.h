@@ -39,7 +39,7 @@ class InstanceId {
 public:
   using Type = uint32_t;
   InstanceId() = default;
-  InstanceId(const Type& i, Type flags) : id_(i), flags_(flags) {}
+  InstanceId(const Type& i) : id_(i) {}
   static Type GenerateUnique() {
     static int i=0;
     return ++i;//std::rand());
@@ -47,33 +47,23 @@ public:
   void Invalidate() { id_ = 0; }
   void SetId(Type i) { id_ = i; }
   Type GetId() const { return id_; }
-  enum Flags {
-    kLoadable = ~(std::numeric_limits<Type>::max() >> 1),
-    kLoaded = kLoadable >> 1,
-  };
-  Type GetFlags() const { return flags_; }
-  void SetFlags(Type flags) { flags_ = flags; }
 
   bool IsValid() const { return id_ != 0; }
   friend bool operator == (const InstanceId& i1, const InstanceId& i2) { return i1.id_ == i2.id_; }
   friend bool operator != (const InstanceId& i1, const InstanceId& i2) { return !(i1 == i2); }
   friend bool operator < (const InstanceId& i1, const InstanceId& i2) { return i1.id_ < i2.id_; }
   friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const InstanceId& i) {
-    s << (i.id_ | i.flags_);
+    s << i.id_;
     return s;
   }
   friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, InstanceId& i) {
     s >> i.id_;
-    i.flags_ = i.id_ & (~kIdBitMask);
-    i.id_ &= kIdBitMask;
     return s;
   }
   
   std::string ToString() const { return std::to_string(GetId()); }
 protected:
   Type id_;
-  Type flags_;
-  constexpr static Type kIdBitMask = ~(kLoadable | kLoaded);
 };
 
 using StoreFacility = std::function<void(const std::string& path, const AETHER_OMSTREAM& os)>;
@@ -182,8 +172,8 @@ class Ptr {
 
   void SetId(InstanceId::Type i) { ptr_->id_.SetId(i); }
   InstanceId::Type GetId() const { return ptr_->id_.GetId(); }
-  InstanceId::Type GetFlags() const { return ptr_->id_.GetFlags(); }
-  void SetFlags(InstanceId::Type flags) { ptr_->id_.SetFlags(flags); }
+  uint8_t GetFlags() const { return ptr_->flags_; }
+  void SetFlags(uint8_t flags) { ptr_->flags_ = flags; }
   
   void Serialize(StoreFacility s) const;
   void Unload();
@@ -192,15 +182,7 @@ class Ptr {
   
 
   // Protected section.
-  void Init(T* p) {
-    if (!p || (p->GetClassId() == kObjClassId && !(p->id_.GetFlags() & InstanceId::kLoadable))) {
-      // Paceholder means nullptr so a placeholder is referenced only by a single Ptr.
-      ptr_ = NewPlaceholder();
-    } else {
-      ptr_ = p;
-      ptr_->reference_count_++;
-    }
-  }
+  void Init(T* p);
   
   template <class T1> void InitCast(T1* p) { Init(p ? reinterpret_cast<T*>(p->DynamicCast(T::class_id_)) : nullptr); }
   T* NewPlaceholder() const;
@@ -222,7 +204,10 @@ template <class T> Ptr<Obj> DeserializeObj(T& s);
     SerializeObj(s, o); \
     return s; \
   } \
-  friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, CLS::ptr& o) { o = DeserializeObj(s); return s; }
+  friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, CLS::ptr& o) { \
+    o = DeserializeObj(s); \
+    return s; \
+  }
 
 #define AETHER_SERIALIZE_CLS1(CLS) AETHER_SERIALIZE_(CLS, Obj)
 #define AETHER_SERIALIZE_CLS2(CLS, CLS1) AETHER_SERIALIZE_(CLS, CLS1)
@@ -282,7 +267,8 @@ public:
   }
 
   Obj() {
-    id_ = {InstanceId::GenerateUnique(), InstanceId::kLoaded};
+    id_ = InstanceId::GenerateUnique();
+    flags_ = Flags::kLoaded;
     if (!Registry<void>::root_) Registry<void>::root_ = this;
   }
   virtual ~Obj() {
@@ -305,6 +291,14 @@ public:
   template <typename T> void Serializator(T& s) const {}
 
   InstanceId id_;
+  struct Flags {
+    uint8_t value_;
+    enum { kLoadable = 1, kLoaded = 2 };
+    operator uint8_t&() { return value_; }
+    Flags(decltype(value_) v) : value_(v) {}
+    Flags() : value_(kLoaded) {}
+  };
+  Flags flags_;
  protected:
   template <class Dummy> class Registry {
   public:
@@ -365,13 +359,13 @@ template <class Dummy> std::map<uint32_t, Obj*> Obj::Registry<Dummy>::all_object
 
 
 template <class T, class T1> void SerializeObj(T& s, const Ptr<T1>& o) {
-  if (!o && !(o.GetFlags() & InstanceId::kLoadable)) {
+  if (!o && !(o.GetFlags() & Obj::Flags::kLoadable)) {
     InstanceId id1;
     id1.SetId(0);
-    s << id1;
+    s << id1 << uint8_t(Obj::Flags{});
     return;
   }
-  s << o.ptr_->id_;
+  s << o.ptr_->id_ << uint8_t(o.ptr_->flags_);
   if (!o || s.custom_->FindAndAddObject(o.ptr_)) return;
 
   AETHER_OMSTREAM os;
@@ -426,12 +420,15 @@ template <typename T> void Ptr<T>::Release() {
 
 template <class T> Obj::ptr DeserializeObj(T& s) {
   InstanceId instance_id;
-  s >> instance_id;
+  uint8_t f;
+  s >> instance_id >> f;
+  Obj::Flags flags(f);
   if (!instance_id.IsValid()) return {};
-  if(!(instance_id.GetFlags() & InstanceId::kLoaded)) {
+  if(!(flags & Obj::Flags::kLoaded)) {
     Obj::ptr o;
     // Distinguish 'unloaded' from 'nullptr'
     o.ptr_->id_ = instance_id;
+    o.ptr_->flags_ = flags;
     return o;
   }
 
@@ -446,6 +443,7 @@ template <class T> Obj::ptr DeserializeObj(T& s) {
   is >> class_id;
   obj = Obj::CreateClassById(class_id, instance_id);
   obj->id_ = instance_id;
+  obj->flags_ = flags;
   // Add object to the list of already loaded before deserialization to avoid infinite loop of cyclic references.
   obj->AddObject();
   obj->Deserialize(is);
@@ -470,10 +468,11 @@ template <typename T> void Ptr<T>::Serialize(StoreFacility store_facility) const
 template <typename T> void Ptr<T>::Unload() {
   // Preserve ID to allow further Load().
   auto temp_id =  ptr_->id_;
+  auto temp_flags = ptr_->flags_;
   Release();
   ptr_ = NewPlaceholder();
   ptr_->id_ = temp_id;
-  ptr_->id_.SetFlags(ptr_->id_.GetFlags() & (~InstanceId::kLoaded));
+  ptr_->flags_ = temp_flags & (~Obj::Flags::kLoaded);
 }
 
 template <typename T> void Ptr<T>::Load(LoadFacility load_facility) {
@@ -483,7 +482,7 @@ template <typename T> void Ptr<T>::Load(LoadFacility load_facility) {
   domain.load_facility_ = load_facility;
   is.custom_ = &domain;
   AETHER_OMSTREAM os;
-  os << InstanceId{ptr_->id_.GetId(), InstanceId::kLoadable | InstanceId::kLoaded};
+  os << ptr_->id_.GetId() << uint8_t(Obj::Flags(Obj::Flags::kLoadable | Obj::Flags::kLoaded));
   is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
   Obj::Registry<void>::first_release_ = false;
   is >> *this;
@@ -492,6 +491,16 @@ template <typename T> void Ptr<T>::Load(LoadFacility load_facility) {
 
 template <typename T> Ptr<T> Ptr<T>::Clone() const {
   return {};
+}
+
+template <typename T> void Ptr<T>::Init(T* p) {
+  if (!p || (p->GetClassId() == kObjClassId && !(p->flags_ & Obj::Flags::kLoadable))) {
+    // Paceholder means nullptr so a placeholder is referenced only by a single Ptr.
+    ptr_ = NewPlaceholder();
+  } else {
+    ptr_ = p;
+    ptr_->reference_count_++;
+  }
 }
 
 }  // namespace aether
