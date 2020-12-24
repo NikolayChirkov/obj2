@@ -48,7 +48,8 @@ public:
   void SetId(Type i) { id_ = i; }
   Type GetId() const { return id_; }
   enum Flags {
-    kLoaded = ~(std::numeric_limits<Type>::max() >> 1),
+    kLoadable = ~(std::numeric_limits<Type>::max() >> 1),
+    kLoaded = kLoadable >> 1,
   };
   Type GetFlags() const { return flags_; }
   void SetFlags(Type flags) { flags_ = flags; }
@@ -72,7 +73,7 @@ public:
 protected:
   Type id_;
   Type flags_;
-  constexpr static Type kIdBitMask = ~(kLoaded);
+  constexpr static Type kIdBitMask = ~(kLoadable | kLoaded);
 };
 
 using StoreFacility = std::function<void(const std::string& path, const AETHER_OMSTREAM& os)>;
@@ -89,26 +90,15 @@ class Ptr {
   template <class T1> Ptr(T1* p) { InitCast(p); }
   template <class T1> Ptr(const Ptr<T1>& p) { InitCast(p.ptr_); }
   
-  ~Ptr() { release(); }
+  ~Ptr() { Release(); }
   
-  void Init(T* p) {
-    if (p) {
-      ptr_ = p;
-      ptr_->reference_count_++;
-    } else {
-      ptr_ = NewPlaceholder();
-    }
-  }
-  
-  template <class T1> void InitCast(T1* p) { Init(p ? reinterpret_cast<T*>(p->DynamicCast(T::class_id_)) : nullptr); }
-
   Ptr& operator = (const Ptr& p) {
     // The object is the same. It's ok to compare pointers because the class is
     // also the same. Copy to itself also detected here.
     if (ptr_ == p.ptr_) {
       return *this;
     }
-    release();
+    Release();
     Init(p.ptr_);
     return *this;
   }
@@ -118,14 +108,14 @@ class Ptr {
     if (p.ptr_->DynamicCast(kObjClassId) == ptr_->DynamicCast(kObjClassId)) {
       return *this;
     }
-    release();
+    Release();
     InitCast(p.ptr_);
     return *this;
   }
 
   template <class T1> Ptr(Ptr<T1>&& p) {
     Init(reinterpret_cast<T*>(p.ptr_->DynamicCast(T::class_id_)));
-    p.release();
+    p.Release();
     p.Init(nullptr);
   }
 
@@ -140,12 +130,12 @@ class Ptr {
       return *this;
     }
     if (ptr_ == p.ptr_) {
-      p.release();
+      p.Release();
       p.Init(nullptr);
       return *this;
     }
     // Another object is comming.
-    release();
+    Release();
     ptr_ = p.ptr_;
     p.Init(nullptr);
     return *this;
@@ -155,16 +145,16 @@ class Ptr {
     // Moving the same object: release the source. Pointers with different
     // classes so don't compare them.
     if (p.ptr_->DynamicCast(kObjClassId) == ptr_->DynamicCast(kObjClassId)) {
-      p.release();
+      p.Release();
       p.Init(nullptr);
       return *this;
     }
     // Another object is comming.
-    release();
+    Release();
     // Placeholder also must be moved.
     void* ptr = p.ptr_->DynamicCast(T::class_id_);
     Init(reinterpret_cast<T*>(ptr ? ptr : p.ptr_));
-    p.release();
+    p.Release();
     p.Init(nullptr);
     return *this;
   }
@@ -208,8 +198,19 @@ class Ptr {
   
 
   // Protected section.
+  void Init(T* p) {
+    if (!p || (p->GetClassId() == kObjClassId && !(p->id_.GetFlags() & InstanceId::kLoadable))) {
+      // Paceholder means nullptr so a placeholder is referenced only by a single Ptr.
+      ptr_ = NewPlaceholder();
+    } else {
+      ptr_ = p;
+      ptr_->reference_count_++;
+    }
+  }
+  
+  template <class T1> void InitCast(T1* p) { Init(p ? reinterpret_cast<T*>(p->DynamicCast(T::class_id_)) : nullptr); }
   T* NewPlaceholder() const;
-  void release();
+  void Release();
   bool IsPlaceholder() const {
     assert(ptr_);
     return ptr_->GetClassId() == kObjClassId;
@@ -391,6 +392,12 @@ template <class Dummy> std::map<uint32_t, Obj*> Obj::Registry<Dummy>::all_object
 
 
 template <class T, class T1> void SerializeObj(T& s, const Ptr<T1>& o) {
+  if (!o && !(o.GetFlags() & InstanceId::kLoadable)) {
+    InstanceId id1;
+    id1.SetId(0);
+    s << id1;
+    return;
+  }
   s << o.ptr_->id_;
   if (!o) {
     return;
@@ -410,19 +417,22 @@ template <class T, class T1> void SerializeObj(T& s, const Ptr<T1>& o) {
 template <class T> Obj::ptr DeserializeObj(T& s) {
   InstanceId instance_id;
   s >> instance_id;
+  if (!instance_id.IsValid()) {
+    return {};
+  }
+  if(!(instance_id.GetFlags() & InstanceId::kLoaded)) {
+    Obj::ptr o;
+    // Distinguish 'unloaded' from 'nullptr'
+    o.ptr_->id_ = instance_id;
+    return o;
+  }
+
   // If object is already deserialized.
   Obj* obj = Obj::FindObject(instance_id);
   if (obj) {
     return obj;
   }
   
-//  if (!instance_id.IsValid() || !(instance_id.GetFlags() & InstanceId::kLoaded)) {
-  if (!(instance_id.GetFlags() & InstanceId::kLoaded)) {
-    Obj::ptr o;
-    o.ptr_->id_ = instance_id;
-    return o;
-  }
-
   AETHER_IMSTREAM is;
   is.custom_ = s.custom_;
   s.custom_->load_facility_(instance_id.ToString(), is);
@@ -451,7 +461,7 @@ template <typename T> void Ptr<T>::Serialize(StoreFacility store_facility) const
   os << *this;
 }
 
-template <typename T> void Ptr<T>::release() {
+template <typename T> void Ptr<T>::Release() {
   assert(ptr_);
   if (Obj::Registry<void>::first_release_) {
     Obj::Registry<void>::first_release_ = false;
@@ -513,9 +523,10 @@ template <typename T> void Ptr<T>::release() {
 template <typename T> void Ptr<T>::Unload() {
   // Preserve ID to allow further Load().
   auto temp_id =  ptr_->id_;
-  release();
+  Release();
   ptr_ = NewPlaceholder();
   ptr_->id_ = temp_id;
+  ptr_->id_.SetFlags(ptr_->id_.GetFlags() & (~InstanceId::kLoaded));
 }
 
 template <typename T> void Ptr<T>::Load(LoadFacility load_facility) {
@@ -527,7 +538,7 @@ template <typename T> void Ptr<T>::Load(LoadFacility load_facility) {
   domain.load_facility_ = load_facility;
   is.custom_ = &domain;
   AETHER_OMSTREAM os;
-  os << InstanceId{ptr_->id_.GetId(), InstanceId::kLoaded};
+  os << InstanceId{ptr_->id_.GetId(), InstanceId::kLoadable | InstanceId::kLoaded};
   is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
   Obj::Registry<void>::first_release_ = false;
   is >> *this;
