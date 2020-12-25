@@ -40,26 +40,15 @@ public:
   using Type = uint32_t;
   ObjId() = default;
   ObjId(const Type& i) : id_(i) {}
-  static Type GenerateUnique() {
+  static ObjId GenerateUnique() {
     static int i=0;
     return ++i;//std::rand());
   }
   void Invalidate() { id_ = 0; }
-  void SetId(Type i) { id_ = i; }
-  Type GetId() const { return id_; }
-
   bool IsValid() const { return id_ != 0; }
-  friend bool operator == (const ObjId& i1, const ObjId& i2) { return i1.id_ == i2.id_; }
-  friend bool operator != (const ObjId& i1, const ObjId& i2) { return !(i1 == i2); }
-  friend bool operator < (const ObjId& i1, const ObjId& i2) { return i1.id_ < i2.id_; }
-  friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const ObjId& i) {
-    s << i.id_;
-    return s;
-  }
-  friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, ObjId& i) {
-    s >> i.id_;
-    return s;
-  }
+  bool operator < (const ObjId& i) const { return id_ < i.id_; }
+  friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const ObjId& i) { return s << i.id_; }
+  friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, ObjId& i) { return s >> i.id_; }
   
   std::string ToString() const { return std::to_string(id_); }
 protected:
@@ -78,8 +67,7 @@ public:
 using StoreFacility = std::function<void(const std::string& path, const AETHER_OMSTREAM& os)>;
 using LoadFacility = std::function<void(const std::string& path, AETHER_IMSTREAM& is)>;
 
-template <class T>
-class Ptr {
+template <class T> class Ptr {
  public:
   // Points to an T or to the placeholder of type Obj.
   T* ptr_;
@@ -166,9 +154,7 @@ class Ptr {
   template <class T1, class T2> friend bool operator == (const Ptr<T1>& p1, const Ptr<T2>& p2) {
     assert(p1.ptr_);
     assert(p2.ptr_);
-    void* o1 = p1.ptr_->DynamicCast(kObjClassId);
-    void* o2 = p2.ptr_->DynamicCast(kObjClassId);
-    return o1 == o2;
+    return p1.ptr_->DynamicCast(kObjClassId) == p2.ptr_->DynamicCast(kObjClassId);
   }
   template <class T1, class T2> friend bool operator != (const Ptr<T1>& p1, const Ptr<T2>& p2) { return !(p1 == p2); }
   // Same type comparison.
@@ -179,16 +165,15 @@ class Ptr {
   }
   template <class T1> friend bool operator != (const Ptr<T1>& p1, const Ptr<T1>& p2) { return !(p1 == p2); }
 
-  void SetId(ObjId::Type i) { ptr_->id_.SetId(i); }
-  ObjId::Type GetId() const { return ptr_->id_.GetId(); }
-  uint8_t GetFlags() const { return ptr_->flags_; }
-  void SetFlags(uint8_t flags) { ptr_->flags_ = flags; }
+  void SetId(const ObjId& i) { ptr_->id_ = i; }
+  ObjId GetId() const { return ptr_->id_; }
+  ObjFlags GetFlags() const { return ptr_->flags_; }
+  void SetFlags(ObjFlags flags) { ptr_->flags_ = flags; }
   
   void Serialize(StoreFacility s) const;
   void Unload();
   void Load(LoadFacility l);
   Ptr Clone() const;
-  
 
   // Protected section.
   void Init(T* p);
@@ -263,15 +248,15 @@ public:
 class Obj {
 protected:
   template <class T> struct Registrar {
-    Registrar(uint32_t id, uint32_t base_id) {
-      Obj::Registry<void>::RegisterClass(id, base_id, []{ return new T(); });
+    Registrar(uint32_t cls_id, uint32_t base_id) {
+      Obj::Registry<void>::RegisterClass(cls_id, base_id, []{ return new T(); });
     }
   };
 
 public:
-  static Obj* CreateClassById(uint32_t id, ObjId instance_id) {
-    Obj* o = Registry<void>::CreateClassById(id);
-    o->id_ = instance_id;
+  static Obj* CreateClassById(uint32_t cls_id, ObjId obj_id) {
+    Obj* o = Registry<void>::CreateClassById(cls_id);
+    o->id_ = obj_id;
     return o;
   }
 
@@ -282,14 +267,14 @@ public:
   }
   virtual ~Obj() {
     if (Registry<void>::root_ == this) Registry<void>::root_ = nullptr;
-    auto it = Registry<void>::all_objects_.find(id_.GetId());
+    auto it = Registry<void>::all_objects_.find(id_);
     if (it != Registry<void>::all_objects_.end()) Registry<void>::all_objects_.erase(it);
   }
   
-  void AddObject() { Registry<void>::all_objects_[id_.GetId()] = this; }
+  void AddObject() { Registry<void>::all_objects_[id_] = this; }
   
-  static Obj* FindObject(ObjId instance_id) {
-    auto it = Registry<void>::all_objects_.find(instance_id.GetId());
+  static Obj* FindObject(ObjId obj_id) {
+    auto it = Registry<void>::all_objects_.find(obj_id);
     if (it != Registry<void>::all_objects_.end()) return it->second;
     return nullptr;
   }
@@ -304,26 +289,26 @@ public:
  protected:
   template <class Dummy> class Registry {
   public:
-    static void RegisterClass(uint32_t id, uint32_t base_id, std::function<Obj*()> factory) {
+    static void RegisterClass(uint32_t cls_id, uint32_t base_id, std::function<Obj*()> factory) {
       static bool initialized = false;
       if (!initialized) {
         initialized = true;
         registry_ = new std::unordered_map<uint32_t, std::function<Obj*()>>();
         base_to_derived_ = new std::unordered_map<uint32_t, uint32_t>();
       }
-      if (registry_->find(id) != registry_->end()) {
+      if (registry_->find(cls_id) != registry_->end()) {
         throw std::runtime_error("Class name already registered or Crc32 collision detected. Please choose another "
                                  "name for the class.");
       }
-      (*registry_)[id] = factory;
-      if (base_id != qcstudio::crc32::from_literal("Obj").value) (*base_to_derived_)[base_id] = id;
+      (*registry_)[cls_id] = factory;
+      if (base_id != qcstudio::crc32::from_literal("Obj").value) (*base_to_derived_)[base_id] = cls_id;
     }
     
-    static void UnregisterClass(uint32_t id) {
-      auto it = registry_->find(id);
+    static void UnregisterClass(uint32_t cls_id) {
+      auto it = registry_->find(cls_id);
       if (it != registry_->end()) registry_->erase(it);
       for (auto it = base_to_derived_->begin(); it != base_to_derived_->end(); ) {
-        it = it->second == id ? base_to_derived_->erase(it) : std::next(it);
+        it = it->second == cls_id ? base_to_derived_->erase(it) : std::next(it);
       }
     }
     
@@ -340,7 +325,7 @@ public:
     }
     
     static Obj* root_;
-    static std::map<uint32_t, Obj*> all_objects_;
+    static std::map<ObjId, Obj*> all_objects_;
     static bool first_release_;
   private:
     static std::unordered_map<uint32_t, std::function<Obj*()>>* registry_;
@@ -356,25 +341,21 @@ template <class Dummy> std::unordered_map<uint32_t, std::function<Obj*()>>* Obj:
 template <class Dummy> std::unordered_map<uint32_t, uint32_t>* Obj::Registry<Dummy>::base_to_derived_;
 template <class Dummy> Obj* Obj::Registry<Dummy>::root_ = nullptr;
 template <class Dummy> bool Obj::Registry<Dummy>::first_release_ = true;
-template <class Dummy> std::map<uint32_t, Obj*> Obj::Registry<Dummy>::all_objects_;
-
-
+template <class Dummy> std::map<ObjId, Obj*> Obj::Registry<Dummy>::all_objects_;
 
 template <class T, class T1> void SerializeObj(T& s, const Ptr<T1>& o) {
   if (!o && !(o.GetFlags() & ObjFlags::kLoadable)) {
-    ObjId id1;
-    id1.SetId(0);
-    s << id1 << uint8_t(ObjFlags{});
+    s << ObjId{0} << ObjFlags{};
     return;
   }
-  s << o.ptr_->id_ << uint8_t(o.ptr_->flags_);
+  s << o.GetId() << o.GetFlags();
   if (!o || s.custom_->FindAndAddObject(o.ptr_)) return;
 
   AETHER_OMSTREAM os;
   os.custom_ = s.custom_;
   os << o->GetClassId();
   o->Serialize(os);
-  s.custom_->store_facility_(o->id_.ToString(), os);
+  s.custom_->store_facility_(o.GetId().ToString(), os);
 }
 
 template <typename T> void Ptr<T>::Release() {
@@ -416,35 +397,31 @@ template <typename T> void Ptr<T>::Release() {
   if (--ptr_->reference_count_ == 0) delete ptr_;
 }
 
-
-
-
-
 template <class T> Obj::ptr DeserializeObj(T& s) {
-  ObjId instance_id;
-  ObjFlags flags;
-  s >> instance_id >> flags;
-  if (!instance_id.IsValid()) return {};
-  if(!(flags & ObjFlags::kLoaded)) {
+  ObjId obj_id;
+  ObjFlags obj_flags;
+  s >> obj_id >> obj_flags;
+  if (!obj_id.IsValid()) return {};
+  if(!(obj_flags & ObjFlags::kLoaded)) {
     Obj::ptr o;
     // Distinguish 'unloaded' from 'nullptr'
-    o.ptr_->id_ = instance_id;
-    o.ptr_->flags_ = flags;
+    o.SetId(obj_id);
+    o.SetFlags(obj_flags);
     return o;
   }
 
   // If object is already deserialized.
-  Obj* obj = Obj::FindObject(instance_id);
+  Obj* obj = Obj::FindObject(obj_id);
   if (obj) return obj;
   
   AETHER_IMSTREAM is;
   is.custom_ = s.custom_;
-  s.custom_->load_facility_(instance_id.ToString(), is);
+  s.custom_->load_facility_(obj_id.ToString(), is);
   uint32_t class_id;
   is >> class_id;
-  obj = Obj::CreateClassById(class_id, instance_id);
-  obj->id_ = instance_id;
-  obj->flags_ = flags;
+  obj = Obj::CreateClassById(class_id, obj_id);
+  obj->id_ = obj_id;
+  obj->flags_ = obj_flags;
   // Add object to the list of already loaded before deserialization to avoid infinite loop of cyclic references.
   obj->AddObject();
   obj->Deserialize(is);
@@ -452,7 +429,7 @@ template <class T> Obj::ptr DeserializeObj(T& s) {
 }
 
 template <typename T> T* Ptr<T>::NewPlaceholder() const {
-  // The pointer is visible as nullptr from the user side. Obj instance is designated to keep instance_id etc.
+  // The pointer is visible as nullptr from the user side. Obj instance is designated to keep obj_id etc.
   auto o = new Obj();
   o->reference_count_ = 1;
   return static_cast<T*>(o);
@@ -468,8 +445,8 @@ template <typename T> void Ptr<T>::Serialize(StoreFacility store_facility) const
 
 template <typename T> void Ptr<T>::Unload() {
   auto o = NewPlaceholder();
-  o->id_ =  ptr_->id_;
-  o->flags_ = ptr_->flags_ & (~ObjFlags::kLoaded);
+  o->id_ =  GetId();
+  o->flags_ = GetFlags() & (~ObjFlags::kLoaded);
   Release();
   ptr_ = o;
 }
@@ -481,8 +458,8 @@ template <typename T> void Ptr<T>::Load(LoadFacility load_facility) {
   domain.load_facility_ = load_facility;
   is.custom_ = &domain;
   AETHER_OMSTREAM os;
-  os << ptr_->id_.GetId() << ObjFlags(ObjFlags::kLoadable | ObjFlags::kLoaded);
-  is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
+  os << GetId() << (GetFlags() | ObjFlags::kLoaded);
+  is.stream_ = std::move(os.stream_);
   Obj::Registry<void>::first_release_ = false;
   is >> *this;
   Obj::Registry<void>::first_release_ = true;
