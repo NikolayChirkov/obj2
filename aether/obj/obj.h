@@ -239,9 +239,9 @@ public:
   LoadFacility load_facility_;
   std::unordered_map<Obj*, int> objects_;
   bool FindAndAddObject(Obj* o) {
-    auto& c = objects_[o];
-    c++;
-    return c > 1;
+    auto& references_count = objects_[o];
+    references_count++;
+    return references_count > 1;
   }
 };
 
@@ -263,15 +263,15 @@ public:
   Obj() {
     id_ = ObjId::GenerateUnique();
     flags_ = ObjFlags::kLoaded;
-    if (!Registry<void>::root_) Registry<void>::root_ = this;
   }
   virtual ~Obj() {
-    if (Registry<void>::root_ == this) Registry<void>::root_ = nullptr;
     auto it = Registry<void>::all_objects_.find(id_);
     if (it != Registry<void>::all_objects_.end()) Registry<void>::all_objects_.erase(it);
   }
   
-  void AddObject() { Registry<void>::all_objects_[id_] = this; }
+  static void AddObject(Obj* o) {
+    Registry<void>::all_objects_[o->id_] = o;
+  }
   
   static Obj* FindObject(ObjId obj_id) {
     auto it = Registry<void>::all_objects_.find(obj_id);
@@ -324,7 +324,6 @@ public:
       return it->second();
     }
     
-    static Obj* root_;
     static std::map<ObjId, Obj*> all_objects_;
     static bool first_release_;
   private:
@@ -339,7 +338,6 @@ public:
 
 template <class Dummy> std::unordered_map<uint32_t, std::function<Obj*()>>* Obj::Registry<Dummy>::registry_;
 template <class Dummy> std::unordered_map<uint32_t, uint32_t>* Obj::Registry<Dummy>::base_to_derived_;
-template <class Dummy> Obj* Obj::Registry<Dummy>::root_ = nullptr;
 template <class Dummy> bool Obj::Registry<Dummy>::first_release_ = true;
 template <class Dummy> std::map<ObjId, Obj*> Obj::Registry<Dummy>::all_objects_;
 
@@ -423,8 +421,10 @@ template <class T> Obj::ptr DeserializeObj(T& s) {
   obj->id_ = obj_id;
   obj->flags_ = obj_flags;
   // Add object to the list of already loaded before deserialization to avoid infinite loop of cyclic references.
-  obj->AddObject();
+  Obj::AddObject(obj);
   obj->Deserialize(is);
+  // Track all deserialized objects.
+  is.custom_->FindAndAddObject(obj);
   return obj;
 }
 
@@ -465,10 +465,6 @@ template <typename T> void Ptr<T>::Load(LoadFacility load_facility) {
   Obj::Registry<void>::first_release_ = true;
 }
 
-template <typename T> Ptr<T> Ptr<T>::Clone() const {
-  return {};
-}
-
 template <typename T> void Ptr<T>::Init(T* p) {
   if (!p || (p->GetClassId() == kObjClassId && !(p->flags_ & ObjFlags::kLoadable))) {
     // Paceholder means nullptr so a placeholder is referenced only by a single Ptr.
@@ -478,6 +474,31 @@ template <typename T> void Ptr<T>::Init(T* p) {
     ptr_->reference_count_++;
   }
 }
+
+template <typename T> Ptr<T> Ptr<T>::Clone() const {
+  std::map<std::string, AETHER_OMSTREAM> data;
+  Domain domain;
+  domain.store_facility_ = [&data](const std::string& path, const AETHER_OMSTREAM& os) {
+    data[path].stream_ = std::move(os.stream_);
+  };
+  domain.load_facility_ = [&data](const std::string& path, AETHER_IMSTREAM& is) {
+    is.stream_ = std::move(data[path].stream_);
+  };
+  AETHER_OMSTREAM os;
+  os.custom_ = &domain;
+  os << *this;
+
+  AETHER_IMSTREAM is;
+  is.stream_ = std::move(os.stream_);
+  is.custom_ = &domain;
+  domain.objects_.clear();
+  Obj::ptr o;
+  is >> o;
+  // Make Ids of loaded objects unique.
+  for (auto it : domain.objects_) it.first->id_ = ObjId::GenerateUnique();
+  return o;
+}
+
 
 }  // namespace aether
 
