@@ -64,8 +64,9 @@ public:
   ObjFlags() : value_(kLoaded) {}
 };
 
-using StoreFacility = std::function<void(const std::string& path, uint32_t storage, const AETHER_OMSTREAM& os)>;
-using LoadFacility = std::function<void(const std::string& path, uint32_t storage, AETHER_IMSTREAM& is)>;
+using ObjStorage = uint8_t;
+using StoreFacility = std::function<void(const std::string& path, ObjStorage storage, const AETHER_OMSTREAM& os)>;
+using LoadFacility = std::function<void(const std::string& path, ObjStorage storage, AETHER_IMSTREAM& is)>;
 
 template <class T> class Ptr {
  public:
@@ -169,8 +170,8 @@ template <class T> class Ptr {
   ObjId GetId() const { return ptr_->id_; }
   ObjFlags GetFlags() const { return ptr_->flags_; }
   void SetFlags(ObjFlags flags) { ptr_->flags_ = flags; }
-  void SetStorage(uint32_t storage) { ptr_->storage_ = storage; }
-  uint32_t GetStorage() const { return ptr_->storage_; }
+  void SetStorage(ObjStorage storage) { ptr_->storage_ = storage; }
+  ObjStorage GetStorage() const { return ptr_->storage_; }
 
   void Serialize(StoreFacility s) const;
   void Unload();
@@ -295,7 +296,7 @@ public:
 
   ObjId id_;
   ObjFlags flags_;
-  uint32_t storage_;
+  ObjStorage storage_;
  protected:
   template <class Dummy> class Registry {
   public:
@@ -353,7 +354,7 @@ template <class Dummy> std::map<ObjId, Obj*> Obj::Registry<Dummy>::all_objects_;
 
 template <class T, class T1> void SerializeObj(T& s, const Ptr<T1>& o) {
   if (!o && !(o.GetFlags() & ObjFlags::kLoadable)) {
-    s << ObjId{0} << ObjFlags{} << uint32_t(0);
+    s << ObjId{0} << ObjFlags{} << ObjStorage{0};
     return;
   }
   s << o.GetId() << o.GetFlags() << o.GetStorage();
@@ -373,7 +374,7 @@ template <typename T> void Ptr<T>::Release() {
     
     // Count all references to all objects which are accessible from this pointer that is going to be released.
     Domain domain;
-    domain.store_facility_ = [](const std::string&, uint32_t, const AETHER_OMSTREAM&) {};
+    domain.store_facility_ = [](const std::string&, ObjStorage, const AETHER_OMSTREAM&) {};
     AETHER_OMSTREAM os2;
     os2.custom_ = &domain;
     os2 << *this;
@@ -408,7 +409,7 @@ template <typename T> void Ptr<T>::Release() {
 template <class T> Obj::ptr DeserializeObj(T& s) {
   ObjId obj_id;
   ObjFlags obj_flags;
-  uint32_t obj_storage;
+  ObjStorage obj_storage;
   s >> obj_id >> obj_flags >> obj_storage;
   if (!obj_id.IsValid()) return {};
   if(!(obj_flags & ObjFlags::kLoaded)) {
