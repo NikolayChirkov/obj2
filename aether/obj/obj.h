@@ -173,7 +173,7 @@ template <class T> class Ptr {
   void Serialize(StoreFacility s) const;
   void Unload();
   void Load(LoadFacility l);
-  Ptr Clone() const;
+  Ptr Clone(LoadFacility load_facility) const;
 
   // Protected section.
   void Init(T* p);
@@ -475,7 +475,22 @@ template <typename T> void Ptr<T>::Init(T* p) {
   }
 }
 
-template <typename T> Ptr<T> Ptr<T>::Clone() const {
+template <typename T> Ptr<T> Ptr<T>::Clone(LoadFacility load_facility) const {
+  // Clone whole hierarchy from the unloaded subgraph.
+  if ((GetFlags() & ObjFlags::kLoadable) && !(GetFlags() & ObjFlags::kLoaded)) {
+    AETHER_OMSTREAM os;
+    os << GetId() << (GetFlags() | ObjFlags::kLoaded);
+    AETHER_IMSTREAM is;
+    is.stream_ = std::move(os.stream_);
+    Domain domain;
+    domain.load_facility_ = load_facility;
+    is.custom_ = &domain;
+    Obj::ptr o;
+    is >> o;
+    // Make Ids of loaded objects unique.
+    for (auto it : domain.objects_) it.first->id_ = ObjId::GenerateUnique();
+    return o;
+  }
   std::map<std::string, AETHER_OMSTREAM> data;
   Domain domain;
   domain.store_facility_ = [&data](const std::string& path, const AETHER_OMSTREAM& os) {
