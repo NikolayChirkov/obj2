@@ -265,15 +265,26 @@ public:
     flags_ = ObjFlags::kLoaded;
   }
   virtual ~Obj() {
+    auto v = Registry<void>::all_objects_;
     auto it = Registry<void>::all_objects_.find(id_);
     if (it != Registry<void>::all_objects_.end()) Registry<void>::all_objects_.erase(it);
   }
   
   static void AddObject(Obj* o) {
     Registry<void>::all_objects_[o->id_] = o;
+    auto v = Registry<void>::all_objects_;
+    auto v1 = Registry<void>::all_objects_;
+  }
+  
+  static void RemoveObject(Obj* o) {
+    auto v = Registry<void>::all_objects_;
+    auto it = Registry<void>::all_objects_.find(o->id_);
+    assert(it != Registry<void>::all_objects_.end());
+    Registry<void>::all_objects_.erase(it);
   }
   
   static Obj* FindObject(ObjId obj_id) {
+    auto v = Registry<void>::all_objects_;
     auto it = Registry<void>::all_objects_.find(obj_id);
     if (it != Registry<void>::all_objects_.end()) return it->second;
     return nullptr;
@@ -486,9 +497,15 @@ template <typename T> Ptr<T> Ptr<T>::Clone(LoadFacility load_facility) const {
     domain.load_facility_ = load_facility;
     is.custom_ = &domain;
     Obj::ptr o;
+    Obj::Registry<void>::first_release_ = false;
     is >> o;
-    // Make Ids of loaded objects unique.
-    for (auto it : domain.objects_) it.first->id_ = ObjId::GenerateUnique();
+    Obj::Registry<void>::first_release_ = true;
+    // Make Ids of loaded objects unique and re-register objects globally.
+    for (auto it : domain.objects_) {
+      Obj::RemoveObject(it.first);
+      it.first->id_ = ObjId::GenerateUnique();
+      Obj::AddObject(it.first);
+    }
     return o;
   }
   std::map<std::string, AETHER_OMSTREAM> data;
