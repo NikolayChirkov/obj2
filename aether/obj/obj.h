@@ -64,8 +64,8 @@ public:
   ObjFlags() : value_(kLoaded) {}
 };
 
-using StoreFacility = std::function<void(const std::string& path, const AETHER_OMSTREAM& os)>;
-using LoadFacility = std::function<void(const std::string& path, AETHER_IMSTREAM& is)>;
+using StoreFacility = std::function<void(const std::string& path, uint32_t storage, const AETHER_OMSTREAM& os)>;
+using LoadFacility = std::function<void(const std::string& path, uint32_t storage, AETHER_IMSTREAM& is)>;
 
 template <class T> class Ptr {
  public:
@@ -169,7 +169,9 @@ template <class T> class Ptr {
   ObjId GetId() const { return ptr_->id_; }
   ObjFlags GetFlags() const { return ptr_->flags_; }
   void SetFlags(ObjFlags flags) { ptr_->flags_ = flags; }
-  
+  void SetStorage(uint32_t storage) { ptr_->storage_ = storage; }
+  uint32_t GetStorage() const { return ptr_->storage_; }
+
   void Serialize(StoreFacility s) const;
   void Unload();
   void Load(LoadFacility l);
@@ -263,28 +265,24 @@ public:
   Obj() {
     id_ = ObjId::GenerateUnique();
     flags_ = ObjFlags::kLoaded;
+    storage_ = 0;
   }
   virtual ~Obj() {
-    auto v = Registry<void>::all_objects_;
     auto it = Registry<void>::all_objects_.find(id_);
     if (it != Registry<void>::all_objects_.end()) Registry<void>::all_objects_.erase(it);
   }
   
   static void AddObject(Obj* o) {
     Registry<void>::all_objects_[o->id_] = o;
-    auto v = Registry<void>::all_objects_;
-    auto v1 = Registry<void>::all_objects_;
   }
   
   static void RemoveObject(Obj* o) {
-    auto v = Registry<void>::all_objects_;
     auto it = Registry<void>::all_objects_.find(o->id_);
     assert(it != Registry<void>::all_objects_.end());
     Registry<void>::all_objects_.erase(it);
   }
   
   static Obj* FindObject(ObjId obj_id) {
-    auto v = Registry<void>::all_objects_;
     auto it = Registry<void>::all_objects_.find(obj_id);
     if (it != Registry<void>::all_objects_.end()) return it->second;
     return nullptr;
@@ -297,6 +295,7 @@ public:
 
   ObjId id_;
   ObjFlags flags_;
+  uint32_t storage_;
  protected:
   template <class Dummy> class Registry {
   public:
@@ -354,17 +353,17 @@ template <class Dummy> std::map<ObjId, Obj*> Obj::Registry<Dummy>::all_objects_;
 
 template <class T, class T1> void SerializeObj(T& s, const Ptr<T1>& o) {
   if (!o && !(o.GetFlags() & ObjFlags::kLoadable)) {
-    s << ObjId{0} << ObjFlags{};
+    s << ObjId{0} << ObjFlags{} << uint32_t(0);
     return;
   }
-  s << o.GetId() << o.GetFlags();
+  s << o.GetId() << o.GetFlags() << o.GetStorage();
   if (!o || s.custom_->FindAndAddObject(o.ptr_)) return;
 
   AETHER_OMSTREAM os;
   os.custom_ = s.custom_;
   os << o->GetClassId();
   o->Serialize(os);
-  s.custom_->store_facility_(o.GetId().ToString(), os);
+  s.custom_->store_facility_(o.GetId().ToString(), o.GetStorage(), os);
 }
 
 template <typename T> void Ptr<T>::Release() {
@@ -374,7 +373,7 @@ template <typename T> void Ptr<T>::Release() {
     
     // Count all references to all objects which are accessible from this pointer that is going to be released.
     Domain domain;
-    domain.store_facility_ = [](const std::string& path, const AETHER_OMSTREAM& os) {};
+    domain.store_facility_ = [](const std::string&, uint32_t, const AETHER_OMSTREAM&) {};
     AETHER_OMSTREAM os2;
     os2.custom_ = &domain;
     os2 << *this;
@@ -409,13 +408,15 @@ template <typename T> void Ptr<T>::Release() {
 template <class T> Obj::ptr DeserializeObj(T& s) {
   ObjId obj_id;
   ObjFlags obj_flags;
-  s >> obj_id >> obj_flags;
+  uint32_t obj_storage;
+  s >> obj_id >> obj_flags >> obj_storage;
   if (!obj_id.IsValid()) return {};
   if(!(obj_flags & ObjFlags::kLoaded)) {
     Obj::ptr o;
     // Distinguish 'unloaded' from 'nullptr'
     o.SetId(obj_id);
     o.SetFlags(obj_flags);
+    o.SetFlags(obj_storage);
     return o;
   }
 
@@ -425,12 +426,13 @@ template <class T> Obj::ptr DeserializeObj(T& s) {
   
   AETHER_IMSTREAM is;
   is.custom_ = s.custom_;
-  s.custom_->load_facility_(obj_id.ToString(), is);
+  s.custom_->load_facility_(obj_id.ToString(), obj_storage, is);
   uint32_t class_id;
   is >> class_id;
   obj = Obj::CreateClassById(class_id, obj_id);
   obj->id_ = obj_id;
   obj->flags_ = obj_flags;
+  obj->storage_ = obj_storage;
   // Add object to the list of already loaded before deserialization to avoid infinite loop of cyclic references.
   Obj::AddObject(obj);
   obj->Deserialize(is);
@@ -456,8 +458,9 @@ template <typename T> void Ptr<T>::Serialize(StoreFacility store_facility) const
 
 template <typename T> void Ptr<T>::Unload() {
   auto o = NewPlaceholder();
-  o->id_ =  GetId();
+  o->id_ = GetId();
   o->flags_ = GetFlags() & (~ObjFlags::kLoaded);
+  o->storage_ = GetStorage();
   Release();
   ptr_ = o;
 }
@@ -469,7 +472,7 @@ template <typename T> void Ptr<T>::Load(LoadFacility load_facility) {
   domain.load_facility_ = load_facility;
   is.custom_ = &domain;
   AETHER_OMSTREAM os;
-  os << GetId() << (GetFlags() | ObjFlags::kLoaded);
+  os << GetId() << (GetFlags() | ObjFlags::kLoaded) << GetStorage();
   is.stream_ = std::move(os.stream_);
   Obj::Registry<void>::first_release_ = false;
   is >> *this;
@@ -490,7 +493,7 @@ template <typename T> Ptr<T> Ptr<T>::Clone(LoadFacility load_facility) const {
   // Clone whole hierarchy from the unloaded subgraph.
   if ((GetFlags() & ObjFlags::kLoadable) && !(GetFlags() & ObjFlags::kLoaded)) {
     AETHER_OMSTREAM os;
-    os << GetId() << (GetFlags() | ObjFlags::kLoaded);
+    os << GetId() << (GetFlags() | ObjFlags::kLoaded) << GetStorage();
     AETHER_IMSTREAM is;
     is.stream_ = std::move(os.stream_);
     Domain domain;
@@ -508,27 +511,28 @@ template <typename T> Ptr<T> Ptr<T>::Clone(LoadFacility load_facility) const {
     }
     return o;
   }
-  std::map<std::string, AETHER_OMSTREAM> data;
-  Domain domain;
-  domain.store_facility_ = [&data](const std::string& path, const AETHER_OMSTREAM& os) {
-    data[path].stream_ = std::move(os.stream_);
-  };
-  domain.load_facility_ = [&data](const std::string& path, AETHER_IMSTREAM& is) {
-    is.stream_ = std::move(data[path].stream_);
-  };
-  AETHER_OMSTREAM os;
-  os.custom_ = &domain;
-  os << *this;
-
-  AETHER_IMSTREAM is;
-  is.stream_ = std::move(os.stream_);
-  is.custom_ = &domain;
-  domain.objects_.clear();
-  Obj::ptr o;
-  is >> o;
-  // Make Ids of loaded objects unique.
-  for (auto it : domain.objects_) it.first->id_ = ObjId::GenerateUnique();
-  return o;
+  return {};
+//  std::map<std::string, AETHER_OMSTREAM> data;
+//  Domain domain;
+//  domain.store_facility_ = [&data](const std::string& path, const AETHER_OMSTREAM& os) {
+//    data[path].stream_ = std::move(os.stream_);
+//  };
+//  domain.load_facility_ = [&data](const std::string& path, AETHER_IMSTREAM& is) {
+//    is.stream_ = std::move(data[path].stream_);
+//  };
+//  AETHER_OMSTREAM os;
+//  os.custom_ = &domain;
+//  os << *this;
+//
+//  AETHER_IMSTREAM is;
+//  is.stream_ = std::move(os.stream_);
+//  is.custom_ = &domain;
+//  domain.objects_.clear();
+//  Obj::ptr o;
+//  is >> o;
+//  // Make Ids of loaded objects unique.
+//  for (auto it : domain.objects_) it.first->id_ = ObjId::GenerateUnique();
+//  return o;
 }
 
 
