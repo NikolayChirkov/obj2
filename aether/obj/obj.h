@@ -58,7 +58,7 @@ protected:
 class ObjFlags {
   uint8_t value_;
 public:
-  enum { kLoadable = 1, kLoaded = 2 };
+  enum { kLoadable = 1 << 0, kLoaded = 1 << 1, kConst = 1 << 2, };
   operator uint8_t&() { return value_; }
   ObjFlags(decltype(value_) v) : value_(v) {}
   ObjFlags() : value_(kLoaded) {}
@@ -173,7 +173,7 @@ template <class T> class Ptr {
   void SetStorage(ObjStorage storage) { ptr_->storage_ = storage; }
   ObjStorage GetStorage() const { return ptr_->storage_; }
 
-  void Serialize(StoreFacility s) const;
+  void Serialize(StoreFacility s, int flags) const;
   void Unload();
   void Load(LoadFacility l);
   Ptr Clone(LoadFacility load_facility) const;
@@ -238,6 +238,7 @@ AETHER_SERIALIZE_CLS2, AETHER_SERIALIZE_CLS1)(__VA_ARGS__))
 
 class Domain {
 public:
+  int flags_;
   StoreFacility store_facility_;
   LoadFacility load_facility_;
   std::unordered_map<Obj*, int> objects_;
@@ -359,6 +360,9 @@ template <class T, class T1> void SerializeObj(T& s, const Ptr<T1>& o) {
   }
   s << o.GetId() << o.GetFlags() << o.GetStorage();
   if (!o || s.custom_->FindAndAddObject(o.ptr_)) return;
+  
+  // Don't serialize constant objects if not directed.
+  if (s.custom_->flags_ == 0 && (o.GetFlags() & ObjFlags::kConst)) return;
 
   AETHER_OMSTREAM os;
   os.custom_ = s.custom_;
@@ -449,8 +453,9 @@ template <typename T> T* Ptr<T>::NewPlaceholder() const {
   return static_cast<T*>(o);
 }
 
-template <typename T> void Ptr<T>::Serialize(StoreFacility store_facility) const {
+template <typename T> void Ptr<T>::Serialize(StoreFacility store_facility, int flags) const {
   Domain domain;
+  domain.flags_ = flags;
   domain.store_facility_ = store_facility;
   AETHER_OMSTREAM os;
   os.custom_ = &domain;
