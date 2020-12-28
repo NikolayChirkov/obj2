@@ -195,8 +195,8 @@ template <class T, class T1> void SerializeObj(T& s, const Ptr<T1>& o1);
 template <class T> Ptr<Obj> DeserializeObj(T& s);
 
 #define AETHER_SERIALIZE_(CLS, BASE) \
-  virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s); } \
-  virtual void Deserialize(AETHER_IMSTREAM& s) { Serializator(s); } \
+  virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s, s.custom_->flags_); } \
+  virtual void Deserialize(AETHER_IMSTREAM& s) { Serializator(s, s.custom_->flags_); } \
   friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const CLS::ptr& o) { \
     SerializeObj(s, o); \
     return s; \
@@ -293,12 +293,13 @@ public:
   AETHER_OBJECT(Obj);
   AETHER_INTERFACES(Obj);
   AETHER_SERIALIZE(Obj);
-  template <typename T> void Serializator(T& s) const {}
+  template <typename T> void Serializator(T& s, int flags) const {}
 
   ObjId id_;
   ObjFlags flags_;
   ObjStorage storage_;
- protected:
+  enum Serialization { kConsts = 1 << 0, kData = 1 << 1, kRefs = 1 << 2 };
+protected:
   template <class Dummy> class Registry {
   public:
     static void RegisterClass(uint32_t cls_id, uint32_t base_id, std::function<Obj*()> factory) {
@@ -362,7 +363,7 @@ template <class T, class T1> void SerializeObj(T& s, const Ptr<T1>& o) {
   if (!o || s.custom_->FindAndAddObject(o.ptr_)) return;
   
   // Don't serialize constant objects if not directed.
-  if (s.custom_->flags_ == 0 && (o.GetFlags() & ObjFlags::kConst)) return;
+  if (!(s.custom_->flags_ & Obj::Serialization::kConsts) && (o.GetFlags() & ObjFlags::kConst)) return;
 
   AETHER_OMSTREAM os;
   os.custom_ = s.custom_;
@@ -378,6 +379,7 @@ template <typename T> void Ptr<T>::Release() {
     
     // Count all references to all objects which are accessible from this pointer that is going to be released.
     Domain domain;
+    domain.flags_ = Obj::Serialization::kRefs | Obj::Serialization::kConsts;
     domain.store_facility_ = [](const std::string&, ObjStorage, const AETHER_OMSTREAM&) {};
     AETHER_OMSTREAM os2;
     os2.custom_ = &domain;
@@ -474,7 +476,8 @@ template <typename T> void Ptr<T>::Unload() {
 template <typename T> void Ptr<T>::Load(LoadFacility load_facility) {
   if (!IsPlaceholder()) return;
   AETHER_IMSTREAM is;
-  aether::Domain domain;
+  Domain domain;
+  domain.flags_ = Obj::Serialization::kRefs | Obj::Serialization::kData | Obj::Serialization::kConsts;
   domain.load_facility_ = load_facility;
   is.custom_ = &domain;
   AETHER_OMSTREAM os;
@@ -503,6 +506,7 @@ template <typename T> Ptr<T> Ptr<T>::Clone(LoadFacility load_facility) const {
     AETHER_IMSTREAM is;
     is.stream_ = std::move(os.stream_);
     Domain domain;
+    domain.flags_ = Obj::Serialization::kRefs | Obj::Serialization::kData | Obj::Serialization::kConsts;
     domain.load_facility_ = load_facility;
     is.custom_ = &domain;
     Obj::ptr o;
@@ -520,6 +524,7 @@ template <typename T> Ptr<T> Ptr<T>::Clone(LoadFacility load_facility) const {
   return {};
 //  std::map<std::string, AETHER_OMSTREAM> data;
 //  Domain domain;
+//  domain.flags_ = Obj::Serialization::kRefs | Obj::Serialization::kData | Obj::Serialization::kConsts;
 //  domain.store_facility_ = [&data](const std::string& path, const AETHER_OMSTREAM& os) {
 //    data[path].stream_ = std::move(os.stream_);
 //  };
