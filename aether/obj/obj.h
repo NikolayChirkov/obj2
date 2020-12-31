@@ -23,14 +23,15 @@ limitations under the License.
 #include <cassert>
 #include "../../third_party/crc32/crc32.h"
 
-//#ifndef AETHER_OMSTREAM
-#include "../../third_party/aether/stream/aether/mstream/mstream.h"
 namespace aether {
 class Domain;
 class Obj;
 }
-using AETHER_OMSTREAM = aether::omstream<aether::Domain*>;
-using AETHER_IMSTREAM = aether::imstream<aether::Domain*>;
+
+//#ifndef AETHER_OMSTREAM
+#include "../../third_party/aether/stream/aether/mstream/mstream.h"
+#define AETHER_OMSTREAM aether::omstream<aether::Domain*>
+#define AETHER_IMSTREAM aether::imstream<aether::Domain*>
 //#endif
 
 namespace aether {
@@ -151,21 +152,6 @@ template <class T> class Ptr {
   }
   T* operator->() const { return get(); }
   
-  // Different type comparison.
-  template <class T1, class T2> friend bool operator == (const Ptr<T1>& p1, const Ptr<T2>& p2) {
-    assert(p1.ptr_);
-    assert(p2.ptr_);
-    return p1.ptr_->DynamicCast(kObjClassId) == p2.ptr_->DynamicCast(kObjClassId);
-  }
-  template <class T1, class T2> friend bool operator != (const Ptr<T1>& p1, const Ptr<T2>& p2) { return !(p1 == p2); }
-  // Same type comparison.
-  template <class T1> friend bool operator == (const Ptr<T1>& p1, const Ptr<T1>& p2) {
-    assert(p1.ptr_);
-    assert(p2.ptr_);
-    return p1.ptr_ == p2.ptr_;
-  }
-  template <class T1> friend bool operator != (const Ptr<T1>& p1, const Ptr<T1>& p2) { return !(p1 == p2); }
-
   void SetId(const ObjId& i) { ptr_->id_ = i; }
   ObjId GetId() const { return ptr_->id_; }
   ObjFlags GetFlags() const { return ptr_->flags_; }
@@ -190,6 +176,22 @@ template <class T> class Ptr {
   }
   static constexpr uint32_t kObjClassId = qcstudio::crc32::from_literal("Obj").value;
 };
+
+// Different type comparison.
+template <class T1, class T2> bool operator == (const Ptr<T1>& p1, const Ptr<T2>& p2) {
+	assert(p1.ptr_);
+	assert(p2.ptr_);
+	return p1.ptr_->DynamicCast(Ptr<T1>::kObjClassId) == p2.ptr_->DynamicCast(Ptr<T1>::kObjClassId);
+}
+template <class T1, class T2> bool operator != (const Ptr<T1>& p1, const Ptr<T2>& p2) { return !(p1 == p2); }
+// Same type comparison.
+template <class T1> bool operator == (const Ptr<T1>& p1, const Ptr<T1>& p2) {
+	assert(p1.ptr_);
+	assert(p2.ptr_);
+	return p1.ptr_ == p2.ptr_;
+}
+template <class T1> bool operator != (const Ptr<T1>& p1, const Ptr<T1>& p2) { return !(p1 == p2); }
+
 
 template <class T, class T1> void SerializeObj(T& s, const Ptr<T1>& o1);
 template <class T> Ptr<Obj> DeserializeObj(T& s);
@@ -273,6 +275,8 @@ public:
     auto it = Registry<void>::all_objects_.find(id_);
     if (it != Registry<void>::all_objects_.end()) Registry<void>::all_objects_.erase(it);
   }
+  
+  virtual void OnLoaded() {}
   
   static void AddObject(Obj* o) {
     Registry<void>::all_objects_[o->id_] = o;
@@ -486,6 +490,9 @@ template <typename T> void Ptr<T>::Load(LoadFacility load_facility) {
   Obj::Registry<void>::first_release_ = false;
   is >> *this;
   Obj::Registry<void>::first_release_ = true;
+  for (auto it : domain.objects_) {
+    it.first->OnLoaded();
+  }
 }
 
 template <typename T> void Ptr<T>::Init(T* p) {
