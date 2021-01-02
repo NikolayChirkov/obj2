@@ -71,93 +71,120 @@ using LoadFacility = std::function<void(const std::string& path, ObjStorage stor
 
 template <class T> class Ptr {
  public:
-  // Points to an T or to the placeholder of type Obj.
+  // If pointer is null then Id, flags and storage are in the pointer.
   T* ptr_;
-  Ptr() { Init(nullptr); }
+  ObjId id_;
+  ObjFlags flags_;
+  ObjStorage storage_;
+  
+  // Example: A::ptr a;
+  Ptr() { ptr_ = nullptr; }
+  // Example: A::ptr a(nullptr);
+  // Example: a = nullptr;
   Ptr(T* p) { Init(p); }
+  // Example: A::ptr a(other_a_ptr);
+  // Example: A::ptr a = other_a_ptr;
   Ptr(const Ptr& p) { Init(p.ptr_); }
+  // Example: B::ptr b((A*)nullptr);
   template <class T1> Ptr(T1* p) { InitCast(p); }
+  // Example: B::ptr b(a);
+  // Example: B::ptr b = a;
   template <class T1> Ptr(const Ptr<T1>& p) { InitCast(p.ptr_); }
-  
-  ~Ptr() { Release(); }
-  
+  // Example: A::ptr a2(std::move(a1));
+  Ptr(Ptr&& p) {
+    ptr_ = p.ptr_;
+    p.ptr_ = nullptr;
+  }
+  // Example: B::ptr b(std::move(a));
+  template <class T1> Ptr(Ptr<T1>&& p) {
+    if (!p) {
+      ptr_ = nullptr;
+      return;
+    }
+    T* ptr = static_cast<T*>(p.ptr_->DynamicCast(T::class_id_));
+    if (ptr) {
+      ptr_ = ptr;
+      p.ptr_ = nullptr;
+    } else {
+      ptr_ = nullptr;
+      // Can't cast to this pointer so just release the original pointer.
+      p.Release();
+    }
+  }
+
+  // Example: a1 = a2;
   Ptr& operator = (const Ptr& p) {
     // The object is the same. It's ok to compare pointers because the class is
     // also the same. Copy to itself also detected here.
-    if (ptr_ == p.ptr_) return *this;
-    Release();
-    Init(p.ptr_);
+    if (ptr_ != p.ptr_) {
+      // Release the old pointer first.
+      Release();
+      Init(p.ptr_);
+    }
     return *this;
   }
-
+  // Example: b = a;
   template <class T1> Ptr& operator = (const Ptr<T1>& p) {
-    // The object is the same. Perform comparison of pointers casted to base Obj.
-    if (p.ptr_->DynamicCast(kObjClassId) == ptr_->DynamicCast(kObjClassId)) return *this;
+    // Same object copy.
+    if (*this == p) {
+      return *this;
+    }
     Release();
     InitCast(p.ptr_);
     return *this;
   }
-
-  template <class T1> Ptr(Ptr<T1>&& p) {
-    Init(reinterpret_cast<T*>(p.ptr_->DynamicCast(T::class_id_)));
-    p.Release();
-    p.Init(nullptr);
-  }
-
-  Ptr(Ptr&& p) {
-    ptr_ = p.ptr_;
-    p.Init(nullptr);
-  }
-
+  // Example: a2 = std::move(a1);
   Ptr& operator = (Ptr&& p) {
-    // Moving to itself.
-    if (this == &p) return *this;
-    if (ptr_ == p.ptr_) {
-      p.Release();
-      p.Init(nullptr);
-      return *this;
+    // Don't move to itself.
+    if (this != &p) {
+      if (ptr_ == p.ptr_) {
+        // Pointing to the same object - release the source.
+        p.Release();
+      } else {
+        // Another object is comming.
+        Release();
+        ptr_ = p.ptr_;
+        p.ptr_ = nullptr;
+      }
     }
-    // Another object is comming.
-    Release();
-    ptr_ = p.ptr_;
-    p.Init(nullptr);
+    return *this;
+  }
+  // Example: b = std::move(a);
+  template <class T1> Ptr& operator = (Ptr<T1>&& p) {
+    if (!p) {
+      Release();
+    } else {
+      T* ptr = static_cast<T*>(p.ptr_->DynamicCast(T::class_id_));
+      if (!ptr) {
+        Release();
+      } else {
+        ptr_ = ptr;
+        p.ptr_ = nullptr;
+      }
+    }
     return *this;
   }
 
-  template <class T1> Ptr& operator = (Ptr<T1>&& p) {
-    // Moving the same object: release the source. Pointers with different
-    // classes so don't compare them.
-    if (p.ptr_->DynamicCast(kObjClassId) == ptr_->DynamicCast(kObjClassId)) {
-      p.Release();
-      p.Init(nullptr);
-      return *this;
-    }
-    // Another object is comming.
-    Release();
-    // Placeholder also must be moved.
-    void* ptr = p.ptr_->DynamicCast(T::class_id_);
-    Init(reinterpret_cast<T*>(ptr ? ptr : p.ptr_));
-    p.Release();
-    p.Init(nullptr);
-    return *this;
-  }
+  ~Ptr() { Release(); }
   
-  operator bool() const {
-    assert(ptr_);
-    return !IsPlaceholder();
-  }
-  T* get() const {
-    assert(ptr_);
-    return (IsPlaceholder() ? nullptr : ptr_);
-  }
-  T* operator->() const { return get(); }
+  operator bool() const { return ptr_; }
+  T* operator->() const { return ptr_; }
   
-  void SetId(const ObjId& i) { ptr_->id_ = i; }
-  ObjId GetId() const { return ptr_->id_; }
-  ObjFlags GetFlags() const { return ptr_->flags_; }
-  void SetFlags(ObjFlags flags) { ptr_->flags_ = flags; }
-  void SetStorage(ObjStorage storage) { ptr_->storage_ = storage; }
-  ObjStorage GetStorage() const { return ptr_->storage_; }
+  const ObjId& GetId() const { return ptr_ ? ptr_->id_ : id_; }
+  void SetId(const ObjId& i) {
+    if (ptr_) ptr_->id_ = i;
+    else id_ = i;
+  }
+  ObjFlags GetFlags() const { return ptr_ ? ptr_->flags_ : flags_; }
+  void SetFlags(ObjFlags flags) {
+    if (ptr_) ptr_->flags_ = flags;
+    else flags_ = flags;
+  }
+  ObjStorage GetStorage() const { return ptr_ ? ptr_->storage_ : storage_; }
+  void SetStorage(ObjStorage storage) {
+    if (ptr_) ptr_->storage_ = storage;
+    else storage_ = storage;
+  }
 
   void Serialize(StoreFacility s, int flags) const;
   void Unload();
@@ -165,32 +192,24 @@ template <class T> class Ptr {
   Ptr Clone(LoadFacility load_facility) const;
 
   // Protected section.
-  void Init(T* p);
-  
-  template <class T1> void InitCast(T1* p) { Init(p ? reinterpret_cast<T*>(p->DynamicCast(T::class_id_)) : nullptr); }
-  T* NewPlaceholder() const;
+  void Init(T* p);  
+  template <class T1> void InitCast(T1* p) { Init(p ? static_cast<T*>(p->DynamicCast(T::class_id_)) : nullptr); }
   void Release();
-  bool IsPlaceholder() const {
-    assert(ptr_);
-    return ptr_->GetClassId() == kObjClassId;
-  }
   static constexpr uint32_t kObjClassId = qcstudio::crc32::from_literal("Obj").value;
 };
 
+// Same type comparison.
+template <class T1> bool operator == (const Ptr<T1>& p1, const Ptr<T1>& p2) { return p1.ptr_ == p2.ptr_; }
+template <class T1> bool operator != (const Ptr<T1>& p1, const Ptr<T1>& p2) { return !(p1 == p2); }
 // Different type comparison.
 template <class T1, class T2> bool operator == (const Ptr<T1>& p1, const Ptr<T2>& p2) {
-	assert(p1.ptr_);
-	assert(p2.ptr_);
-	return p1.ptr_->DynamicCast(Ptr<T1>::kObjClassId) == p2.ptr_->DynamicCast(Ptr<T1>::kObjClassId);
+  // If one or both pointers are zero - not equal.
+  if (!p1 || !p2) return false;
+  
+  constexpr uint32_t class_id = qcstudio::crc32::from_literal("Obj").value;
+  return p1.ptr_->DynamicCast(class_id) == p2.ptr_->DynamicCast(class_id);
 }
 template <class T1, class T2> bool operator != (const Ptr<T1>& p1, const Ptr<T2>& p2) { return !(p1 == p2); }
-// Same type comparison.
-template <class T1> bool operator == (const Ptr<T1>& p1, const Ptr<T1>& p2) {
-	assert(p1.ptr_);
-	assert(p2.ptr_);
-	return p1.ptr_ == p2.ptr_;
-}
-template <class T1> bool operator != (const Ptr<T1>& p1, const Ptr<T1>& p2) { return !(p1 == p2); }
 
 
 template <class T, class T1> void SerializeObj(T& s, const Ptr<T1>& o1);
@@ -377,43 +396,44 @@ template <class T, class T1> void SerializeObj(T& s, const Ptr<T1>& o) {
 }
 
 template <typename T> void Ptr<T>::Release() {
-  assert(ptr_);
-  if (Obj::Registry<void>::first_release_) {
-    Obj::Registry<void>::first_release_ = false;
-    
-    // Count all references to all objects which are accessible from this pointer that is going to be released.
-    Domain domain;
-    domain.flags_ = Obj::Serialization::kRefs | Obj::Serialization::kConsts;
-    domain.store_facility_ = [](const std::string&, ObjStorage, const AETHER_OMSTREAM&) {};
-    AETHER_OMSTREAM os2;
-    os2.custom_ = &domain;
-    os2 << *this;
-    
-    std::vector<Obj*> release;
-    std::vector<Obj*> keep;
-    for (auto it : domain.objects_) {
-      if (it.first->reference_count_ == it.second) release.push_back(it.first);
-      else keep.push_back(it.first);
-    }
-    
-    // If a candidate for releasing is referenced directly or indirectly by the object that is kept then don't release.
-    for (auto k : keep) {
-      domain.objects_.clear();
-      k->Serialize(os2);
-      for (auto it = release.begin(); it != release.end(); ) {
-        if (domain.objects_.find(*it) != domain.objects_.end()) it = release.erase(it);
-        else ++it;
-      }
-    }
-
-    // Maually release each object without recursive releasing.
-    for (auto r : release) r->reference_count_ = 0;
-    for (auto r : release) delete r;
-    Obj::Registry<void>::first_release_ = true;
+  if (ptr_) {
+    if (--ptr_->reference_count_ == 0) delete ptr_;
+    ptr_ = nullptr;
   }
-  
-  // reference_count_ is set to 0 to resolve cyclic references.
-  if (--ptr_->reference_count_ == 0) delete ptr_;
+
+//  if (Obj::Registry<void>::first_release_) {
+//    Obj::Registry<void>::first_release_ = false;
+//
+//    // Count all references to all objects which are accessible from this pointer that is going to be released.
+//    Domain domain;
+//    domain.flags_ = Obj::Serialization::kRefs | Obj::Serialization::kConsts;
+//    domain.store_facility_ = [](const std::string&, ObjStorage, const AETHER_OMSTREAM&) {};
+//    AETHER_OMSTREAM os2;
+//    os2.custom_ = &domain;
+//    os2 << *this;
+//
+//    std::vector<Obj*> release;
+//    std::vector<Obj*> keep;
+//    for (auto it : domain.objects_) {
+//      if (it.first->reference_count_ == it.second) release.push_back(it.first);
+//      else keep.push_back(it.first);
+//    }
+//
+//    // If a candidate for releasing is referenced directly or indirectly by the object that is kept then don't release.
+//    for (auto k : keep) {
+//      domain.objects_.clear();
+//      k->Serialize(os2);
+//      for (auto it = release.begin(); it != release.end(); ) {
+//        if (domain.objects_.find(*it) != domain.objects_.end()) it = release.erase(it);
+//        else ++it;
+//      }
+//    }
+//
+//    // Maually release each object without recursive releasing.
+//    for (auto r : release) r->reference_count_ = 0;
+//    for (auto r : release) delete r;
+//    Obj::Registry<void>::first_release_ = true;
+//  }
 }
 
 template <class T> Obj::ptr DeserializeObj(T& s) {
@@ -452,82 +472,71 @@ template <class T> Obj::ptr DeserializeObj(T& s) {
   return obj;
 }
 
-template <typename T> T* Ptr<T>::NewPlaceholder() const {
-  // The pointer is visible as nullptr from the user side. Obj instance is designated to keep obj_id etc.
-  auto o = new Obj();
-  o->reference_count_ = 1;
-  return static_cast<T*>(o);
-}
 
 template <typename T> void Ptr<T>::Serialize(StoreFacility store_facility, int flags) const {
-  Domain domain;
-  domain.flags_ = flags;
-  domain.store_facility_ = store_facility;
-  AETHER_OMSTREAM os;
-  os.custom_ = &domain;
-  os << *this;
+//  Domain domain;
+//  domain.flags_ = flags;
+//  domain.store_facility_ = store_facility;
+//  AETHER_OMSTREAM os;
+//  os.custom_ = &domain;
+//  os << *this;
 }
 
 template <typename T> void Ptr<T>::Unload() {
-  auto o = NewPlaceholder();
-  o->id_ = GetId();
-  o->flags_ = GetFlags() & (~ObjFlags::kLoaded);
-  o->storage_ = GetStorage();
-  Release();
-  ptr_ = o;
+//  auto o = NewPlaceholder();
+//  id_ = GetId();
+//  flags_ = GetFlags() & (~ObjFlags::kLoaded);
+//  o->storage_ = GetStorage();
+//  Release();
+//  ptr_ = o;
 }
 
 template <typename T> void Ptr<T>::Load(LoadFacility load_facility) {
-  if (!IsPlaceholder()) return;
-  AETHER_IMSTREAM is;
-  Domain domain;
-  domain.flags_ = Obj::Serialization::kRefs | Obj::Serialization::kData | Obj::Serialization::kConsts;
-  domain.load_facility_ = load_facility;
-  is.custom_ = &domain;
-  AETHER_OMSTREAM os;
-  os << GetId() << (GetFlags() | ObjFlags::kLoaded) << GetStorage();
-  is.stream_ = std::move(os.stream_);
-  Obj::Registry<void>::first_release_ = false;
-  is >> *this;
-  Obj::Registry<void>::first_release_ = true;
-  for (auto it : domain.objects_) {
-    it.first->OnLoaded();
-  }
+//  if (!IsPlaceholder()) return;
+//  AETHER_IMSTREAM is;
+//  Domain domain;
+//  domain.flags_ = Obj::Serialization::kRefs | Obj::Serialization::kData | Obj::Serialization::kConsts;
+//  domain.load_facility_ = load_facility;
+//  is.custom_ = &domain;
+//  AETHER_OMSTREAM os;
+//  os << GetId() << (GetFlags() | ObjFlags::kLoaded) << GetStorage();
+//  is.stream_ = std::move(os.stream_);
+//  Obj::Registry<void>::first_release_ = false;
+//  is >> *this;
+//  Obj::Registry<void>::first_release_ = true;
+//  for (auto it : domain.objects_) {
+//    it.first->OnLoaded();
+//  }
 }
 
 template <typename T> void Ptr<T>::Init(T* p) {
-  if (!p || (p->GetClassId() == kObjClassId && !(p->flags_ & ObjFlags::kLoadable))) {
-    // Paceholder means nullptr so a placeholder is referenced only by a single Ptr.
-    ptr_ = NewPlaceholder();
-  } else {
-    ptr_ = p;
-    ptr_->reference_count_++;
-  }
+  ptr_ = p;
+  if (ptr_) ptr_->reference_count_++;
 }
 
 template <typename T> Ptr<T> Ptr<T>::Clone(LoadFacility load_facility) const {
-  // Clone whole hierarchy from the unloaded subgraph.
-  if ((GetFlags() & ObjFlags::kLoadable) && !(GetFlags() & ObjFlags::kLoaded)) {
-    AETHER_OMSTREAM os;
-    os << GetId() << (GetFlags() | ObjFlags::kLoaded) << GetStorage();
-    AETHER_IMSTREAM is;
-    is.stream_ = std::move(os.stream_);
-    Domain domain;
-    domain.flags_ = Obj::Serialization::kRefs | Obj::Serialization::kData | Obj::Serialization::kConsts;
-    domain.load_facility_ = load_facility;
-    is.custom_ = &domain;
-    Obj::ptr o;
-    Obj::Registry<void>::first_release_ = false;
-    is >> o;
-    Obj::Registry<void>::first_release_ = true;
-    // Make Ids of loaded objects unique and re-register objects globally.
-    for (auto it : domain.objects_) {
-      Obj::RemoveObject(it.first);
-      it.first->id_ = ObjId::GenerateUnique();
-      Obj::AddObject(it.first);
-    }
-    return o;
-  }
+//  // Clone whole hierarchy from the unloaded subgraph.
+//  if ((GetFlags() & ObjFlags::kLoadable) && !(GetFlags() & ObjFlags::kLoaded)) {
+//    AETHER_OMSTREAM os;
+//    os << GetId() << (GetFlags() | ObjFlags::kLoaded) << GetStorage();
+//    AETHER_IMSTREAM is;
+//    is.stream_ = std::move(os.stream_);
+//    Domain domain;
+//    domain.flags_ = Obj::Serialization::kRefs | Obj::Serialization::kData | Obj::Serialization::kConsts;
+//    domain.load_facility_ = load_facility;
+//    is.custom_ = &domain;
+//    Obj::ptr o;
+//    Obj::Registry<void>::first_release_ = false;
+//    is >> o;
+//    Obj::Registry<void>::first_release_ = true;
+//    // Make Ids of loaded objects unique and re-register objects globally.
+//    for (auto it : domain.objects_) {
+//      Obj::RemoveObject(it.first);
+//      it.first->id_ = ObjId::GenerateUnique();
+//      Obj::AddObject(it.first);
+//    }
+//    return o;
+//  }
   return {};
 //  std::map<std::string, AETHER_OMSTREAM> data;
 //  Domain domain;
