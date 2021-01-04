@@ -14,13 +14,14 @@ limitations under the License.
 #define AETHER_OBJ_H_
 
 #include <algorithm>
+#include <cassert>
+#include <chrono>
 #include <cstdint>
 #include <functional>
-#include <stdexcept>
 #include <set>
-#include <unordered_set>
+#include <stdexcept>
 #include <unordered_map>
-#include <cassert>
+#include <unordered_set>
 #include "../../third_party/crc32/crc32.h"
 
 namespace aether {
@@ -296,6 +297,7 @@ public:
   }
 };
 
+class Event;
 class Obj {
 protected:
   template <class T> struct Registrar {
@@ -305,6 +307,11 @@ protected:
   };
 
 public:
+  // Returns true if the state of the object has been changed.
+  virtual bool OnEvent(const Ptr<Event>& event) { return false; }
+  // The event can be processed directly in this thread or postponed for later accepting in other thread.
+  inline virtual void PushEvent(const Ptr<Event>& e);
+
   static Obj* CreateClassById(uint32_t cls_id, ObjId obj_id) {
     Obj* o = Registry<void>::CreateClassById(cls_id);
     o->id_ = obj_id;
@@ -404,6 +411,24 @@ template <class Dummy> std::unordered_map<uint32_t, uint32_t>* Obj::Registry<Dum
 template <class Dummy> bool Obj::Registry<Dummy>::first_release_ = true;
 template <class Dummy> bool Obj::Registry<Dummy>::manual_release_ = false;
 template <class Dummy> std::map<ObjId, Obj*> Obj::Registry<Dummy>::all_objects_;
+
+
+class Event : public Obj {
+public:
+  AETHER_PURE_INTERFACE(Event);
+  AETHER_SERIALIZE(Event);
+  std::chrono::system_clock::time_point time_point_;
+  Obj::ptr obj_;
+  template <typename T> void Serializator(T& s, int flags) { s & time_point_ & obj_; }
+};
+
+// The event can be processed directly in this thread or postponed for later accepting in other thread.
+inline void Obj::PushEvent(const Ptr<Event>& e) {
+  e->obj_ = {this};
+  e->time_point_ = std::chrono::system_clock::now();
+  OnEvent(e);
+  // TODO: if (OnEvent(e)) root_->StoreEvent(e);
+}
 
 template <class T, class T1> void SerializeObj(T& s, const Ptr<T1>& o) {
   if (!o && !(o.GetFlags() & ObjFlags::kLoadable)) {
