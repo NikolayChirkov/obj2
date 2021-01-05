@@ -243,6 +243,7 @@ template <class T, class T1> void SerializeObj(T& s, const Ptr<T1>& o1);
 template <class T> Ptr<Obj> DeserializeObj(T& s);
 
 #define AETHER_SERIALIZE_(CLS, BASE) \
+  static constexpr uint32_t base_id_ = qcstudio::crc32::from_literal(#BASE).value; \
   virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s, s.custom_->flags_); } \
   virtual void Deserialize(AETHER_IMSTREAM& s) { Serializator(s, s.custom_->flags_); } \
   friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const CLS::ptr& o) { \
@@ -282,7 +283,7 @@ AETHER_SERIALIZE_CLS2, AETHER_SERIALIZE_CLS1)(__VA_ARGS__))
   AETHER_OBJECT(CLS) \
   AETHER_INTERFACES(CLS)
 
-#define AETHER_IMPLEMENTATION(CLS) aether::Obj::Registrar<CLS> CLS::registrar_(CLS::class_id_, 0);
+#define AETHER_IMPLEMENTATION(CLS) aether::Obj::Registrar<CLS> CLS::registrar_(CLS::class_id_, CLS::base_id_);
 
 class Domain {
 public:
