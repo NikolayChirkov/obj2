@@ -318,8 +318,14 @@ public:
     return o;
   }
 
+  static Obj* CreateClassById(uint32_t cls_id) {
+    Obj* o = Registry<void>::CreateClassById(cls_id);
+    o->id_ = ObjId::GenerateUnique();
+    return o;
+  }
+
   Obj() {
-    id_ = ObjId::GenerateUnique();
+    id_ = 0;
     flags_ = ObjFlags::kLoaded;
     storage_ = 0;
   }
