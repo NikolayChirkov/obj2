@@ -67,8 +67,9 @@ public:
 };
 
 using ObjStorage = uint8_t;
-using StoreFacility = std::function<void(const std::string& path, ObjStorage storage, const AETHER_OMSTREAM& os)>;
-using LoadFacility = std::function<void(const std::string& path, ObjStorage storage, AETHER_IMSTREAM& is)>;
+using StoreFacility = std::function<void(const ObjId& obj_id, uint32_t class_id, ObjStorage storage, const AETHER_OMSTREAM& os)>;
+using EnumerateFacility = std::function<std::vector<uint32_t>(const ObjId& obj_id, ObjStorage storage)>;
+using LoadFacility = std::function<void(const ObjId& obj_id, uint32_t class_id, ObjStorage storage, AETHER_IMSTREAM& is)>;
 
 template <class T> class Ptr {
  public:
@@ -215,7 +216,7 @@ template <class T> class Ptr {
 
   void Serialize(StoreFacility s, int flags) const;
   void Unload();
-  void Load(LoadFacility l);
+  void Load(EnumerateFacility e, LoadFacility l);
   Ptr Clone(LoadFacility load_facility) const;
 
   // Protected section.
@@ -289,6 +290,7 @@ class Domain {
 public:
   int flags_;
   StoreFacility store_facility_;
+  EnumerateFacility enumerate_facility_;
   LoadFacility load_facility_;
   std::unordered_map<Obj*, int> objects_;
   bool FindAndAddObject(Obj* o) {
@@ -450,9 +452,9 @@ template <class T, class T1> void SerializeObj(T& s, const Ptr<T1>& o) {
 
   AETHER_OMSTREAM os;
   os.custom_ = s.custom_;
-  os << o->GetClassId();
+  //os << o->GetClassId();
   o->Serialize(os);
-  s.custom_->store_facility_(o.GetId().ToString(), o.GetStorage(), os);
+  s.custom_->store_facility_(o.GetId(), o->GetClassId(), o.GetStorage(), os);
 }
 
 template <typename T> void Ptr<T>::Release() {
@@ -467,7 +469,7 @@ template <typename T> void Ptr<T>::Release() {
     // Count all references to all objects which are accessible from this pointer that is going to be released.
     Domain domain;
     domain.flags_ = Obj::Serialization::kRefs | Obj::Serialization::kConsts;
-    domain.store_facility_ = [](const std::string&, ObjStorage, const AETHER_OMSTREAM&) {};
+    domain.store_facility_ = [](const ObjId&, uint32_t, ObjStorage, const AETHER_OMSTREAM&) {};
     AETHER_OMSTREAM os2;
     os2.custom_ = &domain;
     os2 << *this;
@@ -524,11 +526,12 @@ template <class T> Obj::ptr DeserializeObj(T& s) {
   Obj* obj = Obj::FindObject(obj_id);
   if (obj) return obj;
   
+  std::vector<uint32_t> classes = s.custom_->enumerate_facility_(obj_id, obj_storage);
+  uint32_t class_id = classes[0];
   AETHER_IMSTREAM is;
   is.custom_ = s.custom_;
-  s.custom_->load_facility_(obj_id.ToString(), obj_storage, is);
-  uint32_t class_id;
-  is >> class_id;
+  s.custom_->load_facility_(obj_id, class_id, obj_storage, is);
+  //is >> class_id;
   obj = Obj::CreateClassById(class_id, obj_id);
   obj->id_ = obj_id;
   obj->flags_ = obj_flags;
@@ -559,11 +562,12 @@ template <typename T> void Ptr<T>::Unload() {
   Release();
 }
 
-template <typename T> void Ptr<T>::Load(LoadFacility load_facility) {
+template <typename T> void Ptr<T>::Load(EnumerateFacility enumerate_facility, LoadFacility load_facility) {
   if (ptr_) return;
   AETHER_IMSTREAM is;
   Domain domain;
   domain.flags_ = Obj::Serialization::kRefs | Obj::Serialization::kData | Obj::Serialization::kConsts;
+  domain.enumerate_facility_ = enumerate_facility;
   domain.load_facility_ = load_facility;
   is.custom_ = &domain;
   AETHER_OMSTREAM os;
