@@ -66,10 +66,13 @@ public:
   ObjFlags() : value_(kLoaded) {}
 };
 
+// TODO: move load-store-enumerate facilities under the root object to simplify calls to Ptr::Clone() etc.
 using ObjStorage = uint8_t;
-using StoreFacility = std::function<void(const ObjId& obj_id, uint32_t class_id, ObjStorage storage, const AETHER_OMSTREAM& os)>;
+using StoreFacility = std::function<void(const ObjId& obj_id, uint32_t class_id, ObjStorage storage,
+                                         const AETHER_OMSTREAM& os)>;
 using EnumerateFacility = std::function<std::vector<uint32_t>(const ObjId& obj_id, ObjStorage storage)>;
-using LoadFacility = std::function<void(const ObjId& obj_id, uint32_t class_id, ObjStorage storage, AETHER_IMSTREAM& is)>;
+using LoadFacility = std::function<void(const ObjId& obj_id, uint32_t class_id, ObjStorage storage,
+                                        AETHER_IMSTREAM& is)>;
 
 template <class T> class Ptr {
  public:
@@ -241,7 +244,7 @@ template <class T1, class T2> bool operator != (const Ptr<T1>& p1, const Ptr<T2>
 
 
 template <class T, class T1> bool SerializeRef(T& s, const Ptr<T1>& o1);
-template <class T> Ptr<Obj> DeserializeObj(T& s);
+template <class T> Ptr<Obj> DeserializeRef(T& s);
 
 
 #define AETHER_SERIALIZE_(CLS, BASE) \
@@ -250,17 +253,16 @@ template <class T> Ptr<Obj> DeserializeObj(T& s);
   virtual void SerializeBase(AETHER_OMSTREAM& s, uint32_t class_id) { \
     AETHER_OMSTREAM os; \
     os.custom_ = s.custom_; \
-    CLS::Serialize(os); \
+    CLS::Serializator(os, os.custom_->flags_); \
     s.custom_->store_facility_(id_, class_id, storage_, os); \
     if (qcstudio::crc32::from_literal("Obj").value != qcstudio::crc32::from_literal(#BASE).value) \
       BASE::SerializeBase(s, qcstudio::crc32::from_literal(#BASE).value); \
   } \
-  virtual void Deserialize(AETHER_IMSTREAM& s) { Serializator(s, s.custom_->flags_); } \
   virtual void DeserializeBase(AETHER_IMSTREAM& s, uint32_t class_id) { \
     AETHER_IMSTREAM is; \
     is.custom_ = s.custom_; \
-    s.custom_->load_facility_(id_, class_id, storage_, is); \
-    if (!is.stream_.empty()) CLS::Deserialize(is); \
+    is.custom_->load_facility_(id_, class_id, storage_, is); \
+    if (!is.stream_.empty()) CLS::Serializator(is, is.custom_->flags_); \
     if (qcstudio::crc32::from_literal("Obj").value != qcstudio::crc32::from_literal(#BASE).value) \
       BASE::DeserializeBase(s, qcstudio::crc32::from_literal(#BASE).value); \
   } \
@@ -269,7 +271,7 @@ template <class T> Ptr<Obj> DeserializeObj(T& s);
     return s; \
   } \
   friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, CLS::ptr& o) { \
-    o = DeserializeObj(s); \
+    o = DeserializeRef(s); \
     o->DeserializeBase(s, o->GetClassId()); \
     return s; \
   }
@@ -437,6 +439,7 @@ template <class Dummy> std::unordered_map<uint32_t, std::function<Obj*()>>* Obj:
 template <class Dummy> std::unordered_map<uint32_t, uint32_t>* Obj::Registry<Dummy>::base_to_derived_;
 template <class Dummy> bool Obj::Registry<Dummy>::first_release_ = true;
 template <class Dummy> bool Obj::Registry<Dummy>::manual_release_ = false;
+// TODO: move this member under the Root object to support superroot with sub-roots.
 template <class Dummy> std::map<ObjId, Obj*> Obj::Registry<Dummy>::all_objects_;
 
 
@@ -520,7 +523,7 @@ template <typename T> void Ptr<T>::Release() {
   ptr_ = nullptr;
 }
 
-template <class T> Obj::ptr DeserializeObj(T& s) {
+template <class T> Obj::ptr DeserializeRef(T& s) {
   ObjId obj_id;
   ObjFlags obj_flags;
   ObjStorage obj_storage;
@@ -540,18 +543,14 @@ template <class T> Obj::ptr DeserializeObj(T& s) {
   if (obj) return obj;
   
   std::vector<uint32_t> classes = s.custom_->enumerate_facility_(obj_id, obj_storage);
+  // TODO: choose the least derivative based on file names not by base_to_derived_ due to possible multiple branches.
   uint32_t class_id = classes[0];
-//  AETHER_IMSTREAM is;
-//  is.custom_ = s.custom_;
-//  s.custom_->load_facility_(obj_id, class_id, obj_storage, is);
-  //is >> class_id;
   obj = Obj::CreateClassById(class_id, obj_id);
   obj->id_ = obj_id;
   obj->flags_ = obj_flags;
   obj->storage_ = obj_storage;
   // Add object to the list of already loaded before deserialization to avoid infinite loop of cyclic references.
   Obj::AddObject(obj);
-  //obj->Deserialize(s);
   // Track all deserialized objects.
   s.custom_->FindAndAddObject(obj);
   return obj;
@@ -600,6 +599,7 @@ template <typename T> void Ptr<T>::Init(T* p) {
 }
 
 template <typename T> Ptr<T> Ptr<T>::Clone(LoadFacility load_facility) const {
+  Obj::ptr o;
   // Clone whole hierarchy from the unloaded subgraph.
   if ((GetFlags() & ObjFlags::kLoadable) && !(GetFlags() & ObjFlags::kLoaded)) {
     AETHER_OMSTREAM os;
@@ -610,7 +610,6 @@ template <typename T> Ptr<T> Ptr<T>::Clone(LoadFacility load_facility) const {
     domain.flags_ = Obj::Serialization::kRefs | Obj::Serialization::kData | Obj::Serialization::kConsts;
     domain.load_facility_ = load_facility;
     is.custom_ = &domain;
-    Obj::ptr o;
     Obj::Registry<void>::first_release_ = false;
     is >> o;
     Obj::Registry<void>::first_release_ = true;
@@ -620,31 +619,12 @@ template <typename T> Ptr<T> Ptr<T>::Clone(LoadFacility load_facility) const {
       it.first->id_ = ObjId::GenerateUnique();
       Obj::AddObject(it.first);
     }
-    return o;
+  } else {
+    // TODO: Clone from alive objects with options:
+    //   - clone just top-level object with reference to existing objects
+    //   - clone whole hierarchy, except kConst objects which are always referenced
   }
-  return {};
-//  std::map<std::string, AETHER_OMSTREAM> data;
-//  Domain domain;
-//  domain.flags_ = Obj::Serialization::kRefs | Obj::Serialization::kData | Obj::Serialization::kConsts;
-//  domain.store_facility_ = [&data](const std::string& path, const AETHER_OMSTREAM& os) {
-//    data[path].stream_ = std::move(os.stream_);
-//  };
-//  domain.load_facility_ = [&data](const std::string& path, AETHER_IMSTREAM& is) {
-//    is.stream_ = std::move(data[path].stream_);
-//  };
-//  AETHER_OMSTREAM os;
-//  os.custom_ = &domain;
-//  os << *this;
-//
-//  AETHER_IMSTREAM is;
-//  is.stream_ = std::move(os.stream_);
-//  is.custom_ = &domain;
-//  domain.objects_.clear();
-//  Obj::ptr o;
-//  is >> o;
-//  // Make Ids of loaded objects unique.
-//  for (auto it : domain.objects_) it.first->id_ = ObjId::GenerateUnique();
-//  return o;
+  return o;
 }
 
 
