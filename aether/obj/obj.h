@@ -377,6 +377,9 @@ public:
   static bool IsLast(uint32_t class_id) {
     return Registry<void>::base_to_derived_->find(class_id) == Obj::Registry<void>::base_to_derived_->end();
   }
+  static bool IsExist(uint32_t class_id) {
+    return Registry<void>::registry_->find(class_id) != Registry<void>::registry_->end();
+  }
 
   AETHER_OBJECT(Obj);
   AETHER_INTERFACES(Obj);
@@ -431,7 +434,6 @@ protected:
     static bool first_release_;
     static bool manual_release_;
     static std::unordered_map<uint32_t, std::vector<uint32_t>>* base_to_derived_;
-  private:
     static std::unordered_map<uint32_t, std::function<Obj*()>>* registry_;
   };
   template <class T> friend class Ptr;
@@ -550,7 +552,7 @@ template <class T> Obj::ptr DeserializeRef(T& s) {
   std::vector<uint32_t> classes = s.custom_->enumerate_facility_(obj_id, obj_storage);
   uint32_t class_id = classes[0];
   for (auto c : classes) {
-    if (Obj::IsLast(c)) {
+    if (Obj::IsExist(c) && Obj::IsLast(c)) {
       class_id = c;
       break;
     }
@@ -563,6 +565,7 @@ template <class T> Obj::ptr DeserializeRef(T& s) {
   Obj::AddObject(obj);
   // Track all deserialized objects.
   s.custom_->FindAndAddObject(obj);
+  // TODO: single storage is used for the whole hierarchy - change it to per-leve specific storage.
   obj->DeserializeBase(s, obj->GetClassId());
   return obj;
 }
