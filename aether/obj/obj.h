@@ -272,7 +272,6 @@ template <class T> Ptr<Obj> DeserializeRef(T& s);
   } \
   friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, CLS::ptr& o) { \
     o = DeserializeRef(s); \
-    o->DeserializeBase(s, o->GetClassId()); \
     return s; \
   }
 
@@ -564,6 +563,7 @@ template <class T> Obj::ptr DeserializeRef(T& s) {
   Obj::AddObject(obj);
   // Track all deserialized objects.
   s.custom_->FindAndAddObject(obj);
+  obj->DeserializeBase(s, obj->GetClassId());
   return obj;
 }
 
