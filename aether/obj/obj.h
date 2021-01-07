@@ -375,6 +375,10 @@ public:
     return nullptr;
   }
 
+  static bool IsLast(uint32_t class_id) {
+    return Registry<void>::base_to_derived_->find(class_id) == Obj::Registry<void>::base_to_derived_->end();
+  }
+
   AETHER_OBJECT(Obj);
   AETHER_INTERFACES(Obj);
   AETHER_SERIALIZE(Obj);
@@ -392,30 +396,32 @@ protected:
       if (!initialized) {
         initialized = true;
         registry_ = new std::unordered_map<uint32_t, std::function<Obj*()>>();
-        base_to_derived_ = new std::unordered_map<uint32_t, uint32_t>();
+        base_to_derived_ = new std::unordered_map<uint32_t, std::vector<uint32_t>>();
       }
       if (registry_->find(cls_id) != registry_->end()) {
         throw std::runtime_error("Class name already registered or Crc32 collision detected. Please choose another "
                                  "name for the class.");
       }
       (*registry_)[cls_id] = factory;
-      if (base_id != qcstudio::crc32::from_literal("Obj").value) (*base_to_derived_)[base_id] = cls_id;
+      if (base_id != qcstudio::crc32::from_literal("Obj").value) (*base_to_derived_)[base_id].push_back(cls_id);
     }
     
     static void UnregisterClass(uint32_t cls_id) {
       auto it = registry_->find(cls_id);
       if (it != registry_->end()) registry_->erase(it);
       for (auto it = base_to_derived_->begin(); it != base_to_derived_->end(); ) {
-        it = it->second == cls_id ? base_to_derived_->erase(it) : std::next(it);
+        it->second.erase(std::remove(it->second.begin(), it->second.end(), cls_id), it->second.end());
+        it = it->second.empty() ? base_to_derived_->erase(it) : std::next(it);
       }
     }
-    
+
+    // Creates the most far derivative without ambiguous inheritance.
     static Obj* CreateClassById(uint32_t base_id) {
       uint32_t derived_id = base_id;
       while (true) {
         auto d = base_to_derived_->find(derived_id);
-        if (d == base_to_derived_->end() || derived_id == d->second) break;
-        derived_id = d->second;
+        if (d == base_to_derived_->end() || d->second.size() > 1) break;
+        derived_id = d->second[0];
       }
       auto it = registry_->find(derived_id);
       if (it == registry_->end()) return nullptr;
@@ -425,9 +431,9 @@ protected:
     static std::map<ObjId, Obj*> all_objects_;
     static bool first_release_;
     static bool manual_release_;
+    static std::unordered_map<uint32_t, std::vector<uint32_t>>* base_to_derived_;
   private:
     static std::unordered_map<uint32_t, std::function<Obj*()>>* registry_;
-    static std::unordered_map<uint32_t, uint32_t>* base_to_derived_;
   };
   template <class T> friend class Ptr;
   friend class Domain;
@@ -436,7 +442,7 @@ protected:
 };
 
 template <class Dummy> std::unordered_map<uint32_t, std::function<Obj*()>>* Obj::Registry<Dummy>::registry_;
-template <class Dummy> std::unordered_map<uint32_t, uint32_t>* Obj::Registry<Dummy>::base_to_derived_;
+template <class Dummy> std::unordered_map<uint32_t, std::vector<uint32_t>>* Obj::Registry<Dummy>::base_to_derived_;
 template <class Dummy> bool Obj::Registry<Dummy>::first_release_ = true;
 template <class Dummy> bool Obj::Registry<Dummy>::manual_release_ = false;
 // TODO: move this member under the Root object to support superroot with sub-roots.
@@ -543,8 +549,13 @@ template <class T> Obj::ptr DeserializeRef(T& s) {
   if (obj) return obj;
   
   std::vector<uint32_t> classes = s.custom_->enumerate_facility_(obj_id, obj_storage);
-  // TODO: choose the least derivative based on file names not by base_to_derived_ due to possible multiple branches.
   uint32_t class_id = classes[0];
+  for (auto c : classes) {
+    if (Obj::IsLast(c)) {
+      class_id = c;
+      break;
+    }
+  }
   obj = Obj::CreateClassById(class_id, obj_id);
   obj->id_ = obj_id;
   obj->flags_ = obj_flags;
