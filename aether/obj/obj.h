@@ -240,19 +240,37 @@ template <class T1, class T2> bool operator == (const Ptr<T1>& p1, const Ptr<T2>
 template <class T1, class T2> bool operator != (const Ptr<T1>& p1, const Ptr<T2>& p2) { return !(p1 == p2); }
 
 
-template <class T, class T1> void SerializeObj(T& s, const Ptr<T1>& o1);
+template <class T, class T1> bool SerializeRef(T& s, const Ptr<T1>& o1);
 template <class T> Ptr<Obj> DeserializeObj(T& s);
+
 
 #define AETHER_SERIALIZE_(CLS, BASE) \
   static constexpr uint32_t base_id_ = qcstudio::crc32::from_literal(#BASE).value; \
   virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s, s.custom_->flags_); } \
+  virtual void SerializeBase(AETHER_OMSTREAM& s, uint32_t class_id) { \
+    AETHER_OMSTREAM os; \
+    os.custom_ = s.custom_; \
+    CLS::Serialize(os); \
+    s.custom_->store_facility_(id_, class_id, storage_, os); \
+    if (qcstudio::crc32::from_literal("Obj").value != qcstudio::crc32::from_literal(#BASE).value) \
+      BASE::SerializeBase(s, qcstudio::crc32::from_literal(#BASE).value); \
+  } \
   virtual void Deserialize(AETHER_IMSTREAM& s) { Serializator(s, s.custom_->flags_); } \
+  virtual void DeserializeBase(AETHER_IMSTREAM& s, uint32_t class_id) { \
+    AETHER_IMSTREAM is; \
+    is.custom_ = s.custom_; \
+    s.custom_->load_facility_(id_, class_id, storage_, is); \
+    if (!is.stream_.empty()) CLS::Deserialize(is); \
+    if (qcstudio::crc32::from_literal("Obj").value != qcstudio::crc32::from_literal(#BASE).value) \
+      BASE::DeserializeBase(s, qcstudio::crc32::from_literal(#BASE).value); \
+  } \
   friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const CLS::ptr& o) { \
-    SerializeObj(s, o); \
+    if (SerializeRef(s, o)) o->SerializeBase(s, o->GetClassId()); \
     return s; \
   } \
   friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, CLS::ptr& o) { \
     o = DeserializeObj(s); \
+    o->DeserializeBase(s, o->GetClassId()); \
     return s; \
   }
 
@@ -439,22 +457,17 @@ inline void Obj::PushEvent(const Ptr<Event>& e) {
   // TODO: if (OnEvent(e)) root_->StoreEvent(e);
 }
 
-template <class T, class T1> void SerializeObj(T& s, const Ptr<T1>& o) {
+template <class T, class T1> bool SerializeRef(T& s, const Ptr<T1>& o) {
   if (!o && !(o.GetFlags() & ObjFlags::kLoadable)) {
     s << ObjId{0} << ObjFlags{} << ObjStorage{0};
-    return;
+    return false;
   }
   s << o.GetId() << o.GetFlags() << o.GetStorage();
-  if (!o || s.custom_->FindAndAddObject(o.ptr_)) return;
+  if (!o || s.custom_->FindAndAddObject(o.ptr_)) return false;
   
   // Don't serialize constant objects if not directed.
-  if (!(s.custom_->flags_ & Obj::Serialization::kConsts) && (o.GetFlags() & ObjFlags::kConst)) return;
-
-  AETHER_OMSTREAM os;
-  os.custom_ = s.custom_;
-  //os << o->GetClassId();
-  o->Serialize(os);
-  s.custom_->store_facility_(o.GetId(), o->GetClassId(), o.GetStorage(), os);
+  if (!(s.custom_->flags_ & Obj::Serialization::kConsts) && (o.GetFlags() & ObjFlags::kConst)) return false;
+  return true;
 }
 
 template <typename T> void Ptr<T>::Release() {
@@ -528,9 +541,9 @@ template <class T> Obj::ptr DeserializeObj(T& s) {
   
   std::vector<uint32_t> classes = s.custom_->enumerate_facility_(obj_id, obj_storage);
   uint32_t class_id = classes[0];
-  AETHER_IMSTREAM is;
-  is.custom_ = s.custom_;
-  s.custom_->load_facility_(obj_id, class_id, obj_storage, is);
+//  AETHER_IMSTREAM is;
+//  is.custom_ = s.custom_;
+//  s.custom_->load_facility_(obj_id, class_id, obj_storage, is);
   //is >> class_id;
   obj = Obj::CreateClassById(class_id, obj_id);
   obj->id_ = obj_id;
@@ -538,9 +551,9 @@ template <class T> Obj::ptr DeserializeObj(T& s) {
   obj->storage_ = obj_storage;
   // Add object to the list of already loaded before deserialization to avoid infinite loop of cyclic references.
   Obj::AddObject(obj);
-  obj->Deserialize(is);
+  //obj->Deserialize(s);
   // Track all deserialized objects.
-  is.custom_->FindAndAddObject(obj);
+  s.custom_->FindAndAddObject(obj);
   return obj;
 }
 
