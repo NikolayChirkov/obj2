@@ -311,10 +311,11 @@ public:
   StoreFacility store_facility_;
   EnumerateFacility enumerate_facility_;
   LoadFacility load_facility_;
+  std::vector<Obj*> ordered_objects_;
   std::unordered_map<Obj*, int> objects_;
   bool FindAndAddObject(Obj* o) {
     auto& references_count = objects_[o];
-    references_count++;
+    if (++references_count == 1) ordered_objects_.push_back(o);
     return references_count > 1;
   }
 };
@@ -602,8 +603,8 @@ template <typename T> void Ptr<T>::Load(EnumerateFacility enumerate_facility, Lo
   Obj::Registry<void>::first_release_ = false;
   is >> *this;
   Obj::Registry<void>::first_release_ = true;
-  for (auto it : domain.objects_) {
-    it.first->OnLoaded();
+  for (auto o : domain.ordered_objects_) {
+    o->OnLoaded();
   }
 }
 
