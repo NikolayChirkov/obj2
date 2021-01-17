@@ -29,11 +29,11 @@ class Domain;
 class Obj;
 }
 
-//#ifndef AETHER_OMSTREAM
-#include "../../third_party/aether/stream/aether/mstream/mstream.h"
+#ifndef AETHER_OMSTREAM
+#include "mstream.h"
 #define AETHER_OMSTREAM aether::omstream<aether::Domain*>
 #define AETHER_IMSTREAM aether::imstream<aether::Domain*>
-//#endif
+#endif
 
 namespace aether {
 
