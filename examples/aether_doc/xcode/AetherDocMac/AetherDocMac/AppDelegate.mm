@@ -1,4 +1,3 @@
-//
 // Copyright 2016 Aether authors. All Rights Reserved.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,23 +10,22 @@
 // limitations under the License.
 // =============================================================================
 
+#import "AppDelegate.h"
+#include "../../../model/model.h"
 
-#import "ViewController.h"
+@interface AppDelegate ()
+@end
 
-@implementation ViewController
-
-- (void)viewDidLoad {
-  [super viewDidLoad];
-
-  // Do any additional setup after loading the view.
+@implementation AppDelegate {
+  App::ptr app;
 }
 
-
-- (void)setRepresentedObject:(id)representedObject {
-  [super setRepresentedObject:representedObject];
-
-  // Update the view, if already loaded.
+- (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
+  app = App::Create();
 }
 
+- (void)applicationWillTerminate:(NSNotification *)aNotification {
+  App::Release(std::move(app));
+}
 
 @end

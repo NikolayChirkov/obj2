@@ -1,4 +1,3 @@
-//
 // Copyright 2016 Aether authors. All Rights Reserved.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,23 +11,13 @@
 // =============================================================================
 
 
-#import "AppDelegate.h"
+#import <Cocoa/Cocoa.h>
 
-@interface AppDelegate ()
-
-
+@interface MainWindow : NSWindow
 @end
 
-@implementation AppDelegate
+@interface MainWindowController : NSWindowController
+@end
 
-- (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
-  // Insert code here to initialize your application
-}
-
-
-- (void)applicationWillTerminate:(NSNotification *)aNotification {
-  // Insert code here to tear down your application
-}
-
-
+@interface MainViewController : NSViewController
 @end

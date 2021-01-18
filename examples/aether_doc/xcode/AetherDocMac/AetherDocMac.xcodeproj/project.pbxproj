@@ -7,24 +7,26 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		0175F8E025B49D10008F1934 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 0175F8DF25B49D10008F1934 /* AppDelegate.m */; };
-		0175F8E325B49D10008F1934 /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 0175F8E225B49D10008F1934 /* ViewController.m */; };
+		0175F8E025B49D10008F1934 /* AppDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = 0175F8DF25B49D10008F1934 /* AppDelegate.mm */; };
+		0175F8E325B49D10008F1934 /* MainWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 0175F8E225B49D10008F1934 /* MainWindow.mm */; };
 		0175F8E525B49D16008F1934 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0175F8E425B49D16008F1934 /* Assets.xcassets */; };
 		0175F8E825B49D16008F1934 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 0175F8E625B49D16008F1934 /* Main.storyboard */; };
 		0175F8EB25B49D16008F1934 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 0175F8EA25B49D16008F1934 /* main.m */; };
-		0175F91B25B4B698008F1934 /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 0175F8E225B49D10008F1934 /* ViewController.m */; };
+		0175F91B25B4B698008F1934 /* MainWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 0175F8E225B49D10008F1934 /* MainWindow.mm */; };
 		0175F91C25B4B698008F1934 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 0175F8EA25B49D16008F1934 /* main.m */; };
-		0175F91D25B4B698008F1934 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 0175F8DF25B49D10008F1934 /* AppDelegate.m */; };
+		0175F91D25B4B698008F1934 /* AppDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = 0175F8DF25B49D10008F1934 /* AppDelegate.mm */; };
 		0175F92025B4B698008F1934 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0175F8E425B49D16008F1934 /* Assets.xcassets */; };
 		0175F92125B4B698008F1934 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 0175F8E625B49D16008F1934 /* Main.storyboard */; };
+		0175F92F25B5360A008F1934 /* model.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0175F92D25B53609008F1934 /* model.cpp */; };
+		0175F93025B5360A008F1934 /* model.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0175F92D25B53609008F1934 /* model.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		0175F8DB25B49D10008F1934 /* AetherDocMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AetherDocMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0175F8DE25B49D10008F1934 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
-		0175F8DF25B49D10008F1934 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
-		0175F8E125B49D10008F1934 /* ViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ViewController.h; sourceTree = "<group>"; };
-		0175F8E225B49D10008F1934 /* ViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ViewController.m; sourceTree = "<group>"; };
+		0175F8DF25B49D10008F1934 /* AppDelegate.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = AppDelegate.mm; sourceTree = "<group>"; };
+		0175F8E125B49D10008F1934 /* MainWindow.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MainWindow.h; sourceTree = "<group>"; };
+		0175F8E225B49D10008F1934 /* MainWindow.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MainWindow.mm; sourceTree = "<group>"; };
 		0175F8E425B49D16008F1934 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		0175F8E725B49D16008F1934 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		0175F8E925B49D16008F1934 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -32,6 +34,8 @@
 		0175F8EC25B49D16008F1934 /* AetherDocMac.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AetherDocMac.entitlements; sourceTree = "<group>"; };
 		0175F92525B4B698008F1934 /* AetherDocMacDev.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AetherDocMacDev.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0175F92625B4B699008F1934 /* AetherDocMac copy-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "AetherDocMac copy-Info.plist"; path = "/Users/nick/Desktop/vmshared/git/obj/examples/aether_doc/xcode/AetherDocMac/AetherDocMac copy-Info.plist"; sourceTree = "<absolute>"; };
+		0175F92D25B53609008F1934 /* model.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = model.cpp; path = ../../../model/model.cpp; sourceTree = "<group>"; };
+		0175F92E25B5360A008F1934 /* model.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = model.h; path = ../../../model/model.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -73,10 +77,12 @@
 		0175F8DD25B49D10008F1934 /* AetherDocMac */ = {
 			isa = PBXGroup;
 			children = (
+				0175F92D25B53609008F1934 /* model.cpp */,
+				0175F92E25B5360A008F1934 /* model.h */,
 				0175F8DE25B49D10008F1934 /* AppDelegate.h */,
-				0175F8DF25B49D10008F1934 /* AppDelegate.m */,
-				0175F8E125B49D10008F1934 /* ViewController.h */,
-				0175F8E225B49D10008F1934 /* ViewController.m */,
+				0175F8DF25B49D10008F1934 /* AppDelegate.mm */,
+				0175F8E125B49D10008F1934 /* MainWindow.h */,
+				0175F8E225B49D10008F1934 /* MainWindow.mm */,
 				0175F8E425B49D16008F1934 /* Assets.xcassets */,
 				0175F8E625B49D16008F1934 /* Main.storyboard */,
 				0175F8E925B49D16008F1934 /* Info.plist */,
@@ -181,9 +187,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				0175F8E325B49D10008F1934 /* ViewController.m in Sources */,
+				0175F8E325B49D10008F1934 /* MainWindow.mm in Sources */,
 				0175F8EB25B49D16008F1934 /* main.m in Sources */,
-				0175F8E025B49D10008F1934 /* AppDelegate.m in Sources */,
+				0175F8E025B49D10008F1934 /* AppDelegate.mm in Sources */,
+				0175F92F25B5360A008F1934 /* model.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -191,9 +198,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				0175F91B25B4B698008F1934 /* ViewController.m in Sources */,
+				0175F91B25B4B698008F1934 /* MainWindow.mm in Sources */,
 				0175F91C25B4B698008F1934 /* main.m in Sources */,
-				0175F91D25B4B698008F1934 /* AppDelegate.m in Sources */,
+				0175F91D25B4B698008F1934 /* AppDelegate.mm in Sources */,
+				0175F93025B5360A008F1934 /* model.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
