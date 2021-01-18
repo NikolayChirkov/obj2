@@ -7,7 +7,18 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		0175F90125B4B654008F1934 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 0175F90025B4B654008F1934 /* AppDelegate.m */; };
+		010C624925B54C4000122AFD /* model.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 010C624725B54C4000122AFD /* model.cpp */; };
+		010C625A25B5E95200122AFD /* state in Resources */ = {isa = PBXBuildFile; fileRef = 010C625925B5E95200122AFD /* state */; };
+		010C625E25B6002800122AFD /* model.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 010C624725B54C4000122AFD /* model.cpp */; };
+		010C625F25B6002800122AFD /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 0175F90625B4B654008F1934 /* ViewController.m */; };
+		010C626025B6002800122AFD /* AppDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = 0175F90025B4B654008F1934 /* AppDelegate.mm */; };
+		010C626125B6002800122AFD /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 0175F91125B4B659008F1934 /* main.m */; };
+		010C626225B6002800122AFD /* SceneDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 0175F90325B4B654008F1934 /* SceneDelegate.m */; };
+		010C626525B6002800122AFD /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 0175F90D25B4B659008F1934 /* LaunchScreen.storyboard */; };
+		010C626625B6002800122AFD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0175F90B25B4B659008F1934 /* Assets.xcassets */; };
+		010C626725B6002800122AFD /* state in Resources */ = {isa = PBXBuildFile; fileRef = 010C625925B5E95200122AFD /* state */; };
+		010C626825B6002800122AFD /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 0175F90825B4B654008F1934 /* Main.storyboard */; };
+		0175F90125B4B654008F1934 /* AppDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = 0175F90025B4B654008F1934 /* AppDelegate.mm */; };
 		0175F90425B4B654008F1934 /* SceneDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 0175F90325B4B654008F1934 /* SceneDelegate.m */; };
 		0175F90725B4B654008F1934 /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 0175F90625B4B654008F1934 /* ViewController.m */; };
 		0175F90A25B4B654008F1934 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 0175F90825B4B654008F1934 /* Main.storyboard */; };
@@ -17,9 +28,14 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		010C624725B54C4000122AFD /* model.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = model.cpp; path = ../../../model/model.cpp; sourceTree = "<group>"; };
+		010C624825B54C4000122AFD /* model.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = model.h; path = ../../../model/model.h; sourceTree = "<group>"; };
+		010C625925B5E95200122AFD /* state */ = {isa = PBXFileReference; lastKnownFileType = folder; name = state; path = ../../../state; sourceTree = "<group>"; };
+		010C626C25B6002800122AFD /* AetherDociOSDev.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AetherDociOSDev.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		010C626D25B6002800122AFD /* AetherDociOS copy-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "AetherDociOS copy-Info.plist"; path = "/Users/nick/Desktop/vmshared/git/obj/examples/aether_doc/xcode/AetherDociOS/AetherDociOS copy-Info.plist"; sourceTree = "<absolute>"; };
 		0175F8FC25B4B654008F1934 /* AetherDociOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AetherDociOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0175F8FF25B4B654008F1934 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
-		0175F90025B4B654008F1934 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
+		0175F90025B4B654008F1934 /* AppDelegate.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = AppDelegate.mm; sourceTree = "<group>"; };
 		0175F90225B4B654008F1934 /* SceneDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SceneDelegate.h; sourceTree = "<group>"; };
 		0175F90325B4B654008F1934 /* SceneDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SceneDelegate.m; sourceTree = "<group>"; };
 		0175F90525B4B654008F1934 /* ViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ViewController.h; sourceTree = "<group>"; };
@@ -32,6 +48,13 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		010C626325B6002800122AFD /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		0175F8F925B4B654008F1934 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -47,6 +70,7 @@
 			children = (
 				0175F8FE25B4B654008F1934 /* AetherDociOS */,
 				0175F8FD25B4B654008F1934 /* Products */,
+				010C626D25B6002800122AFD /* AetherDociOS copy-Info.plist */,
 			);
 			sourceTree = "<group>";
 		};
@@ -54,6 +78,7 @@
 			isa = PBXGroup;
 			children = (
 				0175F8FC25B4B654008F1934 /* AetherDociOS.app */,
+				010C626C25B6002800122AFD /* AetherDociOSDev.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -61,8 +86,11 @@
 		0175F8FE25B4B654008F1934 /* AetherDociOS */ = {
 			isa = PBXGroup;
 			children = (
+				010C625925B5E95200122AFD /* state */,
+				010C624725B54C4000122AFD /* model.cpp */,
+				010C624825B54C4000122AFD /* model.h */,
 				0175F8FF25B4B654008F1934 /* AppDelegate.h */,
-				0175F90025B4B654008F1934 /* AppDelegate.m */,
+				0175F90025B4B654008F1934 /* AppDelegate.mm */,
 				0175F90225B4B654008F1934 /* SceneDelegate.h */,
 				0175F90325B4B654008F1934 /* SceneDelegate.m */,
 				0175F90525B4B654008F1934 /* ViewController.h */,
@@ -79,6 +107,23 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		010C625C25B6002800122AFD /* AetherDociOSDev */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 010C626925B6002800122AFD /* Build configuration list for PBXNativeTarget "AetherDociOSDev" */;
+			buildPhases = (
+				010C625D25B6002800122AFD /* Sources */,
+				010C626325B6002800122AFD /* Frameworks */,
+				010C626425B6002800122AFD /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AetherDociOSDev;
+			productName = AetherDociOS;
+			productReference = 010C626C25B6002800122AFD /* AetherDociOSDev.app */;
+			productType = "com.apple.product-type.application";
+		};
 		0175F8FB25B4B654008F1934 /* AetherDociOS */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 0175F91525B4B659008F1934 /* Build configuration list for PBXNativeTarget "AetherDociOS" */;
@@ -123,17 +168,30 @@
 			projectRoot = "";
 			targets = (
 				0175F8FB25B4B654008F1934 /* AetherDociOS */,
+				010C625C25B6002800122AFD /* AetherDociOSDev */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		010C626425B6002800122AFD /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				010C626525B6002800122AFD /* LaunchScreen.storyboard in Resources */,
+				010C626625B6002800122AFD /* Assets.xcassets in Resources */,
+				010C626725B6002800122AFD /* state in Resources */,
+				010C626825B6002800122AFD /* Main.storyboard in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		0175F8FA25B4B654008F1934 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				0175F90F25B4B659008F1934 /* LaunchScreen.storyboard in Resources */,
 				0175F90C25B4B659008F1934 /* Assets.xcassets in Resources */,
+				010C625A25B5E95200122AFD /* state in Resources */,
 				0175F90A25B4B654008F1934 /* Main.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -141,12 +199,25 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		010C625D25B6002800122AFD /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				010C625E25B6002800122AFD /* model.cpp in Sources */,
+				010C625F25B6002800122AFD /* ViewController.m in Sources */,
+				010C626025B6002800122AFD /* AppDelegate.mm in Sources */,
+				010C626125B6002800122AFD /* main.m in Sources */,
+				010C626225B6002800122AFD /* SceneDelegate.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		0175F8F825B4B654008F1934 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				010C624925B54C4000122AFD /* model.cpp in Sources */,
 				0175F90725B4B654008F1934 /* ViewController.m in Sources */,
-				0175F90125B4B654008F1934 /* AppDelegate.m in Sources */,
+				0175F90125B4B654008F1934 /* AppDelegate.mm in Sources */,
 				0175F91225B4B659008F1934 /* main.m in Sources */,
 				0175F90425B4B654008F1934 /* SceneDelegate.m in Sources */,
 			);
@@ -174,6 +245,48 @@
 /* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
+		010C626A25B6002800122AFD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
+				CODE_SIGN_STYLE = Automatic;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					AETHER_DOC_DEV,
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				INFOPLIST_FILE = "AetherDociOS copy-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = aether.AetherDociOS;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		010C626B25B6002800122AFD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
+				CODE_SIGN_STYLE = Automatic;
+				GCC_PREPROCESSOR_DEFINITIONS = AETHER_DOC_DEV;
+				INFOPLIST_FILE = "AetherDociOS copy-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = aether.AetherDociOS;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		0175F91325B4B659008F1934 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -291,6 +404,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
 				CODE_SIGN_STYLE = Automatic;
 				INFOPLIST_FILE = AetherDociOS/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -308,6 +422,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
 				CODE_SIGN_STYLE = Automatic;
 				INFOPLIST_FILE = AetherDociOS/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -323,6 +438,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		010C626925B6002800122AFD /* Build configuration list for PBXNativeTarget "AetherDociOSDev" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				010C626A25B6002800122AFD /* Debug */,
+				010C626B25B6002800122AFD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		0175F8F725B4B654008F1934 /* Build configuration list for PBXProject "AetherDociOS" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

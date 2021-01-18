@@ -21,7 +21,7 @@
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
-  app = App::Create();
+  app = App::Create("state");
 }
 
 - (void)applicationWillTerminate:(NSNotification *)aNotification {

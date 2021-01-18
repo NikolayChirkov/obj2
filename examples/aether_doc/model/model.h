@@ -87,7 +87,7 @@ public:
   virtual bool OnEvent(const aether::Event::ptr& event);
   virtual void OnLoaded();
 
-  static App::ptr Create();
+  static App::ptr Create(const std::string& path);
   static void Release(App::ptr&& app);
 };
 

@@ -1,4 +1,3 @@
-//
 // Copyright 2016 Aether authors. All Rights Reserved.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,18 +10,40 @@
 // limitations under the License.
 // =============================================================================
 
-
 #import "AppDelegate.h"
+#include <filesystem>
+#include "../../../model/model.h"
+
+class MainPresenterIOS : public MainPresenter {
+public:
+  AETHER_OBJECT(MainPresenterIOS);
+  AETHER_SERIALIZE(MainPresenterIOS, MainPresenter);
+  AETHER_INTERFACES(MainPresenterIOS, MainPresenter);
+  template <typename T> void Serializator(T& s, int flags) { }
+  virtual bool OnEvent(const aether::Event::ptr& event) { return true; };
+  virtual void OnLoaded() {};
+};
+AETHER_IMPLEMENTATION(MainPresenterIOS);
+
 
 @interface AppDelegate ()
-
 @end
 
-@implementation AppDelegate
-
+@implementation AppDelegate {
+  App::ptr app;
+}
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-  // Override point for customization after application launch.
+  NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+  auto writablePath = std::filesystem::path{[[paths objectAtIndex:0] UTF8String]} / "state";
+  NSLog(@"Copy state from this path: %s", writablePath.c_str());
+#ifndef AETHER_DOC_DEV
+  std::filesystem::remove_all(writablePath);
+  NSString* resourcePath = [[NSBundle mainBundle] resourcePath];
+  std::filesystem::copy(std::filesystem::path{[resourcePath UTF8String]} / "state", writablePath,
+                        std::filesystem::copy_options::recursive | std::filesystem::copy_options::copy_symlinks);
+#endif  // AETHER_DOC_DEV
+  app = App::Create(writablePath.c_str());
   return YES;
 }
 

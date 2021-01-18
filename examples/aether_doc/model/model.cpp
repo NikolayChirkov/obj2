@@ -104,9 +104,11 @@ void App::OnLoaded() {
 AETHER_IMPLEMENTATION(App);
 
 static std::unordered_map<aether::ObjStorage, std::string> storage_to_path_;
+static std::filesystem::path root_path_;
+
 
 auto saver = [](const aether::ObjId& obj_id, uint32_t class_id, aether::ObjStorage storage, const AETHER_OMSTREAM& os) {
-  std::filesystem::path dir = std::filesystem::path{"state"} / storage_to_path_[storage] / obj_id.ToString();
+  std::filesystem::path dir = root_path_ / storage_to_path_[storage] / obj_id.ToString();
   std::filesystem::create_directories(dir);
   auto p = dir / std::to_string(class_id);
   std::ofstream f(p.c_str(), std::ios::out | std::ios::binary | std::ios::trunc);
@@ -117,7 +119,7 @@ auto saver = [](const aether::ObjId& obj_id, uint32_t class_id, aether::ObjStora
 
 auto enumerator = [](const aether::ObjId& obj_id, aether::ObjStorage storage) {
   std::string path = obj_id.ToString();
-  auto p = std::filesystem::path{"state"} / storage_to_path_[storage] / path;
+  auto p = root_path_ / storage_to_path_[storage] / path;
   std::vector<uint32_t> classes;
   for(auto& f: std::filesystem::directory_iterator(p)) {
     // Convert filename into integer value.
@@ -128,7 +130,7 @@ auto enumerator = [](const aether::ObjId& obj_id, aether::ObjStorage storage) {
 };
 
 auto loader = [](const aether::ObjId& obj_id, uint32_t class_id, aether::ObjStorage storage, AETHER_IMSTREAM& is) {
-  std::filesystem::path dir = std::filesystem::path{"state"} / storage_to_path_[storage] / obj_id.ToString();
+  std::filesystem::path dir = root_path_ / storage_to_path_[storage] / obj_id.ToString();
   auto p = dir / std::to_string(class_id);
   std::ifstream f(p.c_str(), std::ios::in | std::ios::binary);
   if (!f.good()) return;
@@ -139,11 +141,12 @@ auto loader = [](const aether::ObjId& obj_id, uint32_t class_id, aether::ObjStor
   f.read((char*)is.stream_.data(), length);
 };
 
-App::ptr App::Create() {
+App::ptr App::Create(const std::string& path) {
   static const int kObserverRootId = 666;
+  root_path_ = path;
 #ifdef AETHER_DOC_DEV
   {
-    std::filesystem::remove_all("state");
+    std::filesystem::remove_all(root_path_);
 
     App::ptr app{ aether::Obj::CreateClassById(App::class_id_) };
     app.SetId(kObserverRootId);
