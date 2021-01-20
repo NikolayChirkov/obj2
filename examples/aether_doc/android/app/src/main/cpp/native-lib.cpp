@@ -14,14 +14,25 @@ public:
 };
 AETHER_IMPLEMENTATION(MainPresenterAndroid);
 
+static App::ptr app;
+
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_example_aetherdoc_MainActivity_initAppJNI(
+Java_com_example_aetherdoc_AppNode_nativeInit(
         JNIEnv* env,
         jobject /* this */,
         jstring p) {
     const char* path = env->GetStringUTFChars(p, nullptr);
-    App::ptr app = App::Create(path);
+    app = App::Create(path);
+    auto r = env->NewStringUTF(path);
     env->ReleaseStringUTFChars(p, path);
-    std::string hello = "Hello from CPP";
-    return env->NewStringUTF(hello.c_str());
+    return r;
+}
+
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_example_aetherdoc_AppNode_nativeRelease(
+        JNIEnv* env,
+        jobject /* this */) {
+    App::Release(std::move(app));
+    return env->NewStringUTF("ok");
 }
