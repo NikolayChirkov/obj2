@@ -51,7 +51,7 @@ static auto loader = [](const std::string& path, aether::ObjStorage storage, AET
 // object references to a proper Locale object related to the current system.
 class Locale : public aether::Obj {
 public:
-  AETHER_OBJECT(Locale);
+  AETHER_CLS(Locale);
   AETHER_SERIALIZE(Locale);
   AETHER_INTERFACES(Locale);
   Locale() = default;
@@ -68,7 +68,7 @@ public:
     if (flags & aether::Obj::Serialization::kData) s & app_name_;
   }
 };
-AETHER_IMPLEMENTATION(Locale);
+AETHER_IMPL(Locale);
 
 
 // Constant object that contains all supported languages. If a language is added then:
@@ -77,7 +77,7 @@ AETHER_IMPLEMENTATION(Locale);
 // This logic is moved-out from the App object to simplify updates with new supported language.
 class LocaleSelector : public aether::Obj {
 public:
-  AETHER_OBJECT(LocaleSelector);
+  AETHER_CLS(LocaleSelector);
   AETHER_SERIALIZE(LocaleSelector);
   AETHER_INTERFACES(LocaleSelector);
   LocaleSelector() = default;
@@ -100,13 +100,13 @@ public:
     return "en";
   }
 };
-AETHER_IMPLEMENTATION(LocaleSelector);
+AETHER_IMPL(LocaleSelector);
 
 
 
 class App2 : public aether::Obj {
 public:
-  AETHER_OBJECT(App2);
+  AETHER_CLS(App2);
   AETHER_SERIALIZE(App2);
   AETHER_INTERFACES(App2);
   App2() = default;
@@ -154,7 +154,7 @@ public:
     if (flags & aether::Obj::Serialization::kRefs) s & locale_;
   }
 };
-AETHER_IMPLEMENTATION(App2);
+AETHER_IMPL(App2);
 
 
 void AppRun() {
@@ -190,7 +190,7 @@ void AppRun() {
 /*
 class Base : public aether::Obj {
 public:
-  AETHER_OBJECT(Base);
+  AETHER_CLS(Base);
   AETHER_SERIALIZE(Base);
   AETHER_INTERFACES(Base);
   virtual ~Base() { std::cout << "~Base\n"; }
@@ -206,14 +206,14 @@ public:
   virtual void OnUnloading() {
   }
 };
-AETHER_IMPLEMENTATION(Base);
+AETHER_IMPL(Base);
 
 
 
 
 class Language : public Base {
 public:
-  AETHER_OBJECT(Language);
+  AETHER_CLS(Language);
   AETHER_SERIALIZE(Language);
   AETHER_INTERFACES(Base, Language);
   virtual ~Language() { std::cout << "~Language\n"; }
@@ -225,14 +225,14 @@ public:
     s & app_name_ & tray_show_ & tray_exit_;
   }
 };
-AETHER_IMPLEMENTATION(Language);
+AETHER_IMPL(Language);
 
 
 
 
 class Resources : public Base {
 public:
-  AETHER_OBJECT(Resources);
+  AETHER_CLS(Resources);
   AETHER_SERIALIZE(Resources);
   AETHER_INTERFACES(Base, Resources);
   virtual ~Resources() { std::cout << "~Resources\n"; }
@@ -256,13 +256,13 @@ public:
   void OnUnloading() {
   }
 };
-AETHER_IMPLEMENTATION(Resources);
+AETHER_IMPL(Resources);
 
 
 
 class TrayPresenter : public Base {
 public:
-  AETHER_OBJECT(TrayPresenter);
+  AETHER_CLS(TrayPresenter);
   AETHER_SERIALIZE(TrayPresenter);
   AETHER_INTERFACES(Base, TrayPresenter);
   virtual ~TrayPresenter() { std::cout << "~TrayPresenter\n"; }
@@ -284,12 +284,12 @@ public:
   void OnUnloading() {
   }
 };
-AETHER_IMPLEMENTATION(TrayPresenter);
+AETHER_IMPL(TrayPresenter);
 
 
 class App : public Base {
 public:
-  AETHER_OBJECT(App);
+  AETHER_CLS(App);
   AETHER_SERIALIZE(App);
   AETHER_INTERFACES(Base, App);
   virtual ~App() { std::cout << "~App\n"; }
@@ -310,12 +310,12 @@ public:
   void OnUnloading() {
   }
 };
-AETHER_IMPLEMENTATION(App);
+AETHER_IMPL(App);
 
 
 class User : public Base {
 public:
-  AETHER_OBJECT(User);
+  AETHER_CLS(User);
   AETHER_SERIALIZE(User);
   AETHER_INTERFACES(Base, User);
   virtual ~User() { std::cout << "~User\n"; }
@@ -333,13 +333,13 @@ public:
   void OnUnloading() {
   }
 };
-AETHER_IMPLEMENTATION(User);
+AETHER_IMPL(User);
 
 
 
 class Root : public Base {
 public:
-  AETHER_OBJECT(Root);
+  AETHER_CLS(Root);
   AETHER_SERIALIZE(Root);
   AETHER_INTERFACES(Base, Root);
   virtual ~Root() { std::cout << "~Root\n"; }
@@ -357,7 +357,7 @@ public:
   void OnUnloading() {
   }
 };
-AETHER_IMPLEMENTATION(Root);
+AETHER_IMPL(Root);
 
 void AppRun() {
   AETHER_IMSTREAM is;

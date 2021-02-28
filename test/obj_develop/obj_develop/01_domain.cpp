@@ -115,7 +115,7 @@ static auto loader = [](const std::string& path, aether::ObjStorage storage, AET
 
 class B : public aether::Obj {
 public:
-  AETHER_OBJECT(B);
+  AETHER_CLS(B);
   AETHER_SERIALIZE(B);
   AETHER_INTERFACES(B);
   B() = default;
@@ -128,11 +128,11 @@ public:
     s & f_ & o_;
   }
 };
-AETHER_IMPLEMENTATION(B);
+AETHER_IMPL(B);
 
 class Root : public aether::Obj {
 public:
-  AETHER_OBJECT(Root);
+  AETHER_CLS(Root);
   AETHER_SERIALIZE(Root);
   AETHER_INTERFACES(Root);
   Root() = default;
@@ -144,7 +144,7 @@ public:
     s & i_ & o_;
   }
 };
-AETHER_IMPLEMENTATION(Root);
+AETHER_IMPL(Root);
 
 void DomainTest() {
 

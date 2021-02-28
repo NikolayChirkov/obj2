@@ -17,25 +17,25 @@
 
 class A : public Obj {
 public:
-  AETHER_OBJECT(A);
+  AETHER_CLS(A);
   AETHER_SERIALIZE(A);
   AETHER_INTERFACES(A);
   A() = default;
   virtual ~A() { std::cout << "~A\n"; }
   template <typename T> void Serializator(T& s, int flags) {}
 };
-AETHER_IMPLEMENTATION(A);
+AETHER_IMPL(A);
 
 class B : public Obj {
 public:
-  AETHER_OBJECT(B);
+  AETHER_CLS(B);
   AETHER_SERIALIZE(B);
   AETHER_INTERFACES(B);
   B() = default;
   virtual ~B() { std::cout << "~B\n"; }
   template <typename T> void Serializator(T& s, int flags) {}
 };
-AETHER_IMPLEMENTATION(B);
+AETHER_IMPL(B);
 
  void PtrTest() {
    {

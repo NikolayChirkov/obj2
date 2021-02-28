@@ -27,7 +27,7 @@ static bool devmode = true;
 
 class App : public aether::Obj {
 public:
-  AETHER_OBJECT(App);
+  AETHER_CLS(App);
   AETHER_SERIALIZE(App);
   AETHER_INTERFACES(App);
   
@@ -42,7 +42,7 @@ public:
 
 class AppWinCpu : public App {
 public:
-  AETHER_OBJECT(AppWinCpu);
+  AETHER_CLS(AppWinCpu);
   AETHER_SERIALIZE(AppWinCpu, App);
   AETHER_INTERFACES(App);
   
@@ -62,11 +62,11 @@ public:
     return s;
   }
 };
-AETHER_IMPLEMENTATION(AppWinCpu);
+AETHER_IMPL(AppWinCpu);
 
 class AppWinDx9 : public App {
 public:
-  AETHER_OBJECT(AppWinDx9);
+  AETHER_CLS(AppWinDx9);
   AETHER_SERIALIZE(AppWinDx9, App);
   AETHER_INTERFACES(App);
   
@@ -77,11 +77,11 @@ public:
     return s;
   }
 };
-AETHER_IMPLEMENTATION(AppWinDx9);
+AETHER_IMPL(AppWinDx9);
 
 class AppMacMetal : public App {
 public:
-  AETHER_OBJECT(AppMacMetal);
+  AETHER_CLS(AppMacMetal);
   AETHER_SERIALIZE(AppMacMetal, App);
   AETHER_INTERFACES(App);
   
@@ -92,12 +92,12 @@ public:
     return s;
   }
 };
-AETHER_IMPLEMENTATION(AppMacMetal);
+AETHER_IMPL(AppMacMetal);
 
 
 class Root1 : public aether::Obj {
 public:
-  AETHER_OBJECT(Root1);
+  AETHER_CLS(Root1);
   AETHER_SERIALIZE(Root1);
   AETHER_INTERFACES(Root1);
   
@@ -128,7 +128,7 @@ public:
     return s;
   }
 };
-AETHER_IMPLEMENTATION(Root1);
+AETHER_IMPL(Root1);
 
 #include <sys/stat.h>
 

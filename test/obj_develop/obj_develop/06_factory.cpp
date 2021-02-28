@@ -19,7 +19,7 @@
 
 class C : public aether::Obj {
 public:
-  AETHER_OBJECT(C);
+  AETHER_CLS(C);
   AETHER_SERIALIZE(C);
   AETHER_INTERFACES(C);
   
@@ -28,11 +28,11 @@ public:
     s & s_;
   }
 };
-AETHER_IMPLEMENTATION(C);
+AETHER_IMPL(C);
 
 class B : public aether::Obj {
 public:
-  AETHER_OBJECT(B);
+  AETHER_CLS(B);
   AETHER_SERIALIZE(B);
   AETHER_INTERFACES(B);
   //virtual ~B() { std::cout << "~B: " << f << "\n"; }
@@ -43,11 +43,11 @@ public:
     s & f & c;
   }
 };
-AETHER_IMPLEMENTATION(B);
+AETHER_IMPL(B);
 
 class A : public aether::Obj {
 public:
-  AETHER_OBJECT(A);
+  AETHER_CLS(A);
   AETHER_SERIALIZE(A);
   AETHER_INTERFACES(A);
   //virtual ~A() { std::cout << "~A\n"; }
@@ -60,7 +60,7 @@ public:
     s & i & zero_b & unloaded_b & factory_b & v;
   }
 };
-AETHER_IMPLEMENTATION(A);
+AETHER_IMPL(A);
 
 void PrintA(const char* t, A::ptr a) {
   std::cout << "------------------------------------\n";

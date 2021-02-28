@@ -293,17 +293,17 @@ AETHER_SERIALIZE_CLS2, AETHER_SERIALIZE_CLS1)(__VA_ARGS__))
   template <class ...N> void* DynamicCastInternal(uint32_t i) { return DynamicCastInternal(i, ClassList<N...>()); }\
   virtual void* DynamicCast(uint32_t id) { return DynamicCastInternal<__VA_ARGS__, Obj>(id); }
 
-#define AETHER_OBJECT(CLS) \
+#define AETHER_CLS(CLS) \
   typedef aether::Ptr<CLS> ptr; \
   static aether::Obj::Registrar<CLS> registrar_; \
   static constexpr uint32_t class_id_ = qcstudio::crc32::from_literal(#CLS).value; \
   virtual uint32_t GetClassId() const { return class_id_; }
 
-#define AETHER_PURE_INTERFACE(CLS) \
-  AETHER_OBJECT(CLS) \
-  AETHER_INTERFACES(CLS)
+#define AETHER_OBJ1(CLS) AETHER_CLS(CLS); AETHER_INTERFACES(CLS); AETHER_SERIALIZE(CLS);
+#define AETHER_OBJ2(CLS, CLS1) AETHER_CLS(CLS); AETHER_INTERFACES(CLS, CLS1); AETHER_SERIALIZE(CLS, CLS1);
+#define AETHER_OBJ(...) AETHER_VSPP(AETHER_GET_MACRO(__VA_ARGS__, AETHER_OBJ2, AETHER_OBJ1)(__VA_ARGS__))
 
-#define AETHER_IMPLEMENTATION(CLS) aether::Obj::Registrar<CLS> CLS::registrar_(CLS::class_id_, CLS::base_id_);
+#define AETHER_IMPL(CLS) aether::Obj::Registrar<CLS> CLS::registrar_(CLS::class_id_, CLS::base_id_);
 
 class Domain {
 public:
@@ -382,7 +382,7 @@ public:
     return Registry<void>::registry_->find(class_id) != Registry<void>::registry_->end();
   }
 
-  AETHER_OBJECT(Obj);
+  AETHER_CLS(Obj);
   AETHER_INTERFACES(Obj);
   AETHER_SERIALIZE(Obj);
   template <typename T> void Serializator(T& s, int flags) const {}
@@ -453,8 +453,7 @@ template <class Dummy> std::map<ObjId, Obj*> Obj::Registry<Dummy>::all_objects_;
 
 class Event : public Obj {
 public:
-  AETHER_PURE_INTERFACE(Event);
-  AETHER_SERIALIZE(Event);
+  AETHER_OBJ(Event);
   std::chrono::system_clock::time_point time_point_;
   Obj::ptr obj_;
   template <typename T> void Serializator(T& s, int flags) { s & time_point_ & obj_; }

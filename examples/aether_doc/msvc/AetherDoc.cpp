@@ -5,9 +5,7 @@ HINSTANCE hInstance;
 
 class MainPresenterWin : public MainPresenter {
 public:
-  AETHER_OBJECT(MainPresenterWin);
-  AETHER_SERIALIZE(MainPresenterWin, MainPresenter);
-  AETHER_INTERFACES(MainPresenterWin, MainPresenter);
+  AETHER_OBJ(MainPresenterWin, MainPresenter);
   template <typename T> void Serializator(T& s, int flags) { }
   virtual bool OnEvent(const aether::Event::ptr& event);
   virtual void OnLoaded();
@@ -52,7 +50,7 @@ bool MainPresenterWin::OnEvent(const aether::Event::ptr& event) {
     return aether::Obj::OnEvent(event);
   }
 }
-AETHER_IMPLEMENTATION(MainPresenterWin);
+AETHER_IMPL(MainPresenterWin);
 
 #ifdef _DEBUG
 int __cdecl main() {

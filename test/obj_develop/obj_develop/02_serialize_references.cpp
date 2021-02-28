@@ -20,7 +20,7 @@ class A2;
 
 class B2 : public aether::Obj {
 public:
-  AETHER_OBJECT(B2);
+  AETHER_CLS(B2);
   AETHER_SERIALIZE(B2);
   AETHER_INTERFACES(B2);
   virtual ~B2() { std::cout << "~B: " << f << "\n"; }
@@ -31,11 +31,11 @@ public:
     s & f & a;
   }
 };
-AETHER_IMPLEMENTATION(B2);
+AETHER_IMPL(B2);
 
 class A2 : public aether::Obj {
 public:
-  AETHER_OBJECT(A2);
+  AETHER_CLS(A2);
   AETHER_SERIALIZE(A2);
   AETHER_INTERFACES(A2);
   virtual ~A2() { std::cout << "~A\n"; }
@@ -45,7 +45,7 @@ public:
     s & i & b;
   }
 };
-AETHER_IMPLEMENTATION(A2);
+AETHER_IMPL(A2);
 
 void SerializeReferences() {
   aether::Domain domain;

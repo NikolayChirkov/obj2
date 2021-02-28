@@ -44,12 +44,12 @@ auto loader = [](const std::string& path, aether::ObjStorage storage, AETHER_IMS
 
 class EventTimer : public aether::Event {
 public:
-  AETHER_OBJECT(EventTimer);
+  AETHER_CLS(EventTimer);
   AETHER_SERIALIZE(EventTimer);
   AETHER_INTERFACES(EventTimer, Event);
   template <typename T> void Serializator(T& s, int flags) { Event::Serializator(s, flags); }
 };
-AETHER_IMPLEMENTATION(EventTimer);
+AETHER_IMPL(EventTimer);
 
 
 
@@ -63,10 +63,11 @@ class Window;
 
 class PresenterBase : public aether::Obj {
 public:
-  AETHER_PURE_INTERFACE(PresenterBase);
+  AETHER_CLS(PresenterBase);
+  AETHER_INTERFACES(PresenterBase);
   AETHER_SERIALIZE(PresenterBase);
   PresenterBase() = default;
-  
+
   aether::Ptr<Window> window_;
 #ifdef OBSERVER_DEV
   PresenterBase(bool) {
@@ -75,14 +76,14 @@ public:
   template <typename T> void Serializator(T& s, int flags) {
     if (flags & aether::Obj::Serialization::kRefs) s & window_;
   }
-  
+
   virtual bool OnEvent(const aether::Event::ptr& event);
   virtual void OnDisplayChanged(int w, int h);
 };
 
 class Presenter : public PresenterBase {
 public:
-  AETHER_OBJECT(Presenter);
+  AETHER_CLS(Presenter);
   AETHER_SERIALIZE(Presenter);
   AETHER_INTERFACES(Presenter, PresenterBase);
   Presenter() = default;
@@ -95,22 +96,22 @@ public:
   template <typename T> void Serializator(T& s, int flags) {
     PresenterBase::Serializator(s, flags);
   }
-  
+
   virtual void OnLoaded();
   static std::map<HWND, Presenter*> presenters_;
   static LRESULT WndProcInternal(HWND hwnd, UINT  uMsg, WPARAM wParam, LPARAM lParam);
 };
-AETHER_IMPLEMENTATION(Presenter);
+AETHER_IMPL(Presenter);
 std::map<HWND, Presenter*> Presenter::presenters_;
 
 
 class Window : public aether::Obj {
 public:
-  AETHER_OBJECT(Window);
+  AETHER_CLS(Window);
   AETHER_SERIALIZE(Window);
   AETHER_INTERFACES(Window);
   Window() = default;
-  
+
   int x_, y_;
   int display_w_, display_h_;
   static const int kWidth = 120;
@@ -132,17 +133,17 @@ public:
   virtual bool OnEvent(const aether::Event::ptr& event);
   virtual void OnLoaded();
 };
-AETHER_IMPLEMENTATION(Window);
+AETHER_IMPL(Window);
 
 
 
 class App : public aether::Obj {
 public:
-  AETHER_OBJECT(App);
+  AETHER_CLS(App);
   AETHER_SERIALIZE(App);
   AETHER_INTERFACES(App);
   App() = default;
-  
+
   Window::ptr window_;
 #ifdef OBSERVER_DEV
   App(bool) {
@@ -156,12 +157,12 @@ public:
   virtual bool OnEvent(const aether::Event::ptr& event);
   virtual void OnLoaded();
 };
-AETHER_IMPLEMENTATION(App);
+AETHER_IMPL(App);
 
 
 class EventPos : public aether::Event {
 public:
-  AETHER_OBJECT(EventPos);
+  AETHER_CLS(EventPos);
   AETHER_SERIALIZE(EventPos, Event);
   AETHER_INTERFACES(EventPos, Event);
   EventPos() = default;
@@ -172,11 +173,11 @@ public:
     if (flags & aether::Obj::Serialization::kData) s & x_ & y_;
   }
 };
-AETHER_IMPLEMENTATION(EventPos);
+AETHER_IMPL(EventPos);
 
 class EventDisplayChanged : public aether::Event {
 public:
-  AETHER_OBJECT(EventDisplayChanged);
+  AETHER_CLS(EventDisplayChanged);
   AETHER_SERIALIZE(EventDisplayChanged, Event);
   AETHER_INTERFACES(EventDisplayChanged, Event);
   EventDisplayChanged() = default;
@@ -187,7 +188,7 @@ public:
     if (flags & aether::Obj::Serialization::kData) s & w_ & h_;
   }
 };
-AETHER_IMPLEMENTATION(EventDisplayChanged);
+AETHER_IMPL(EventDisplayChanged);
 
 
 
@@ -212,7 +213,7 @@ void Presenter::OnLoaded() {
     ", w: " << window_->display_w_ << ", h: " << window_->display_h_ << "\n";
   const int cur_w = 200;
   const int cur_h = 768;
-  
+
   // If display resolution has been changed since last app run.
   if (cur_w != window_->display_w_ || cur_h != window_->display_h_) {
     std::cout << "Display changed, w: " << window_->display_w_ << " -> " << cur_w <<
@@ -321,7 +322,7 @@ void EventProcessor() {
 #ifdef OBSERVER_DEV
   {
     std::filesystem::remove_all("state");
-    
+
     App::ptr app{new App(true)};
     app.SetId(OBSERVER_ROOT_ID);
     app.Serialize(saver, aether::Obj::Serialization::kConsts | aether::Obj::Serialization::kRefs | aether::Obj::Serialization::kData);

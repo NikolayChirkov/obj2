@@ -16,14 +16,12 @@
 
 class MainPresenterIOS : public MainPresenter {
 public:
-  AETHER_OBJECT(MainPresenterIOS);
-  AETHER_SERIALIZE(MainPresenterIOS, MainPresenter);
-  AETHER_INTERFACES(MainPresenterIOS, MainPresenter);
+  AETHER_OBJ(MainPresenterIOS, MainPresenter);
   template <typename T> void Serializator(T& s, int flags) { }
   virtual bool OnEvent(const aether::Event::ptr& event) { return true; };
   virtual void OnLoaded() {};
 };
-AETHER_IMPLEMENTATION(MainPresenterIOS);
+AETHER_IMPL(MainPresenterIOS);
 
 
 @interface AppDelegate ()

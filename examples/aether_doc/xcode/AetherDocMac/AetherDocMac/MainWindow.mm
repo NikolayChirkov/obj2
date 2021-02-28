@@ -15,9 +15,7 @@
 
 class MainPresenterMac : public MainPresenter {
 public:
-  AETHER_OBJECT(MainPresenterMac);
-  AETHER_SERIALIZE(MainPresenterMac, MainPresenter);
-  AETHER_INTERFACES(MainPresenterMac, MainPresenter);
+  AETHER_OBJ(MainPresenterMac, MainPresenter);
   template <typename T> void Serializator(T& s, int flags) { }
   virtual bool OnEvent(const aether::Event::ptr& event);
   virtual void OnLoaded();
@@ -83,7 +81,7 @@ void MainPresenterMac::OnLoaded() {
   [window_ setPresenter:this];
   // Link view controller and presenter
   // MainViewController* viewController = (MainViewController*)windowController.contentViewController;
-  
+
   [window_ setFrame:CGRectMake(main_->x_, [MainWindow translatoPos:(main_->y_ + main_->h_)], main_->w_, main_->h_)
             display:YES
             animate:YES];
@@ -102,4 +100,4 @@ bool MainPresenterMac::OnEvent(const aether::Event::ptr& event) {
       return aether::Obj::OnEvent(event);
   }
 }
-AETHER_IMPLEMENTATION(MainPresenterMac);
+AETHER_IMPL(MainPresenterMac);

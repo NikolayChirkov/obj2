@@ -5,14 +5,12 @@
 
 class MainPresenterAndroid : public MainPresenter {
 public:
-    AETHER_OBJECT(MainPresenterAndroid);
-    AETHER_SERIALIZE(MainPresenterAndroid, MainPresenter);
-    AETHER_INTERFACES(MainPresenterAndroid, MainPresenter);
+    AETHER_OBJ(MainPresenterAndroid, MainPresenter);
     template <typename T> void Serializator(T& s, int flags) { }
     virtual bool OnEvent(const aether::Event::ptr& event) { return true; };
     virtual void OnLoaded() {};
 };
-AETHER_IMPLEMENTATION(MainPresenterAndroid);
+AETHER_IMPL(MainPresenterAndroid);
 
 static App::ptr app;
 

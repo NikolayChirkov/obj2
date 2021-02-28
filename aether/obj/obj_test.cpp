@@ -21,7 +21,8 @@ using aether::Obj;
 
 class PureInterface1 : public virtual Obj {
 public:
-  AETHER_PURE_INTERFACE(PureInterface1);
+  AETHER_CLS(PureInterface1);
+  AETHER_INTERFACES(PureInterface1);
 
   virtual ~PureInterface1() {};
   virtual int Get1() const = 0;
@@ -29,7 +30,7 @@ public:
 
 class A : public PureInterface1 {
 public:
-  AETHER_OBJECT(A);
+  AETHER_CLS(A);
   AETHER_SERIALIZE(A);
   AETHER_INTERFACES(A, PureInterface1);
 
@@ -45,7 +46,7 @@ public:
     return s;
   }
 };
-AETHER_IMPLEMENTATION(A);
+AETHER_IMPL(A);
 
 TEST_CASE( "Obj: Create, Pure, Cast, Serialize", "obj" ) {
   const char* cls = "A";
@@ -71,7 +72,8 @@ TEST_CASE( "Obj: Create, Pure, Cast, Serialize", "obj" ) {
 
 class PureInterface2 : public virtual Obj {
 public:
-  AETHER_PURE_INTERFACE(PureInterface2);
+  AETHER_CLS(PureInterface2);
+  AETHER_INTERFACES(PureInterface2);
 
   virtual ~PureInterface2(){};
   virtual int Get2() const = 0;
@@ -85,7 +87,7 @@ TEST_CASE( "Unsupported interface", "obj" ) {
 
 class B : public PureInterface1, public PureInterface2 {
 public:
-  AETHER_OBJECT(B);
+  AETHER_CLS(B);
   AETHER_SERIALIZE(B);
   AETHER_INTERFACES(B, PureInterface1, PureInterface2);
 
@@ -106,7 +108,7 @@ public:
     return s;
   }
 };
-AETHER_IMPLEMENTATION(B);
+AETHER_IMPL(B);
 
 TEST_CASE( "MultiInterface", "obj" ) {
   B::ptr b(new B());
@@ -144,7 +146,8 @@ TEST_CASE( "MultiInterface", "obj" ) {
 
 class Pure1 : public virtual aether::Obj {
 public:
-  AETHER_PURE_INTERFACE(Pure1);
+  AETHER_CLS(Pure1);
+  AETHER_INTERFACES(Pure1);
   virtual ~Pure1() {};
 
   template <typename T>
@@ -155,7 +158,7 @@ public:
 
 class Impl1 : public Pure1 {
 public:
-  AETHER_OBJECT(Impl1);
+  AETHER_CLS(Impl1);
   AETHER_SERIALIZE(Impl1);
   AETHER_INTERFACES(Impl1, Pure1);
   virtual ~Impl1() {};
@@ -165,11 +168,12 @@ public:
     return s;
   }
 };
-AETHER_IMPLEMENTATION(Impl1);
+AETHER_IMPL(Impl1);
 
 class Pure2 : public virtual aether::Obj {
 public:
-  AETHER_PURE_INTERFACE(Pure2);
+  AETHER_CLS(Pure2);
+  AETHER_INTERFACES(Pure2);
   virtual ~Pure2() {};
 
   template <typename T>
@@ -180,7 +184,7 @@ public:
 
 class Impl2 : public Pure2 {
 public:
-  AETHER_OBJECT(Impl2);
+  AETHER_CLS(Impl2);
   AETHER_SERIALIZE(Impl2);
   AETHER_INTERFACES(Impl2, Pure2);
   virtual ~Impl2() {};
@@ -190,11 +194,11 @@ public:
     return s;
   }
 };
-AETHER_IMPLEMENTATION(Impl2);
+AETHER_IMPL(Impl2);
 
 class Pure12 : public Pure1, public Pure2 {
 public:
-  AETHER_OBJECT(Pure12);
+  AETHER_CLS(Pure12);
   AETHER_SERIALIZE(Pure12);
   AETHER_INTERFACES(Pure12, Pure1, Pure2);
   virtual ~Pure12() {};
@@ -204,11 +208,11 @@ public:
     return s;
   }
 };
-AETHER_IMPLEMENTATION(Pure12);
+AETHER_IMPL(Pure12);
 
 class Impl12 : public Impl1, public Impl2 {
 public:
-  AETHER_OBJECT(Impl12);
+  AETHER_CLS(Impl12);
   AETHER_SERIALIZE(Impl12);
   AETHER_INTERFACES(Impl12, Pure1, Pure2);
   virtual ~Impl12() {};
@@ -218,11 +222,11 @@ public:
     return s;
   }
 };
-AETHER_IMPLEMENTATION(Impl12);
+AETHER_IMPL(Impl12);
 
 class F : public Obj {
 public:
-  AETHER_OBJECT(F);
+  AETHER_CLS(F);
   AETHER_SERIALIZE(F);
   AETHER_INTERFACES(F);
   virtual ~F() {}
@@ -232,7 +236,7 @@ public:
     return s;
   }
 };
-AETHER_IMPLEMENTATION(F);
+AETHER_IMPL(F);
 
 TEST_CASE( "Smart pointer", "obj" ) {
   F::ptr f1(new F());
@@ -310,7 +314,7 @@ public:
 
 class V1 : public Obj {
 public:
-  AETHER_OBJECT(V1);
+  AETHER_CLS(V1);
   AETHER_SERIALIZE(V1);
   AETHER_INTERFACES(V1);
 
@@ -320,11 +324,11 @@ public:
     return s & i;
   }
 };
-AETHER_IMPLEMENTATION(V1);
+AETHER_IMPL(V1);
 
 class V2 : public V1 {
 public:
-  AETHER_OBJECT(V2);
+  AETHER_CLS(V2);
   AETHER_SERIALIZE(V2, V1);
   AETHER_INTERFACES(V2, V1);
 
@@ -334,11 +338,11 @@ public:
     return s & f;
   }
 };
-AETHER_IMPLEMENTATION(V2);
+AETHER_IMPL(V2);
 
 class V3 : public V2 {
 public:
-  AETHER_OBJECT(V3);
+  AETHER_CLS(V3);
   AETHER_SERIALIZE(V3, V2);
   AETHER_INTERFACES(V3, V2, V1);
 
@@ -348,7 +352,7 @@ public:
     return s & s_;
   }
 };
-AETHER_IMPLEMENTATION(V3);
+AETHER_IMPL(V3);
 
 TEST_CASE( "Versioning", "obj" ) {
   V1::ptr v1(new V1());

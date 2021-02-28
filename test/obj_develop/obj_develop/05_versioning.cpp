@@ -65,7 +65,7 @@ public:
 
 class A : public Obj {
 public:
-  AETHER_OBJECT(A);
+  AETHER_CLS(A);
   AETHER_SERIALIZE(A);
   AETHER_INTERFACES(A);
   A() {
@@ -77,11 +77,11 @@ public:
   int i;
   template <typename T> void Serializator(T& s, int flags) { s & i; }
 };
-AETHER_IMPLEMENTATION(A);
+AETHER_IMPL(A);
 
 class B1 : public A {
 public:
-  AETHER_OBJECT(B1);
+  AETHER_CLS(B1);
   AETHER_SERIALIZE(B1, A);
   AETHER_INTERFACES(B1, A);
   B1() {
@@ -93,11 +93,11 @@ public:
   float f;
   template <typename T> void Serializator(T& s, int flags) { s & f; }
 };
-AETHER_IMPLEMENTATION(B1);
+AETHER_IMPL(B1);
 
 class B2 : public A {
 public:
-  AETHER_OBJECT(B2);
+  AETHER_CLS(B2);
   AETHER_SERIALIZE(B2, A);
   AETHER_INTERFACES(B2, A);
   B2() {
@@ -109,11 +109,11 @@ public:
   std::string s;
   template <typename T> void Serializator(T& ss, int flags) { ss & s; }
 };
-AETHER_IMPLEMENTATION(B2);
+AETHER_IMPL(B2);
 
 class B2C : public B2 {
 public:
-  AETHER_OBJECT(B2C);
+  AETHER_CLS(B2C);
   AETHER_SERIALIZE(B2C, B2);
   AETHER_INTERFACES(B2C, B2, A);
   B2C() {
@@ -125,18 +125,18 @@ public:
   double d;
   template <typename T> void Serializator(T& s, int flags) { s & d; }
 };
-AETHER_IMPLEMENTATION(B2C);
+AETHER_IMPL(B2C);
 
 class Root : public Obj {
 public:
-  AETHER_OBJECT(Root);
+  AETHER_CLS(Root);
   AETHER_SERIALIZE(Root);
   AETHER_INTERFACES(Root);
   
   std::vector<Obj::ptr> v;
   template <typename T> void Serializator(T& s, int flags) { s & v; }
 };
-AETHER_IMPLEMENTATION(Root);
+AETHER_IMPL(Root);
 
 void Versioning() {
   std::cout << "Obj " << aether::Obj::class_id_ << "\n";

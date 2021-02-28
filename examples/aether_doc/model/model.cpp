@@ -16,9 +16,9 @@
 #include <filesystem>
 #include <fstream>
 
-AETHER_IMPLEMENTATION(EventTimer);
-AETHER_IMPLEMENTATION(EventPos);
-AETHER_IMPLEMENTATION(EventDisplayChanged);
+AETHER_IMPL(EventTimer);
+AETHER_IMPL(EventPos);
+AETHER_IMPL(EventDisplayChanged);
 
 
 Main::Main() {
@@ -81,7 +81,7 @@ bool Main::OnEvent(const aether::Event::ptr& event) {
     return aether::Obj::OnEvent(event);
   }
 }
-AETHER_IMPLEMENTATION(Main);
+AETHER_IMPL(Main);
 
 App::App() {
 #ifdef AETHER_DOC_DEV
@@ -101,7 +101,7 @@ bool App::OnEvent(const aether::Event::ptr& event) {
 
 void App::OnLoaded() {
 }
-AETHER_IMPLEMENTATION(App);
+AETHER_IMPL(App);
 
 static std::unordered_map<aether::ObjStorage, std::string> storage_to_path_;
 static std::filesystem::path root_path_;
