@@ -63,14 +63,57 @@ public:
 @implementation MainWindowController
 @end
 
+class TextPresenterMac : public TextPresenter {
+public:
+  AETHER_OBJ(TextPresenterMac, TextPresenter);
+  template <typename T> void Serializator(T& s, int flags) {}
+  virtual bool OnEvent(const aether::Event::ptr& event);
+  virtual void OnLoaded();
+  NSTextView* text_view_;
+};
+
 @implementation MainViewController {
+  TextPresenterMac* presenter;
+}
+
+-(void)setPresenter:(TextPresenterMac*)p {
+  presenter = p;
 }
 
 -(void)viewDidLoad {
+  _textView.delegate = self;
+}
+
+-(void)textDidChange:(NSNotification *)notification {
+  EventTextChanged::ptr e(new EventTextChanged(0,0, [[_textView string] UTF8String]));
+  self->presenter->text_->PushEvent(e);
+  //NSInteger insertionPoint = [[[_textView selectedRanges] objectAtIndex:0] rangeValue].location;
+  //NSLog(@"%d", int(insertionPoint));
 }
 
 @end
 
+void TextPresenterMac::OnLoaded() {
+  NSString *s = [NSString stringWithCString:text_->string_.c_str() encoding:[NSString defaultCStringEncoding]];
+  [text_view_ setString:s];
+}
+
+bool TextPresenterMac::OnEvent(const aether::Event::ptr& event) {
+  switch (event->GetClassId()) {
+    case EventTextChanged::class_id_: {
+      EventTextChanged::ptr e(event);
+      [text_view_ setSelectedRange:NSMakeRange(e->cursor_pos_, e->num_symbols_)];
+      //      NSAttributedString* s = [[NSAttributedString alloc] initWithHTML:[@"<font color=#FF0000>text</font>" dataUsingEncoding:NSUTF8StringEncoding]documentAttributes:NULL];
+      NSString *s = [NSString stringWithCString:e->inserted_text_.c_str() encoding:[NSString defaultCStringEncoding]];
+      [text_view_ setString:s];
+      //[textView insertText:s];
+      return false;
+    }
+    default:
+      return aether::Obj::OnEvent(event);
+  }
+}
+AETHER_IMPL(TextPresenterMac);
 
 void MainPresenterMac::OnLoaded() {
   NSStoryboard *storyBoard = [NSStoryboard storyboardWithName:@"Main" bundle:nil];
@@ -80,7 +123,10 @@ void MainPresenterMac::OnLoaded() {
   window_ = (MainWindow*)[windowController window];
   [window_ setPresenter:this];
   // Link view controller and presenter
-  // MainViewController* viewController = (MainViewController*)windowController.contentViewController;
+  MainViewController* viewController = (MainViewController*)windowController.contentViewController;
+  TextPresenterMac::ptr p(main_->text_->presenter_);
+  [viewController setPresenter:p.ptr_];
+  p->text_view_ = viewController.textView;
 
   [window_ setFrame:CGRectMake(main_->x_, [MainWindow translatoPos:(main_->y_ + main_->h_)], main_->w_, main_->h_)
             display:YES

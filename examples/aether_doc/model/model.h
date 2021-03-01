@@ -45,6 +45,45 @@ public:
   }
 };
 
+class EventTextChanged : public aether::Event {
+public:
+  AETHER_OBJ(EventTextChanged, Event);
+  EventTextChanged() = default;
+  EventTextChanged(int p, int n, const std::string& t) : cursor_pos_(p), num_symbols_(n), inserted_text_(t) {}
+  int cursor_pos_, num_symbols_;
+  std::string inserted_text_;
+  template <typename T> void Serializator(T& s, int flags) {
+    Event::Serializator(s, flags);
+    if (flags & aether::Obj::Serialization::kData) s & cursor_pos_ & num_symbols_ & inserted_text_;
+  }
+};
+
+
+class Text;
+class TextPresenter : public aether::Obj {
+public:
+  AETHER_OBJ(TextPresenter);
+  aether::Ptr<Text> text_;
+  template <typename T> void Serializator(T& s, int flags) { if (flags & aether::Obj::Serialization::kRefs) s & text_; }
+  virtual void OnTextChanged(int p, int n, const std::string& t) {
+    aether::Obj::ptr(text_)->PushEvent(new EventTextChanged{ p, n, t });
+  }
+};
+
+class Text : public aether::Obj {
+public:
+  AETHER_OBJ(Text);
+  Text();
+  TextPresenter::ptr presenter_;
+  std::string string_;
+  template <typename T> void Serializator(T& s, int flags) {
+    if (flags & aether::Obj::Serialization::kRefs) s & presenter_;
+    if (flags & aether::Obj::Serialization::kData) s & string_;
+  }
+  virtual bool OnEvent(const aether::Event::ptr& event);
+};
+
+
 class Main;
 class MainPresenter : public aether::Obj {
 public:
@@ -60,6 +99,7 @@ public:
   AETHER_OBJ(Main);
   Main();
   MainPresenter::ptr presenter_;
+  Text::ptr text_;
   int x_, y_, w_, h_;
   int display_w_, display_h_;
   template <typename T> void Serializator(T& s, int flags);

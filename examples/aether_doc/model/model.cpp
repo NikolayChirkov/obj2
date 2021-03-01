@@ -19,6 +19,27 @@
 AETHER_IMPL(EventTimer);
 AETHER_IMPL(EventPos);
 AETHER_IMPL(EventDisplayChanged);
+AETHER_IMPL(EventTextChanged);
+
+Text::Text() {
+#ifdef AETHER_DOC_DEV
+  aether::ObjId id1{789};
+  presenter_ = { aether::Obj::CreateClassById(TextPresenter::class_id_, id1) };
+  string_ = "Some initial text";
+#endif  // OBSERVER_DEV
+}
+
+bool Text::OnEvent(const aether::Event::ptr& event) {
+  switch (event->GetClassId()) {
+    case EventTextChanged::class_id_:
+      string_ = EventTextChanged::ptr(event)->inserted_text_;
+      presenter_->PushEvent(event);
+      return true;
+    default:
+      return aether::Obj::OnEvent(event);
+  }
+}
+AETHER_IMPL(Text);
 
 
 Main::Main() {
@@ -26,6 +47,8 @@ Main::Main() {
   id_ = 123;
   aether::ObjId id1{456};
   presenter_ = { aether::Obj::CreateClassById(MainPresenter::class_id_, id1) };
+  text_ = { aether::Obj::CreateClassById(Text::class_id_) };
+  text_->presenter_->text_ = text_;
   x_ = 300;
   y_ = 300;
   w_ = 300;
@@ -36,7 +59,7 @@ Main::Main() {
 }
 
 template <typename T> void Main::Serializator(T& s, int flags) {
-  if (flags & aether::Obj::Serialization::kRefs) s & presenter_;
+  if (flags & aether::Obj::Serialization::kRefs) s & presenter_ & text_;
   if (flags & aether::Obj::Serialization::kData) {
     s & x_ & y_ & w_ & h_ & display_w_ & display_h_;
 #ifndef AETHER_DOC_DEV

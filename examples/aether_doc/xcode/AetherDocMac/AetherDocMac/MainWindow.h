@@ -19,5 +19,6 @@
 @interface MainWindowController : NSWindowController
 @end
 
-@interface MainViewController : NSViewController
+@interface MainViewController : NSViewController<NSTextViewDelegate>
+@property (unsafe_unretained) IBOutlet NSTextView *textView;
 @end
