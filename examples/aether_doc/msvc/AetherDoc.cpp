@@ -37,6 +37,11 @@ void MainPresenterWin::OnLoaded() {
   hWnd = CreateWindowEx(0, kWndClassName, L"Aether::Doc", WS_OVERLAPPEDWINDOW,
     main_->x_, main_->y_, main_->w_, main_->h_, NULL, NULL, hInstance, NULL);
   if (hWnd == NULL) return;
+  HWND hWndEdit = CreateWindowEx(WS_EX_CLIENTEDGE, TEXT("Edit"), TEXT("test"), WS_CHILD | WS_VISIBLE | WS_VSCROLL |
+    ES_LEFT | ES_MULTILINE | ES_AUTOVSCROLL | WS_BORDER, 10, 10, 140, 60, hWnd, NULL, NULL, NULL);
+  const wchar_t* tt = L"lpszLatin";
+  SendMessage(hWndEdit, WM_SETTEXT, 0, (LPARAM)tt);
+
   presenters_[hWnd] = this;
   ShowWindow(hWnd, SW_SHOW);
 }
@@ -52,6 +57,38 @@ bool MainPresenterWin::OnEvent(const aether::Event::ptr& event) {
 }
 AETHER_IMPL(MainPresenterWin);
 
+class TextPresenterWin : public TextPresenter {
+public:
+  AETHER_OBJ(TextPresenterWin, TextPresenter);
+  template <typename T> void Serializator(T& s, int flags) {}
+  virtual bool OnEvent(const aether::Event::ptr& event);
+  virtual void OnLoaded();
+//  NSTextView* text_view_;
+};
+AETHER_IMPL(TextPresenterWin);
+
+void TextPresenterWin::OnLoaded() {
+  //NSString *s = [NSString stringWithCString : text_->string_.c_str() encoding : [NSString defaultCStringEncoding]];
+  //[text_view_ setString : s];
+}
+
+bool TextPresenterWin::OnEvent(const aether::Event::ptr& event) {
+  switch (event->GetId()) {
+  case EventTextChanged::kId: {
+    //EventTextChanged::ptr e(event);
+    //[text_view_ setSelectedRange : NSMakeRange(e->cursor_pos_, e->num_symbols_)];
+    //      NSAttributedString* s = [[NSAttributedString alloc] initWithHTML:[@"<font color=#FF0000>text</font>" dataUsingEncoding:NSUTF8StringEncoding]documentAttributes:NULL];
+    //NSString *s = [NSString stringWithCString : e->inserted_text_.c_str() encoding : [NSString defaultCStringEncoding]];
+    //[text_view_ setString : s];
+    //[textView insertText:s];
+    return false;
+  }
+  default:
+    return aether::Obj::OnEvent(event);
+  }
+}
+
+
 #ifdef _DEBUG
 int __cdecl main() {
   hInstance = GetModuleHandle(NULL);
@@ -59,7 +96,7 @@ int __cdecl main() {
 int APIENTRY wWinMain(HINSTANCE hInstance1, HINSTANCE, LPWSTR, int) {
   hInstance = hInstance1;
 #endif
-  App::ptr app = App::Create();
+  App::ptr app = App::Create("state");
   MSG msg = {};
   while (GetMessage(&msg, NULL, 0, 0)) {
     TranslateMessage(&msg);

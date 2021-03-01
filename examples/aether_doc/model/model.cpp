@@ -24,7 +24,7 @@ AETHER_IMPL(EventTextChanged);
 Text::Text() {
 #ifdef AETHER_DOC_DEV
   aether::ObjId id1{789};
-  presenter_ = { aether::Obj::CreateClassById(TextPresenter::kId, id1) };
+  presenter_ = { aether::Obj::CreateObjByClassId(TextPresenter::kId, id1) };
   string_ = "Some initial text";
 #endif  // OBSERVER_DEV
 }
@@ -46,8 +46,8 @@ Main::Main() {
 #ifdef AETHER_DOC_DEV
   id_ = 123;
   aether::ObjId id1{456};
-  presenter_ = { aether::Obj::CreateClassById(MainPresenter::kId, id1) };
-  text_ = { aether::Obj::CreateClassById(Text::kId) };
+  presenter_ = { aether::Obj::CreateObjByClassId(MainPresenter::kId, id1) };
+  text_ = { aether::Obj::CreateObjByClassId(Text::kId) };
   text_->presenter_->text_ = text_;
   x_ = 300;
   y_ = 300;
@@ -87,7 +87,7 @@ bool Main::OnEvent(const aether::Event::ptr& event) {
     if (y + h_ > display_h_) y = display_h_ - h_;
     if (x != e->x_ || y != e->y_) {
       // The window has been moved to incorrect position and needs to be moved.
-      EventPos::ptr e2(aether::Obj::CreateClassById(EventPos::kId));
+      EventPos::ptr e2(aether::Obj::CreateObjByClassId(EventPos::kId));
       e2->x_ = x;
       e2->y_ = y;
       presenter_->PushEvent(e2);
@@ -108,7 +108,7 @@ AETHER_IMPL(Main);
 
 App::App() {
 #ifdef AETHER_DOC_DEV
-  main_ = { aether::Obj::CreateClassById(Main::kId) };
+  main_ = { aether::Obj::CreateObjByClassId(Main::kId) };
   main_->presenter_->main_ = main_;
 #endif  // AETHER_DOC_DEV
 }
@@ -171,7 +171,7 @@ App::ptr App::Create(const std::string& path) {
   {
     std::filesystem::remove_all(root_path_);
 
-    App::ptr app{ aether::Obj::CreateClassById(App::kId) };
+    App::ptr app{ aether::Obj::CreateObjByClassId(App::kId) };
     app.SetId(kObserverRootId);
     app.Serialize(saver, aether::Obj::Serialization::kConsts | aether::Obj::Serialization::kRefs | aether::Obj::Serialization::kData);
     storage_to_path_.clear();

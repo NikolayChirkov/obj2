@@ -1,2 +1,6 @@
 **/DerivedData
 **/xcuserdata
+**/.vs
+**/*.vcxproj.user
+examples/aether_doc/msvc/Output/
+examples/aether_doc/msvc/state/

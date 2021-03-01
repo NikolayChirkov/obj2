@@ -335,14 +335,14 @@ public:
   // The event can be processed directly in this thread or postponed for later accepting in other thread.
   inline virtual void PushEvent(const Ptr<Event>& e);
 
-  static Obj* CreateClassById(uint32_t cls_id, ObjId obj_id) {
-    Obj* o = Registry<void>::CreateClassById(cls_id);
+  static Obj* CreateObjByClassId(uint32_t cls_id, ObjId obj_id) {
+    Obj* o = Registry<void>::CreateObjByClassId(cls_id);
     o->id_ = obj_id;
     return o;
   }
 
-  static Obj* CreateClassById(uint32_t cls_id) {
-    Obj* o = Registry<void>::CreateClassById(cls_id);
+  static Obj* CreateObjByClassId(uint32_t cls_id) {
+    Obj* o = Registry<void>::CreateObjByClassId(cls_id);
     o->id_ = ObjId::GenerateUnique();
     return o;
   }
@@ -419,7 +419,7 @@ protected:
     }
 
     // Creates the most far derivative without ambiguous inheritance.
-    static Obj* CreateClassById(uint32_t base_id) {
+    static Obj* CreateObjByClassId(uint32_t base_id) {
       uint32_t derived_id = base_id;
       while (true) {
         auto d = base_to_derived_->find(derived_id);
@@ -557,7 +557,7 @@ template <class T> Obj::ptr DeserializeRef(T& s) {
       break;
     }
   }
-  obj = Obj::CreateClassById(class_id, obj_id);
+  obj = Obj::CreateObjByClassId(class_id, obj_id);
   obj->id_ = obj_id;
   obj->flags_ = obj_flags;
   obj->storage_ = obj_storage;
