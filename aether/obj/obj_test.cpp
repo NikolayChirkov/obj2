@@ -307,7 +307,7 @@ class TestAccessor {
 public:
   template<class T>
   static void UnregisterClass() {
-    aether::Obj::Registry<void>::UnregisterClass(T::class_id_);
+    aether::Obj::Registry<void>::UnregisterClass(T::kId);
   }
 };
 }

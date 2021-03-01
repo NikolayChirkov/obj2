@@ -42,8 +42,8 @@ void MainPresenterWin::OnLoaded() {
 }
 
 bool MainPresenterWin::OnEvent(const aether::Event::ptr& event) {
-  switch (event->GetClassId()) {
-  case EventPos::class_id_:
+  switch (event->GetId()) {
+  case EventPos::kId:
     SetWindowPos(hWnd, NULL, EventPos::ptr(event)->x_, EventPos::ptr(event)->y_, 0, 0, SWP_NOOWNERZORDER | SWP_NOSIZE | SWP_NOZORDER);
     return false;
   default:

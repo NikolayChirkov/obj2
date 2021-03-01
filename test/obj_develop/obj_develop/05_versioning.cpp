@@ -58,7 +58,7 @@ class TestAccessor {
 public:
   template<class T>
   static void UnregisterClass() {
-    aether::Obj::Registry<void>::UnregisterClass(T::class_id_);
+    aether::Obj::Registry<void>::UnregisterClass(T::kId);
   }
 };
 }
@@ -139,12 +139,12 @@ public:
 AETHER_IMPL(Root);
 
 void Versioning() {
-  std::cout << "Obj " << aether::Obj::class_id_ << "\n";
-  std::cout << "Root " << Root::class_id_ << "\n";
-  std::cout << "A " << A::class_id_ << "\n";
-  std::cout << "B1 " << B1::class_id_ << "\n";
-  std::cout << "B2 " << B2::class_id_ << "\n";
-  std::cout << "B2C " << B2C::class_id_ << "\n";
+  std::cout << "Obj " << aether::Obj::kId << "\n";
+  std::cout << "Root " << Root::kId << "\n";
+  std::cout << "A " << A::kId << "\n";
+  std::cout << "B1 " << B1::kId << "\n";
+  std::cout << "B2 " << B2::kId << "\n";
+  std::cout << "B2C " << B2C::kId << "\n";
 #ifdef OBSERVER_DEV
   {
     std::filesystem::remove_all("state");

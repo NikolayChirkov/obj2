@@ -225,8 +225,8 @@ void Presenter::OnLoaded() {
   }
 }
 bool PresenterBase::OnEvent(const aether::Event::ptr& event) {
-  switch(event->GetClassId()) {
-    case EventTimer::class_id_: {
+  switch(event->GetId()) {
+    case EventTimer::kId: {
       static int c=0;
       if (c==1) {
         EventPos::ptr e2(new EventPos());
@@ -242,7 +242,7 @@ bool PresenterBase::OnEvent(const aether::Event::ptr& event) {
       c++;
       return false;
     }
-    case EventPos::class_id_: {
+    case EventPos::kId: {
       EventPos::ptr e(event);
       std::cout << "Presenter changed, x: " << e->x_ << ", y: " << e->y_ << "\n";
       // TODO: SetWindowPos
@@ -255,11 +255,11 @@ bool PresenterBase::OnEvent(const aether::Event::ptr& event) {
 
 
 bool Window::OnEvent(const aether::Event::ptr& event) {
-  switch(event->GetClassId()) {
-    case EventTimer::class_id_:
+  switch(event->GetId()) {
+    case EventTimer::kId:
       presenter_->PushEvent(event);
       return false;
-    case EventPos::class_id_: {
+    case EventPos::kId: {
       EventPos::ptr e(event);
       // Ensure the window is complitely inside the display.
       int x = std::max(0, e->x_);
@@ -279,7 +279,7 @@ bool Window::OnEvent(const aether::Event::ptr& event) {
       }
       return false;
     }
-    case EventDisplayChanged::class_id_: {
+    case EventDisplayChanged::kId: {
       EventDisplayChanged::ptr e(event);
       // If the window is partially or completely outside the desktop with changed resolution
       display_w_ = e->w_;

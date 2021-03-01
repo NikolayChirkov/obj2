@@ -116,7 +116,7 @@ template <class T> class Ptr {
       ptr_ = nullptr;
       return;
     }
-    T* ptr = static_cast<T*>(p.ptr_->DynamicCast(T::class_id_));
+    T* ptr = static_cast<T*>(p.ptr_->DynamicCast(T::kId));
     if (ptr) {
       ptr_ = ptr;
       p.ptr_ = nullptr;
@@ -184,7 +184,7 @@ template <class T> class Ptr {
       SetStorage(p.GetStorage());
       Release();
     } else {
-      T* ptr = static_cast<T*>(p.ptr_->DynamicCast(T::class_id_));
+      T* ptr = static_cast<T*>(p.ptr_->DynamicCast(T::kId));
       if (!ptr) {
         Release();
         p.Release();
@@ -224,7 +224,7 @@ template <class T> class Ptr {
 
   // Protected section.
   void Init(T* p);  
-  template <class T1> void InitCast(T1* p) { Init(p ? static_cast<T*>(p->DynamicCast(T::class_id_)) : nullptr); }
+  template <class T1> void InitCast(T1* p) { Init(p ? static_cast<T*>(p->DynamicCast(T::kId)) : nullptr); }
   void Release();
   static constexpr uint32_t kObjClassId = qcstudio::crc32::from_literal("Obj").value;
 };
@@ -248,7 +248,7 @@ template <class T> Ptr<Obj> DeserializeRef(T& s);
 
 
 #define AETHER_SERIALIZE_(CLS, BASE) \
-  static constexpr uint32_t base_id_ = qcstudio::crc32::from_literal(#BASE).value; \
+  static constexpr uint32_t kBaseId = qcstudio::crc32::from_literal(#BASE).value; \
   virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s, s.custom_->flags_); } \
   virtual void SerializeBase(AETHER_OMSTREAM& s, uint32_t class_id) { \
     AETHER_OMSTREAM os; \
@@ -267,7 +267,7 @@ template <class T> Ptr<Obj> DeserializeRef(T& s);
       BASE::DeserializeBase(s, qcstudio::crc32::from_literal(#BASE).value); \
   } \
   friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const CLS::ptr& o) { \
-    if (SerializeRef(s, o)) o->SerializeBase(s, o->GetClassId()); \
+    if (SerializeRef(s, o)) o->SerializeBase(s, o->GetId()); \
     return s; \
   } \
   friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, CLS::ptr& o) { \
@@ -287,7 +287,7 @@ AETHER_SERIALIZE_CLS2, AETHER_SERIALIZE_CLS1)(__VA_ARGS__))
 #define AETHER_INTERFACES(...) \
   template <class ...> struct ClassList {}; void* DynamicCastInternal(uint32_t, ClassList<>) { return nullptr; }\
   template <class C, class ...N> void* DynamicCastInternal(uint32_t i, ClassList<C, N...>) {\
-    if (C::class_id_ != i) return DynamicCastInternal(i, ClassList<N...>()); \
+    if (C::kId != i) return DynamicCastInternal(i, ClassList<N...>()); \
     return static_cast<C*>(this); \
   } \
   template <class ...N> void* DynamicCastInternal(uint32_t i) { return DynamicCastInternal(i, ClassList<N...>()); }\
@@ -296,14 +296,14 @@ AETHER_SERIALIZE_CLS2, AETHER_SERIALIZE_CLS1)(__VA_ARGS__))
 #define AETHER_CLS(CLS) \
   typedef aether::Ptr<CLS> ptr; \
   static aether::Obj::Registrar<CLS> registrar_; \
-  static constexpr uint32_t class_id_ = qcstudio::crc32::from_literal(#CLS).value; \
-  virtual uint32_t GetClassId() const { return class_id_; }
+  static constexpr uint32_t kId = qcstudio::crc32::from_literal(#CLS).value; \
+  virtual uint32_t GetId() const { return kId; }
 
 #define AETHER_OBJ1(CLS) AETHER_CLS(CLS); AETHER_INTERFACES(CLS); AETHER_SERIALIZE(CLS);
 #define AETHER_OBJ2(CLS, CLS1) AETHER_CLS(CLS); AETHER_INTERFACES(CLS, CLS1); AETHER_SERIALIZE(CLS, CLS1);
 #define AETHER_OBJ(...) AETHER_VSPP(AETHER_GET_MACRO(__VA_ARGS__, AETHER_OBJ2, AETHER_OBJ1)(__VA_ARGS__))
 
-#define AETHER_IMPL(CLS) aether::Obj::Registrar<CLS> CLS::registrar_(CLS::class_id_, CLS::base_id_);
+#define AETHER_IMPL(CLS) aether::Obj::Registrar<CLS> CLS::registrar_(CLS::kId, CLS::kBaseId);
 
 class Domain {
 public:
@@ -566,7 +566,7 @@ template <class T> Obj::ptr DeserializeRef(T& s) {
   // Track all deserialized objects.
   s.custom_->FindAndAddObject(obj);
   // TODO: single storage is used for the whole hierarchy - change it to per-leve specific storage.
-  obj->DeserializeBase(s, obj->GetClassId());
+  obj->DeserializeBase(s, obj->GetId());
   return obj;
 }
 

@@ -24,14 +24,14 @@ AETHER_IMPL(EventTextChanged);
 Text::Text() {
 #ifdef AETHER_DOC_DEV
   aether::ObjId id1{789};
-  presenter_ = { aether::Obj::CreateClassById(TextPresenter::class_id_, id1) };
+  presenter_ = { aether::Obj::CreateClassById(TextPresenter::kId, id1) };
   string_ = "Some initial text";
 #endif  // OBSERVER_DEV
 }
 
 bool Text::OnEvent(const aether::Event::ptr& event) {
-  switch (event->GetClassId()) {
-    case EventTextChanged::class_id_:
+  switch (event->GetId()) {
+    case EventTextChanged::kId:
       string_ = EventTextChanged::ptr(event)->inserted_text_;
       presenter_->PushEvent(event);
       return true;
@@ -46,8 +46,8 @@ Main::Main() {
 #ifdef AETHER_DOC_DEV
   id_ = 123;
   aether::ObjId id1{456};
-  presenter_ = { aether::Obj::CreateClassById(MainPresenter::class_id_, id1) };
-  text_ = { aether::Obj::CreateClassById(Text::class_id_) };
+  presenter_ = { aether::Obj::CreateClassById(MainPresenter::kId, id1) };
+  text_ = { aether::Obj::CreateClassById(Text::kId) };
   text_->presenter_->text_ = text_;
   x_ = 300;
   y_ = 300;
@@ -77,8 +77,8 @@ void Main::OnLoaded() {
 }
 
 bool Main::OnEvent(const aether::Event::ptr& event) {
-  switch (event->GetClassId()) {
-  case EventPos::class_id_: {
+  switch (event->GetId()) {
+  case EventPos::kId: {
     EventPos::ptr e(event);
     // Ensure the window is complitely inside the display.
     int x = std::max(0, e->x_);
@@ -87,7 +87,7 @@ bool Main::OnEvent(const aether::Event::ptr& event) {
     if (y + h_ > display_h_) y = display_h_ - h_;
     if (x != e->x_ || y != e->y_) {
       // The window has been moved to incorrect position and needs to be moved.
-      EventPos::ptr e2(aether::Obj::CreateClassById(EventPos::class_id_));
+      EventPos::ptr e2(aether::Obj::CreateClassById(EventPos::kId));
       e2->x_ = x;
       e2->y_ = y;
       presenter_->PushEvent(e2);
@@ -108,7 +108,7 @@ AETHER_IMPL(Main);
 
 App::App() {
 #ifdef AETHER_DOC_DEV
-  main_ = { aether::Obj::CreateClassById(Main::class_id_) };
+  main_ = { aether::Obj::CreateClassById(Main::kId) };
   main_->presenter_->main_ = main_;
 #endif  // AETHER_DOC_DEV
 }
@@ -171,7 +171,7 @@ App::ptr App::Create(const std::string& path) {
   {
     std::filesystem::remove_all(root_path_);
 
-    App::ptr app{ aether::Obj::CreateClassById(App::class_id_) };
+    App::ptr app{ aether::Obj::CreateClassById(App::kId) };
     app.SetId(kObserverRootId);
     app.Serialize(saver, aether::Obj::Serialization::kConsts | aether::Obj::Serialization::kRefs | aether::Obj::Serialization::kData);
     storage_to_path_.clear();

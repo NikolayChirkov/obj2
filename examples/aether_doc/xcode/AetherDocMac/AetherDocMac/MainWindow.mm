@@ -99,8 +99,8 @@ void TextPresenterMac::OnLoaded() {
 }
 
 bool TextPresenterMac::OnEvent(const aether::Event::ptr& event) {
-  switch (event->GetClassId()) {
-    case EventTextChanged::class_id_: {
+  switch (event->GetId()) {
+    case EventTextChanged::kId: {
       EventTextChanged::ptr e(event);
       [text_view_ setSelectedRange:NSMakeRange(e->cursor_pos_, e->num_symbols_)];
       //      NSAttributedString* s = [[NSAttributedString alloc] initWithHTML:[@"<font color=#FF0000>text</font>" dataUsingEncoding:NSUTF8StringEncoding]documentAttributes:NULL];
@@ -136,8 +136,8 @@ void MainPresenterMac::OnLoaded() {
 }
 
 bool MainPresenterMac::OnEvent(const aether::Event::ptr& event) {
-  switch (event->GetClassId()) {
-    case EventPos::class_id_: {
+  switch (event->GetId()) {
+    case EventPos::kId: {
       EventPos::ptr e(event);
       [window_ setFrameOrigin:CGPointMake(e->x_, [MainWindow translatoPos:(e->y_ + main_->h_)])];
       return false;
