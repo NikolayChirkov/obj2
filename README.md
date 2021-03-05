@@ -1,6 +1,6 @@
 # Æether Object
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-![GitHub file size in bytes](https://img.shields.io/github/size/aethernet-io/obj/README.md)
+![GitHub file size in bytes](https://img.shields.io/github/size/aethernet-io/obj/blob/master/aether/obj/obj.h)
 
 is a C++17 cross-platform architecture heder-only framework for creating lightweight, highly structured, easily supportable, reliable, distributed applications.
 
@@ -11,7 +11,7 @@ The core concept is well-known from other frameworks: an application is represen
 - [Key features](#key-features)
 - [Example application](#example-application)
 - [Detailed description](#detailed-description)
-  - [Obj::ptr](#obj-ptr)
+  - [Object smart pointer](#object-smart-pointer)
   - [serializable smart pointer](#serializable-smart-pointer)
   - [Development runtime modes](#development-runtime-modes)
   - [Serialization](#serialization)
@@ -88,15 +88,15 @@ A cross-platform (Windows, macOS, iOS, Android) text editor with automatic savin
 ## Detailed description
 
 
-### Obj ptr
+### Object smart pointer
+Any class of an application is inherited from Obj class. *AETHER_OBJ(class name)* macro is used to declare all supporting internal functions. An Object is wrapped into the Ptr<T> template class and the pointer type is declared as *MyClass::ptr*.
+
+#### 
+    class registering, creating, class id, object id
 
 
 #### 
-    class registering, creating, class id, object id {#class-registering-creating-class-id-object-id}
-
-
-#### 
-    Inheritance, interface casting, pure_class {#inheritance-interface-casting-pure_class}
+    Inheritance, interface casting, pure_class
 
 
 #### 
