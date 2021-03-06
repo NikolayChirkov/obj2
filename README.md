@@ -6,29 +6,11 @@ is a C++17 cross-platform architecture heder-only framework for creating lightwe
 
 The core concept is well-known from other frameworks: an application is represented as a graph, and each node is a serializable class instance.
 
-
-- [Hello, world!](#hello-world)
-- [Key features](#key-features)
-- [Example application](#example-application)
-- [Detailed description](#detailed-description)
-  - [Object smart pointer](#object-smart-pointer)
-  - [serializable smart pointer](#serializable-smart-pointer)
-  - [Development runtime modes](#development-runtime-modes)
-  - [Serialization](#serialization)
-  - [Serialize state events](#serialize-state-events)
-  - [App specific](#app-specific)
-  - [Header-only, custom streams, exception handling, RAII](#header-only-custom-streams-exception-handling-raii)
-  - [Multithreading fast serialization and double-buffering](#multithreading-fast-serialization-and-double-buffering)
-  - [Developing changing resource in run-time](#developing-changing-resource-in-run-time)
-
-
-
 ## Hello, world!
 
 In the example, an application graph is constructed with the application objects **A** and **B** and then serialized into the user-provided storage, for example, into files.
 
 Then the application graph with the whole hierarchy can be restored from that serialized state.
-
 
 ```cpp
 #include "aether/obj/obj.h"
@@ -64,11 +46,7 @@ int main() {
 }
 ```
 
-
-
 ## Key features
-
-
 
 *   **Serialization** of the whole application state with small effort
 *   **Loading/unloading** parts of the application’s graph with state serialization
@@ -85,67 +63,75 @@ int main() {
 A cross-platform (Windows, macOS, iOS, Android) text editor with automatic saving text, window position and size.
 
 
-## Detailed description
+- [Object smart pointer](#object-smart-pointer)
+- [serializable smart pointer](#serializable-smart-pointer)
+- [Development runtime modes](#development-runtime-modes)
+- [Serialization](#serialization)
+- [Serialize state events](#serialize-state-events)
+- [App specific](#app-specific)
+- [Header-only, custom streams, exception handling, RAII](#header-only-custom-streams-exception-handling-raii)
+- [Multithreading fast serialization and double-buffering](#multithreading-fast-serialization-and-double-buffering)
+- [Developing changing resource in run-time](#developing-changing-resource-in-run-time)
 
 
-### Object smart pointer
+## Object smart pointer
 Any class of an application is inherited from Obj class. *AETHER_OBJ(class name)* macro is used to declare all supporting internal functions. An Object is wrapped into the Ptr<T> template class and the pointer type is declared as *MyClass::ptr*.
 
-#### 
+### 
     class registering, creating, class id, object id
 
 
-#### 
+### 
     Inheritance, interface casting, pure_class
 
 
-#### 
+### 
     Serialize template {#serialize-template}
 
 
-#### 
+### 
     Linear inheritance = Versioning, program upgrade {#linear-inheritance-=-versioning-program-upgrade}
 
 
-### serializable smart pointer
+## serializable smart pointer
 
 
-#### 
+### 
     Serialize obj::ptr = graph, root {#serialize-obj-ptr-=-graph-root}
 
 
-#### 
+### 
     multiple refs {#multiple-refs}
 
 
-#### 
+### 
     Unloading - cyclic refs {#unloading-cyclic-refs}
 
 
-#### 
+### 
     Graph partial loading, deserialization of unloaded subgraph {#graph-partial-loading-deserialization-of-unloaded-subgraph}
 
 
-### Development runtime modes
+## Development runtime modes
 
 
-#### 
+### 
     #ifdefs - initial state {##ifdefs-initial-state}
 
 
-#### 
+### 
     Runtime obj creation {#runtime-obj-creation}
 
 
-#### 
+### 
     Cloning from alive obj {#cloning-from-alive-obj}
 
 
-#### 
+### 
     Cloning from unloaded obj {#cloning-from-unloaded-obj}
 
 
-#### 
+### 
     Cloning options: {#cloning-options}
 
 
@@ -158,56 +144,56 @@ Any class of an application is inherited from Obj class. *AETHER_OBJ(class name)
             Full = Deep + constant objects not referenced by external objects
 
 
-### Serialization
+## Serialization
 
 
-#### 
+### 
     Serialization of everything is not good - eliminate const obj {#serialization-of-everything-is-not-good-eliminate-const-obj}
 
 
-#### 
+### 
     Data, refs {#data-refs}
 
 
-#### 
+### 
     Domain, example - localization {#domain-example-localization}
 
 
-### Model-Presenter {#model-presenter}
+## Model-Presenter {#model-presenter}
 
 
-#### 
+### 
     Cyclic references {#cyclic-references}
 
 
-#### 
+### 
     Cross-platform {#cross-platform}
 
 
-#### 
+### 
     Mix: model-presenter-model-presenter {#mix-model-presenter-model-presenter}
 
 
-#### 
+### 
     Events {#events}
 
 
-### Serialize state events
+## Serialize state events
 
 
-#### 
+### 
     Collapse events into state, per sub-graph {#collapse-events-into-state-per-sub-graph}
 
 
-#### 
+### 
     Empty presenter, reproducing problems = telemetry {#empty-presenter-reproducing-problems-=-telemetry}
 
 
-#### 
+### 
     Automated tests for whole app with empty presenters {#automated-tests-for-whole-app-with-empty-presenters}
 
 
-#### 
+### 
     Distributed applications: {#distributed-applications}
 
 
@@ -223,21 +209,20 @@ Any class of an application is inherited from Obj class. *AETHER_OBJ(class name)
         Simultaneous editing of a document
 
 
-### App specific
+## App specific
 
 
-#### 
+### 
     onLoaded, onTimer etc. {#onloaded-ontimer-etc}
 
 
-#### 
+### 
     Same app state between runs {#same-app-state-between-runs}
 
 
-### Header-only, custom streams, exception handling, RAII
+## Header-only, custom streams, exception handling, RAII
 
 
-### Multithreading fast serialization and double-buffering
+## Multithreading fast serialization and double-buffering
 
-
-### Developing changing resource in run-time
+## Developing changing resource in run-time
