@@ -48,8 +48,8 @@ int main() {
 
 ## Key features
 
-*   **Serialization** of the whole application state with small effort
-*   **Loading/unloading** parts of the application’s graph with state serialization
+*   **Serialization** of the whole application state with a little effort
+*   **Hibernating/waking-up** parts of the application’s graph
 *   **Upgrade** of the application is just the replacing a part of serialized state
 *   **Versioning** of the serialized state and executable is automatic: simplifies upgrade and messaging between application’s instances
 *   **Model-Presenter** for cross-platform applications with event-driven model change
@@ -74,155 +74,127 @@ A cross-platform (Windows, macOS, iOS, Android) text editor with automatic savin
 - [Developing changing resource in run-time](#developing-changing-resource-in-run-time)
 
 
-## Object smart pointer
-Any class of an application is inherited from Obj class. *AETHER_OBJ(class name)* macro is used to declare all supporting internal functions. An Object is wrapped into the Ptr<T> template class and the pointer type is declared as *MyClass::ptr*.
+## Class casting
 
-### 
-    class registering, creating, class id, object id
+Any class of an application is inherited from the Obj class. *AETHER_OBJ(class name)* macro is used to declare all supporting internal functions. An Object is wrapped into the Ptr<T> template class and the pointer type is declared as *MyClass::ptr*. Obj base class contains the references counter.
+```cpp
+MyClass* ptr = new MyClass();
+MyClass::ptr p1(ptr);  // Increments the reference counter = 1.
+MyClass::ptr p2(ptr);  // Increments the reference counter = 2.
+p1 = nullptr;  // Decrements ref_counter = 1.
+p2 = nullptr;  // Decrements ref_counter = 0 and the class instance is deleted.
+```
+*AETHER_IMPL(ClassName)* should be declared in cpp-file. The macro registers the class factory function.
 
+### Inheritance
+Each class inherited from the Obj class supports efficient dynamic poiter downcasting without using C++ RTTI.
+```cpp
+class A : public aether::Obj {
+ public:
+  AETHER_OBJ(A);
+};
+class B : public aether::Obj {
+ public:
+  AETHER_OBJ(B);
+};
+aether::Obj::ptr o{new B()};
+A::ptr a = o;  // Can't cast to A* so the pointer remains nullptr
+B::ptr b = o;  // Resolved to B*
+```
+The "Diamond problem" can be resolved by the "class A : public **virtual** aether::Obj" inheritance.
+If a class supports casting to multiple base classes with multiple inheritance or with chain of base classes then multiple classes can be enumerated in th *AETHER_OBJ(ClassName)* macro.
+```cpp
+class Base1 : public virtual aether::Obj {
+ public:
+  AETHER_OBJ(Base1);
+};
+class Base2 : public virtual aether::Obj {
+ public:
+  AETHER_OBJ(Base2);
+};
+class Derived : public Base1, public Base2 {
+ public:
+  AETHER_OBJ(Derived, Base1, Base2);  // Cuurent class must be listed at the first place.
+};
+aether::Obj::ptr o{new Derived()};
+Base1::ptr b1 = o;
+Base2::ptr b2 = o;
+```
 
-### 
-    Inheritance, interface casting, pure_class
+Interface classes (i.e. not able to be instantiated) are defined with the same way but without AETHER_IMPL macro.
 
+### Inheritance chain
+If *aether::Obj::CreateObjByClassId("ClassName")* method is used instead of *new ClassName* then the inheritance chain is evaluated and the last class is instantiated. It is useful for instantiating the interface implementation:
+```cpp
+class Interface : public virtual aether::Obj {
+ public:
+  AETHER_OBJ(Interface);
+};
+class Implementation : public Interface {
+ public:
+  AETHER_OBJ(Implementation, Interface);  // The inheritance chain is listed here.
+};
+// The pointer refers to the Implementation class instance.
+Interface::ptr interface = aether::Obj::CreateObjByClassId("Interface");
+```
 
-### 
-    Serialize template {#serialize-template}
+## Serialization
 
+## Class state serialization
+operator << >> &
+template<T> void Serializatior = bidirectional method
+class id, object id
+*AETHER_SERIALIZE(ClassName)*
 
-### 
-    Linear inheritance = Versioning, program upgrade {#linear-inheritance-=-versioning-program-upgrade}
+### Versioning
+*AETHER_SERIALIZE(ClassName)*
 
+## Obj::ptr setialization
 
-## serializable smart pointer
+### Hibernate / Wake-up
+Serialize
+Load / Unload
 
+### Constant objects
 
-### 
-    Serialize obj::ptr = graph, root {#serialize-obj-ptr-=-graph-root}
+### Multiple references to the upper object
 
+### Cyclic refs
 
-### 
-    multiple refs {#multiple-refs}
-
-
-### 
-    Unloading - cyclic refs {#unloading-cyclic-refs}
-
-
-### 
-    Graph partial loading, deserialization of unloaded subgraph {#graph-partial-loading-deserialization-of-unloaded-subgraph}
+### Domain, example - localization
 
 
 ## Development runtime modes
 
+### #ifdefs - initial state
 
-### 
-    #ifdefs - initial state {##ifdefs-initial-state}
-
-
-### 
-    Runtime obj creation {#runtime-obj-creation}
-
-
-### 
-    Cloning from alive obj {#cloning-from-alive-obj}
-
-
-### 
-    Cloning from unloaded obj {#cloning-from-unloaded-obj}
-
-
-### 
-    Cloning options: {#cloning-options}
-
-
-            Shallow - just this object
-
-
-            Deep - al objects referenced within this hierarchy (not referenced by external objects) are cloned
-
-
-            Full = Deep + constant objects not referenced by external objects
-
-
-## Serialization
-
-
-### 
-    Serialization of everything is not good - eliminate const obj {#serialization-of-everything-is-not-good-eliminate-const-obj}
-
-
-### 
-    Data, refs {#data-refs}
-
-
-### 
-    Domain, example - localization {#domain-example-localization}
+### Runtime obj creation - cloning
+cloning from alive obj
+cloning from unloaded obj
+subgraph cloning
+* shallow
+* deep
+* full
 
 
 ## Model-Presenter {#model-presenter}
 
-
-### 
-    Cyclic references {#cyclic-references}
-
-
-### 
-    Cross-platform {#cross-platform}
-
-
-### 
-    Mix: model-presenter-model-presenter {#mix-model-presenter-model-presenter}
-
-
-### 
-    Events {#events}
-
-
-## Serialize state events
-
-
-### 
-    Collapse events into state, per sub-graph {#collapse-events-into-state-per-sub-graph}
-
-
-### 
-    Empty presenter, reproducing problems = telemetry {#empty-presenter-reproducing-problems-=-telemetry}
-
-
-### 
-    Automated tests for whole app with empty presenters {#automated-tests-for-whole-app-with-empty-presenters}
-
-
-### 
-    Distributed applications: {#distributed-applications}
-
-
+### Cross-platform {#cross-platform}
+### Mix: model-presenter-model-presenter {#mix-model-presenter-model-presenter}
+### Events {#events}
+### Collapse events into state, per sub-graph {#collapse-events-into-state-per-sub-graph}
+### Empty presenter, reproducing problems = telemetry {#empty-presenter-reproducing-problems-=-telemetry}
+### Automated tests for whole app with empty presenters {#automated-tests-for-whole-app-with-empty-presenters}
+### Distributed applications: {#distributed-applications}
         Domains: local / user / global states
-
-
         Superroot
-
-
         Different versions of events
-
-
         Simultaneous editing of a document
 
-
 ## App specific
-
-
-### 
-    onLoaded, onTimer etc. {#onloaded-ontimer-etc}
-
-
-### 
-    Same app state between runs {#same-app-state-between-runs}
-
+### onLoaded, onTimer etc.
+### Same app state between runs
 
 ## Header-only, custom streams, exception handling, RAII
-
-
 ## Multithreading fast serialization and double-buffering
-
 ## Developing changing resource in run-time
