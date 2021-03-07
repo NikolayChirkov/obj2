@@ -284,8 +284,7 @@ A::ptr a;
 a.Unload();  // B and A referenced with the subgraph only
 ```
 More complex case:
-A -> B <- C = D <- E
-C = E means cyclic reference.
+![Cyclic reference example](images/cyclic.png)
 If E is unloaded then A and B remains loaded.
 
 ### Serialization flags
