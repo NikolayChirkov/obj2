@@ -283,9 +283,9 @@ class B { A::ptr a_; };
 A::ptr a;
 a.Unload();  // B and A referenced with the subgraph only
 ```
-More complex case:
 ![Cyclic reference example](images/cyclic.png)
-If E is unloaded then A and B remains loaded.
+
+If pointer **d** is unloaded then objects **D** and **C** are also unloaded. Objects **A** and **B** remains alive.
 
 ### Serialization flags
 All serialization / deserialization methods uses flags:
@@ -293,16 +293,26 @@ All serialization / deserialization methods uses flags:
 * kRefs - references to other objects are stored. The method also used for graph analysis
 * kConsts - It is impractical to serialize all objects' data every time because a lot of objects are just constant: localization strings, images etc. These objects are marked as Constants and only references to the objects are serialized of the kConsts flag is not specified. Tips: if an object contains constant and non-constant data members then it is better to split the object into two: a dynamic object with reference to the static object. Also it simplifies the application upgrade when the static object can be upgraded independently.
 
-### Domain, example - localization
-Distributed applications
-        Domains: local / user / global states
-        Superroot
-        Different versions of events
-        Simultaneous editing of a document
+### Domain
+A specific domain is set for each object in the application. Domain is the index that the user-defined serialization callbacks can resolve to a specific path at which the object store it state. It allows to distribute the application state over different locations allowing distributed state. Here is a list of possible usages of the domain:
+* An object that keeps localization strings is serialized with different languages into different locations. A proper path of the location is choosen on application launch
+* A user's account is stored on server and that state is shared across multiple instances of the client application over multiple user's devices.
+* An application stores "snapshots" of the application state to be restored then from one of them.
+* Multiple users can access a single document for editing. The application uses remote path on server to store the shared document state.
+* Any subgraph of an appication can be shared by storing the state on remote server. Another point of view: any application object can reference to a remote subgraph. Example: a shared across multiple users document is referencing the sheet which is being edited by other users.
+* A server application keeps references to all users' accounts subgraphs.
 
-## Development runtime modes
+## Development and runtime modes
+It is possible to split the application into development mode where all pre-processing steps are performed and the initial state of the application is serialized and into runtime mode where the only serialized state is used. It allows to:
+* move all resource validation and compilation into development mode:
+  * Parsing json/xml etc. with reach validation
+  * convert images and other heavyweight resources
+* reduce the binary size by moving-out the validation/import code from runtime mode
+* speed-up developing by tracking changes of the source resources and validate only updated resources
+* perform exhausting validation of all resources. A typical case is when the developer updates an image mistakenly and the problem appears on the client side much later when the image is going to be loaded due to the application event but not at the application launch time.
+* simple application upgrade because the resources representation is uniformed into the application objects states. It is neccessary to upgrade only affected objects' state.
 
-### #ifdefs - initial state
+### Initial state
 
 ### Runtime obj creation - cloning
 cloning from alive obj
