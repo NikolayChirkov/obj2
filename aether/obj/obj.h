@@ -1,14 +1,14 @@
-/* Copyright 2016 Aether authors. All Rights Reserved.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-  http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-==============================================================================*/
+// Copyright 2016 Aether authors. All Rights Reserved.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//   http://www.apache.org/licenses/LICENSE-2.0
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// =============================================================================
 
 #ifndef AETHER_OBJ_H_
 #define AETHER_OBJ_H_
@@ -51,7 +51,7 @@ public:
   bool operator < (const ObjId& i) const { return id_ < i.id_; }
   friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const ObjId& i) { return s << i.id_; }
   friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, ObjId& i) { return s >> i.id_; }
-  
+
   std::string ToString() const { return std::to_string(id_); }
 protected:
   Type id_;
@@ -81,7 +81,7 @@ template <class T> class Ptr {
   ObjId id_;
   ObjFlags flags_;
   ObjStorage storage_;
-  
+
   // Example: A::ptr a;
   Ptr() { ptr_ = nullptr; }
   // Example: A::ptr a(nullptr);
@@ -197,10 +197,10 @@ template <class T> class Ptr {
   }
 
   ~Ptr() { Release(); }
-  
+
   operator bool() const { return ptr_; }
   T* operator->() const { return ptr_; }
-  
+
   const ObjId& GetId() const { return ptr_ ? ptr_->id_ : id_; }
   void SetId(const ObjId& i) {
     if (ptr_) ptr_->id_ = i;
@@ -223,7 +223,7 @@ template <class T> class Ptr {
   Ptr Clone(LoadFacility load_facility) const;
 
   // Protected section.
-  void Init(T* p);  
+  void Init(T* p);
   template <class T1> void InitCast(T1* p) { Init(p ? static_cast<T*>(p->DynamicCast(T::kId)) : nullptr); }
   void Release();
   static constexpr uint32_t kObjClassId = qcstudio::crc32::from_literal("Obj").value;
@@ -236,7 +236,7 @@ template <class T1> bool operator != (const Ptr<T1>& p1, const Ptr<T1>& p2) { re
 template <class T1, class T2> bool operator == (const Ptr<T1>& p1, const Ptr<T2>& p2) {
   // If one or both pointers are zero - not equal.
   if (!p1 || !p2) return false;
-  
+
   constexpr uint32_t class_id = qcstudio::crc32::from_literal("Obj").value;
   return p1.ptr_->DynamicCast(class_id) == p2.ptr_->DynamicCast(class_id);
 }
@@ -356,19 +356,19 @@ public:
     auto it = Registry<void>::all_objects_.find(id_);
     if (it != Registry<void>::all_objects_.end()) Registry<void>::all_objects_.erase(it);
   }
-  
+
   virtual void OnLoaded() {}
-  
+
   static void AddObject(Obj* o) {
     Registry<void>::all_objects_[o->id_] = o;
   }
-  
+
   static void RemoveObject(Obj* o) {
     auto it = Registry<void>::all_objects_.find(o->id_);
     assert(it != Registry<void>::all_objects_.end());
     Registry<void>::all_objects_.erase(it);
   }
-  
+
   static Obj* FindObject(ObjId obj_id) {
     auto it = Registry<void>::all_objects_.find(obj_id);
     if (it != Registry<void>::all_objects_.end()) return it->second;
@@ -408,7 +408,7 @@ protected:
       (*registry_)[cls_id] = factory;
       if (base_id != qcstudio::crc32::from_literal("Obj").value) (*base_to_derived_)[base_id].push_back(cls_id);
     }
-    
+
     static void UnregisterClass(uint32_t cls_id) {
       auto it = registry_->find(cls_id);
       if (it != registry_->end()) registry_->erase(it);
@@ -430,7 +430,7 @@ protected:
       if (it == registry_->end()) return nullptr;
       return it->second();
     }
-    
+
     static std::map<ObjId, Obj*> all_objects_;
     static bool first_release_;
     static bool manual_release_;
@@ -474,7 +474,7 @@ template <class T, class T1> bool SerializeRef(T& s, const Ptr<T1>& o) {
   }
   s << o.GetId() << o.GetFlags() << o.GetStorage();
   if (!o || s.custom_->FindAndAddObject(o.ptr_)) return false;
-  
+
   // Don't serialize constant objects if not directed.
   if (!(s.custom_->flags_ & Obj::Serialization::kConsts) && (o.GetFlags() & ObjFlags::kConst)) return false;
   return true;
@@ -548,7 +548,7 @@ template <class T> Obj::ptr DeserializeRef(T& s) {
   // If object is already deserialized.
   Obj* obj = Obj::FindObject(obj_id);
   if (obj) return obj;
-  
+
   std::vector<uint32_t> classes = s.custom_->enumerate_facility_(obj_id, obj_storage);
   uint32_t class_id = classes[0];
   for (auto c : classes) {
