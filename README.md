@@ -74,10 +74,12 @@ A cross-platform (Windows, macOS, iOS, Android) text editor with automatic savin
   - [Multiple references](#multiple-references)
   - [Cyclic references](#cyclic-references)
   - [Serialization flags](#serialization-flags)
-  - [Domain, example - localization](#domain-example-localization)
-- [Development runtime modes](#development-runtime-modes)
-  - [#ifdefs - initial state]
-  - [Runtime obj creation - cloning]
+  - [Object storage](#object-storage)
+- [Development and runtime modes](#development-and-runtime-modes)
+  - [Initial state](#initial-state)
+  - [Runtime object creation](#runtime-object-creation)
+  - [Cloning of alive object](#cloning-of-alive-object)
+  - [Subgraph cloning](#subgraph-cloning)
 - [Event-driven](#event-driven)
   - [Collapse events into state, per sub-graph]
 - [Model-Presenter](#model-presenter)
@@ -293,8 +295,8 @@ All serialization / deserialization methods uses flags:
 * kRefs - references to other objects are stored. The method also used for graph analysis
 * kConsts - It is impractical to serialize all objects' data every time because a lot of objects are just constant: localization strings, images etc. These objects are marked as Constants and only references to the objects are serialized of the kConsts flag is not specified. Tips: if an object contains constant and non-constant data members then it is better to split the object into two: a dynamic object with reference to the static object. Also it simplifies the application upgrade when the static object can be upgraded independently.
 
-### Domain
-A specific domain is set for each object in the application. Domain is the index that the user-defined serialization callbacks can resolve to a specific path at which the object store it state. It allows to distribute the application state over different locations allowing distributed state. Here is a list of possible usages of the domain:
+### Object storage
+A specific path is set for each object in the application. path is the index that the user-defined serialization callbacks can resolve to a specific path at which the object store it state. It allows to distribute the application state over different locations allowing distributed state. Here is a list of possible usages of the index:
 * An object that keeps localization strings is serialized with different languages into different locations. A proper path of the location is choosen on application launch
 * A user's account is stored on server and that state is shared across multiple instances of the client application over multiple user's devices.
 * An application stores "snapshots" of the application state to be restored then from one of them.
