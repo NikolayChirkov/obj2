@@ -1,6 +1,6 @@
 # Æether Object
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-![GitHub file size in bytes](https://img.shields.io/github/size/aethernet-io/obj/blob/master/aether/obj/obj.h)
+![GitHub file size in bytes](https://img.shields.io/github/size/aethernet-io/obj/aether/obj/obj.h)
 
 is a C++11 cross-platform architecture heder-only framework for creating lightweight, highly structured, easily supportable, reliable, distributed applications.
 
