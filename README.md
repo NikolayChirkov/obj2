@@ -60,8 +60,10 @@ int main() {
 
 ## Example application
 
-A cross-platform (Windows, macOS, iOS, Android) text editor with automatic saving text, window position and size.
+A cross-platform (Windows, macOS, iOS, Android) text editor with automaticly saved text, window position and size is implemented as an example.
 
+
+## Detailed description
 
 - [Class casting](#class-casting)
   - [Inheritance](#inheritance)
@@ -394,14 +396,15 @@ If the object is being to be cloned (both from factory or from alive object) the
 * deep cloning is when all referenced objects are also cloned excluding constant objects
 * full cloning is when constant objects are also cloned
 
+# UNDER CONSTRUCTION
 ## Event-driven
 ### Collapse events into state, per sub-graph
 
 ## Model-Presenter
 ### Cross-platform
 ### Mix: model-presenter-model-presenter
-### Empty presenter, reproducing problems = telemetry {#empty-presenter-reproducing-problems-=-telemetry}
-### Automated tests for whole app with empty presenters {#automated-tests-for-whole-app-with-empty-presenters}
+### Empty presenter, reproducing problems = telemetry
+### Automated tests for whole app with empty presenters
 
 
 ## Header-only, custom streams, exception handling, RAII
