@@ -139,30 +139,78 @@ Interface::ptr interface = aether::Obj::CreateObjByClassId("Interface");
 ```
 
 ## Serialization
+Serialization of the application model/state is done with input/output stream that saves an object data, references to other objects. A special *mstream* class is provided but any other custom stream with required functionality can be used. A user-side call-backs implement saving/loading the serialized data, for example as files, or database etc.
 
-## Class state serialization
-operator << >> &
-template<T> void Serializatior = bidirectional method
-class id, object id
-*AETHER_SERIALIZE(ClassName)*
+### Class state serialization
+To avoid possible mistmatches when class members are serialized and deserialized a unified bidirectional method is used:
+```cpp
+class A : public aether::Obj {
+ public:
+  AETHER_OBJ(Interface);
+  int i_;
+  std::vector<std::string> strings_;  
+  template <typename T> void Serializator(T& s, int flags) {
+    s & i_ & strings_;
+  }
+  virtual void OnLoaded() {}
+};
+```
+**Serializator** method is instantiated with in in/out stream and '<<', '>>' operators are replaced with a single '&'operator.
+It is possible to determine the type of the stream at compile time for creating some platform-specific resources:
+```cpp
+if constexpr (std::is_base_of<aether::istream, T>::value) { ... }
+```
+If an object accesses another objects are being loaded then it is more convenient to do some logic in
+```cpp
+  virtual void OnLoaded() {}
+```
+method which is called after all objects in the subgraph are deserialize.
+
+### Class pointer serialization
+A pointer to another object can also be serialized/deserialized in the same way like a built-in type:
+```cpp
+class A : public aether::Obj {
+ public:
+  AETHER_OBJ(A);
+  int i_;
+class B : public aether::Obj {
+ public:
+  AETHER_OBJ(B);
+  aether::Obj::ptr o_;  // A reference to the A* class but casted to aether::Obj*
+  std::map<int, A::ptr> a_;
+  template <typename T> void Serializator(T& s, int flags) {
+    s & o_ & a_;
+  }
+  virtual void OnLoaded() {
+    A::ptr(o_)->i_++;  // Valid
+    a_[0]->i_++;  // Valid
+  }
+};
+```
+If multiple pointers are referencing a single class instance then after deserialization a single class is constructed and then referenced multiple times. Cyclic references are also supported. Each class is registed with the factory function and the unique ClassId. Each class instance = object contains unique InstanceId. Both these values are used for reconstructing the original graph on deserialization.
 
 ### Versioning
+CreateObjByClassId
 *AETHER_SERIALIZE(ClassName)*
-
-## Obj::ptr setialization
+App upgrade
 
 ### Hibernate / Wake-up
 Serialize
 Load / Unload
-
-### Constant objects
+user-defined i/o call-backs
 
 ### Multiple references to the upper object
 
 ### Cyclic refs
 
-### Domain, example - localization
+### Constant objects
 
+### Domain, example - localization
+Distributed applications
+        Domains: local / user / global states
+        Superroot
+        Different versions of events
+        Simultaneous editing of a document
 
 ## Development runtime modes
 
@@ -176,24 +224,15 @@ subgraph cloning
 * deep
 * full
 
-
-## Model-Presenter {#model-presenter}
-
-### Cross-platform {#cross-platform}
-### Mix: model-presenter-model-presenter {#mix-model-presenter-model-presenter}
-### Events {#events}
+## Event-driven
 ### Collapse events into state, per sub-graph {#collapse-events-into-state-per-sub-graph}
+
+## Model-Presenter
+### Cross-platform
+### Mix: model-presenter-model-presenter
 ### Empty presenter, reproducing problems = telemetry {#empty-presenter-reproducing-problems-=-telemetry}
 ### Automated tests for whole app with empty presenters {#automated-tests-for-whole-app-with-empty-presenters}
-### Distributed applications: {#distributed-applications}
-        Domains: local / user / global states
-        Superroot
-        Different versions of events
-        Simultaneous editing of a document
 
-## App specific
-### onLoaded, onTimer etc.
-### Same app state between runs
 
 ## Header-only, custom streams, exception handling, RAII
 ## Multithreading fast serialization and double-buffering
