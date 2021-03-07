@@ -2,7 +2,7 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 ![GitHub file size in bytes](https://img.shields.io/github/size/aethernet-io/obj/blob/master/aether/obj/obj.h)
 
-is a C++17 cross-platform architecture heder-only framework for creating lightweight, highly structured, easily supportable, reliable, distributed applications.
+is a C++11 cross-platform architecture heder-only framework for creating lightweight, highly structured, easily supportable, reliable, distributed applications.
 
 The core concept is well-known from other frameworks: an application is represented as a graph, and each node is a serializable class instance.
 
@@ -63,13 +63,29 @@ int main() {
 A cross-platform (Windows, macOS, iOS, Android) text editor with automatic saving text, window position and size.
 
 
-- [Object smart pointer](#object-smart-pointer)
-- [serializable smart pointer](#serializable-smart-pointer)
-- [Development runtime modes](#development-runtime-modes)
+- [Class casting](#class-casting)
+  - [Inheritance](#inheritance)
+  - [Inheritance chain](#inheritance-chain)
 - [Serialization](#serialization)
-- [Serialize state events](#serialize-state-events)
-- [App specific](#app-specific)
-- [Header-only, custom streams, exception handling, RAII](#header-only-custom-streams-exception-handling-raii)
+  - [Class state serialization](#class-state-serialization)
+  - [Class pointer serialization](#class-pointer-serialization)
+  - [Versioning](#versioning)
+  - [Hibernate, Wake-up](#hibernate-wake-up)
+  - [Multiple references](#multiple-references)
+  - [Cyclic references](#cyclic-references)
+  - [Serialization flags](#serialization-flags)
+  - [Domain, example - localization](#domain-example-localization)
+- [Development runtime modes](#development-runtime-modes)
+  - [#ifdefs - initial state]
+  - [Runtime obj creation - cloning]
+- [Event-driven](#event-driven)
+  - [Collapse events into state, per sub-graph]
+- [Model-Presenter](#model-presenter)
+  - [Cross-platform]]
+  - [Mix: model-presenter-model-presenter]
+  - [Empty presenter, reproducing problems, telemetry]
+  - [Automated tests for whole app with empty presenters]
+- [Header-only, custom streams, exception handling, RAII](#Header-only-custom-streams-exception-handling-RAII)
 - [Multithreading fast serialization and double-buffering](#multithreading-fast-serialization-and-double-buffering)
 - [Developing changing resource in run-time](#developing-changing-resource-in-run-time)
 
@@ -126,7 +142,7 @@ Interface classes (i.e. not able to be instantiated) are defined with the same w
 ### Inheritance chain
 If *aether::Obj::CreateObjByClassId("ClassName")* method is used instead of *new ClassName* then the inheritance chain is evaluated and the last class is instantiated. It is useful for instantiating the interface implementation:
 ```cpp
-class Interface : public virtual aether::Obj {
+class Interface : public aether::Obj {
  public:
   AETHER_OBJ(Interface);
 };
@@ -146,7 +162,7 @@ To avoid possible mistmatches when class members are serialized and deserialized
 ```cpp
 class A : public aether::Obj {
  public:
-  AETHER_OBJ(Interface);
+  AETHER_OBJ(A);
   int i_;
   std::vector<std::string> strings_;  
   template <typename T> void Serializator(T& s, int flags) {
@@ -229,7 +245,7 @@ AETHER_INTERFACE(Derived, Base);  // List of all allowed base classes for pointe
 AETHER_SERIALIZE(Derived, Base);  // Serialization chain
 ```
 
-### Hibernate / Wake-up
+### Hibernate, Wake-up
 An application is represented as a graph and some subgraphs can be loaded and some can be off-loaded at a moment. For example, an application can open a document while other documents remain off-loaded. Obj::ptr represents a shared pointer with reference-counting and the object can be loaded or not. When the pointer is serialized and then deserialized then the loaded/unloaded state is preserved. An object holding the unloaded reference to another object can load the object at any given time:
 ```cpp
 Doc::ptr doc_;
@@ -256,10 +272,10 @@ In the example application a file storage is used:
 * a separate file with the name of class_id for each class in the inheritance chain is use for storing the data
 * the whole graph of the application is linearized into plain structure where all objects are placed on top level
 
-### Multiple references to the object
+### Multiple references
 When an object's pointer is deserialized the object is being searched with the unique ObjectId if the object is already loaded by another upper-level node. If it is loaded then it's just referenced. If the object is referenced multiple times and the pointer is unloaded then the object remains alive.
 
-### Cyclic refs
+### Cyclic references
 For a particular object pointer that references other objects and is being to be unloaded only object referenced within the subgraph are unloaded. That also includes cyclic references:
 ```cpp
 class A { B::ptr b_; };
