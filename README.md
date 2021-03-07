@@ -2,7 +2,7 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 ![GitHub file size in bytes](https://img.shields.io/github/size/aethernet-io/obj/aether/obj/obj.h)
 
-is a C++11 cross-platform architecture heder-only framework for creating lightweight, highly structured, easily supportable, reliable, distributed applications.
+is a C++11 cross-platform architecture header-only framework for creating lightweight, highly structured, easily supportable, reliable, distributed applications.
 
 The core concept is well-known from other frameworks: an application is represented as a graph, and each node is a serializable class instance.
 
@@ -60,7 +60,7 @@ int main() {
 
 ## Example application
 
-A cross-platform (Windows, macOS, iOS, Android) text editor with automaticly saved text, window position and size is implemented as an example.
+A cross-platform (Windows, macOS, iOS, Android) text editor with automatically saved text, window position and size is implemented as an example.
 
 
 ## Detailed description
@@ -134,14 +134,14 @@ class Base2 : public virtual aether::Obj {
 };
 class Derived : public Base1, public Base2 {
  public:
-  AETHER_OBJ(Derived, Base1, Base2);  // Cuurent class must be listed at the first place.
+  AETHER_OBJ(Derived, Base1, Base2);  // Current class must be listed at the first place.
 };
 aether::Obj::ptr o{new Derived()};
 Base1::ptr b1 = o;
 Base2::ptr b2 = o;
 ```
 
-Interface classes (i.e. not able to be instantiated) are defined with the same way but without AETHER_IMPL macro.
+Interface classes (i.e. not able to be instantiated) are defined in the same way but without AETHER_IMPL macro.
 
 ### Inheritance chain
 If *aether::Obj::CreateObjByClassId("ClassName")* method is used instead of *new ClassName* then the inheritance chain is evaluated and the last class is instantiated. It is useful for instantiating the interface implementation:
@@ -162,7 +162,7 @@ Interface::ptr interface = aether::Obj::CreateObjByClassId("Interface");
 Serialization of the application model/state is done with input/output stream that saves an object data, references to other objects. A special *mstream* class is provided but any other custom stream with required functionality can be used. A user-side call-backs implement saving/loading the serialized data, for example as files, or database etc.
 
 ### Class state serialization
-To avoid possible mistmatches when class members are serialized and deserialized a unified bidirectional method is used:
+To avoid possible mismatches when class members are serialized and deserialized a unified bidirectional method is used:
 ```cpp
 class A : public aether::Obj {
  public:
@@ -184,7 +184,7 @@ If an object accesses another objects are being loaded then it is more convenien
 ```cpp
   virtual void OnLoaded() {}
 ```
-method which is called after all objects in the subgraph are deserialize.
+method which is called after all objects in the subgraph are deserialized.
 
 ### Class pointer serialization
 A pointer to another object can also be serialized/deserialized in the same way like a built-in type:
@@ -209,12 +209,12 @@ class B : public aether::Obj {
   }
 };
 ```
-If multiple pointers are referencing a single class instance then after deserialization a single class is constructed and then referenced multiple times. Cyclic references are also supported. Each class is registed with the factory function and the unique ClassId. Each class instance = object contains unique InstanceId. Both these values are used for reconstructing the original graph on deserialization.
+If multiple pointers are referencing a single class instance then after deserialization a single class is constructed and then referenced multiple times. Cyclic references are also supported. Each class is registered with the factory function and the unique ClassId. Each class instance = object contains unique InstanceId. Both these values are used for reconstructing the original graph on deserialization.
 
 ### Versioning
 Versioning is implemented by inheritance chain and supports:
 * an old serialized object's state can be loaded by the newer binary. Default initialization of the newly added values is performed.
-* An old binary can load newer serialized state with rejecting the unused values.
+* An old binary can load a newer serialized state with rejecting the unused values.
 Another useful application of the versioned serialization is the upgrading application to newer version (with ability to roll-back).
 Example: V1 class serializes integer value. When the instance of the class is serialized through the pointer then the ClassId and InstanceId are both serialized. Then the integer is stored.
 ```cpp
@@ -235,11 +235,11 @@ class V2 : public V1 {
   template <typename T> void Serializator(T& s, int flags) {s & f_; }
 };
 ```
-When the class is serialized through the pointer then V1::ClassId is stored instead of V2::ClassId. V2 is the last class in the inheritance chain so it will be created with the *CreateObjByClassId* function that creates the last class in the chain. Then a separate blob of data will be stored with the V2's data - floating point number. If an older binary loads the serialized state then V1 class is created and the V2 data is ignored. If newer binary loads the old data then V1::ClassId is loaded and V2 class is created but only V1 data is deserialized. V2 remains in default value.
+When the class is serialized through the pointer then V1::ClassId is stored instead of V2::ClassId. V2 is the last class in the inheritance chain so it will be created with the *CreateObjByClassId* function that creates the last class in the chain. Then a separate blob of data will be stored with the V2's data - floating point number. If an older binary loads the serialized state then V1 class is created and the V2 data is ignored. If a newer binary loads the old data then V1::ClassId is loaded and V2 class is created but only V1 data is deserialized. V2 remains in default value.
 
-**Application upgrade** is easily implemented by replacing / adding serialization data for a particular class. All substates of all classes in the inheritance chain is stored individually.
+**Application upgrade** is easily implemented by replacing / adding serialization data for a particular class. All substates of all classes in the inheritance chain are stored individually.
 
-If the versioning is not intended then *AETHER_OBJ(ClassName)* should contain only single class in the list. Also all members of parent class must be serialized.
+If the versioning is not intended then *AETHER_OBJ(ClassName)* should contain only a single class in the list. Also all members of the parent class must be serialized.
 *AETHER_OBJ* macro is a combination of 3 other macros. Using this allows more flexible configurations:
 ```cpp
 AETHER_OBJ(Derived, Base);
@@ -280,7 +280,7 @@ In the example application a file storage is used:
 When an object's pointer is deserialized the object is being searched with the unique ObjectId if the object is already loaded by another upper-level node. If it is loaded then it's just referenced. If the object is referenced multiple times and the pointer is unloaded then the object remains alive.
 
 ### Cyclic references
-For a particular object pointer that references other objects and is being to be unloaded only object referenced within the subgraph are unloaded. That also includes cyclic references:
+For a particular object pointer that references other objects and is to be unloaded only objects referenced within the subgraph are unloaded. That also includes cyclic references:
 ```cpp
 class A { B::ptr b_; };
 class B { A::ptr a_; };
@@ -295,7 +295,7 @@ If pointer **d** is unloaded then objects **D** and **C** are also unloaded. Obj
 All serialization / deserialization methods uses flags:
 * kData - the data of the object is stored
 * kRefs - references to other objects are stored. The method also used for graph analysis
-* kConsts - It is impractical to serialize all objects' data every time because a lot of objects are just constant: localization strings, images etc. These objects are marked as Constants and only references to the objects are serialized of the kConsts flag is not specified. Tips: if an object contains constant and non-constant data members then it is better to split the object into two: a dynamic object with reference to the static object. Also it simplifies the application upgrade when the static object can be upgraded independently.
+* kConsts - It is impractical to serialize all objects' data every time because a lot of objects are just constant: localization strings, images etc. These objects are marked as Constants and only references to the objects are serialized if the kConsts flag is not specified. Tips: if an object contains constant and non-constant data members then it is better to split the object into two: a dynamic object with reference to the static object. Also it simplifies the application upgrade when the static object can be upgraded independently.
 
 ### Object storage
 A specific path is set for each object in the application. path is the index that the user-defined serialization callbacks can resolve to a specific path at which the object store it state. It allows to distribute the application state over different locations allowing distributed state. Here is a list of possible usages of the index:
