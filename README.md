@@ -313,17 +313,87 @@ It is possible to split the application into development mode where all pre-proc
 * simple application upgrade because the resources representation is uniformed into the application objects states. It is neccessary to upgrade only affected objects' state.
 
 ### Initial state
+The development mode is intended to construct the application graph and to serialize the graph. Here is an example of how the development mode can be defined:
+```cpp
+class A : public aether::Obj {
+ public:
+  AETHER_OBJ(A);
+  A() {
+#if DEV_MODE
+    // Here is a complex procedure that open a text file, parses the file to retrieve the int
+    // or the database request can be used etc.
+    i_ = IntFromFile();
+#endif  // DEV_MODE
+  }
+  int i_;
+  template <typename T> void Serializator(T& s, int flags) { s & i_; }
+};
 
-### Runtime obj creation - cloning
-cloning from alive obj
-cloning from unloaded obj
-subgraph cloning
-* shallow
-* deep
-* full
+class B : public aether::Obj {
+ public:
+  AETHER_OBJ(B);
+  B() {
+#if DEV_MODE
+    a_ = new A();
+#endif  // DEV_MODE
+  }
+  A::ptr a_;
+  template <typename T> void Serializator(T& s, int flags) { s & a_; }
+};
+```
+The initialization code is completely removed from the run-time mode which significantly improves both binary size and application launch performance.
+
+### Runtime object creation
+For the object created at run-time mode the same initialization code elimination is applied so for the initializing the object the default state should exists.
+```cpp
+class A : public aether::Obj {
+ public:
+  AETHER_OBJ(A);
+  A() {
+#if DEV_MODE
+    // Here is a complex procedure that open a text file, parses the file to retrieve the int
+    // or the database request can be used etc.
+    i_ = IntFromFile();
+#endif  // DEV_MODE
+  }
+  int i_;
+  template <typename T> void Serializator(T& s, int flags) { s & i_; }
+};
+
+// Another object that creates A at run-time
+class B : public aether::Obj {
+ public:
+  AETHER_OBJ(B);
+  B() {
+#if DEV_MODE
+    a_factory_ = new A();
+    a_factory_.Serialize(...);
+    a_factory_.Unload();
+    // The A is serialized and Unloaded which means that after the deserialization of B a_ remains unloaded.
+#endif  // DEV_MODE
+  }
+  A::ptr a_factory_;
+  A::ptr a_;
+  template <typename T> void Serializator(T& s, int flags) { s & a_factory_ & a_; }
+  void Method() {
+    // Cloning from unloaded objects just creates the object from the default state.
+    a_ = a_factory_.Clone();
+  }
+};
+```
+The technique significantly improves the reliability of the application by validating the A-object creation. Also the code size is minimized because not default initialization code is required in run-time mode. It also improves performance. In additional to that the application upgrade is simplified: the A-object default state can be updated without updating the binary.
+
+### Cloning of alive object
+Loaded object also can be cloned with the same way. The original object is serialized first, the clone is created and the original state is deserialized into the clone.
+
+### Subgraph cloning
+If the object is being to be cloned (both from factory or from alive object) then all references to other objects are also cloned. More correct to say not the object cloning but subgraph cloning. Few cloning regimes exist:
+* shallow cloning is when just a top-level object is cloned and all references to other objects just copied if any
+* deep cloning is when all referenced objects are also cloned excluding constant objects
+* full cloning is when constant objects are also cloned
 
 ## Event-driven
-### Collapse events into state, per sub-graph {#collapse-events-into-state-per-sub-graph}
+### Collapse events into state, per sub-graph
 
 ## Model-Presenter
 ### Cross-platform
