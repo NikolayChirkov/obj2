@@ -301,12 +301,12 @@ All serialization / deserialization methods uses flags:
 * kConsts - It is impractical to serialize all objects' data every time because a lot of objects are just constant: localization strings, images etc. These objects are marked as Constants and only references to the objects are serialized if the kConsts flag is not specified. Tips: if an object contains constant and non-constant data members then it is better to split the object into two: a dynamic object with reference to the static object. Also it simplifies the application upgrade when the static object can be upgraded independently.
 
 ### Object storage
-A specific path is set for each object in the application. path is the index that the user-defined serialization callbacks can resolve to a specific path at which the object store it state. It allows to distribute the application state over different locations allowing distributed state. Here is a list of possible usages of the index:
-* An object that keeps localization strings is serialized with different languages into different locations. A proper path of the location is choosen on application launch
-* A user's account is stored on server and that state is shared across multiple instances of the client application over multiple user's devices.
+A specific path is set for each object in the application. path is the index that the user-defined serialization callbacks can resolve to a specific path at which the object stores its state. Here is a list of possible usages of the index:
+* An object that keeps localization strings is serialized with different languages into different locations. A proper path of the location is chosen on application launch
+* A user's account is stored on a server and that state is shared across multiple instances of the client application over multiple user's devices.
 * An application stores "snapshots" of the application state to be restored then from one of them.
-* Multiple users can access a single document for editing. The application uses remote path on server to store the shared document state.
-* Any subgraph of an application can be shared by storing the state on remote server. Another point of view: any application object can reference to a remote subgraph. Example: a shared across multiple users document is referencing the sheet which is being edited by other users.
+* Multiple users can access a single document for editing. The application uses a remote path on the server to store the shared document state.
+* Any subgraph of an application can be shared by storing the state on a remote server. Another point of view: any application object can reference to a remote subgraph. Example: a shared across multiple users document is referencing the sheet which is being edited by other users.
 * A server application keeps references to all users' accounts subgraphs.
 
 ## Development and runtime modes
@@ -351,7 +351,7 @@ class B : public aether::Obj {
 The initialization code is completely removed from the run-time mode which significantly improves both binary size and application launch performance.
 
 ### Runtime object creation
-For the object created at run-time mode the same initialization code elimination is applied so for the initializing the object the default state should exists.
+For the object created at run-time mode the same initialization code elimination is applied so for the initializing the object the default state should exist.
 ```cpp
 class A : public aether::Obj {
  public:
@@ -388,16 +388,17 @@ class B : public aether::Obj {
   }
 };
 ```
-The technique significantly improves the reliability of the application by validating the A-object creation. Also the code size is minimized because not default initialization code is required in run-time mode. It also improves performance. In additional to that the application upgrade is simplified: the A-object default state can be updated without updating the binary.
+The technique significantly improves the reliability of the application by validating the A-object creation. Also the code size is minimized because no default initialization code is required in run-time mode. It also improves performance. In addition to that the application upgrade is simplified: the A-object default state can be updated without updating the binary.
 
 ### Cloning of alive object
-Loaded object also can be cloned with the same way. The original object is serialized first, the clone is created and the original state is deserialized into the clone.
+Loaded objects also can be cloned in the same way. The original object is serialized first, the clone is created and the original state is deserialized into the clone.
 
 ### Subgraph cloning
-If the object is being to be cloned (both from factory or from alive object) then all references to other objects are also cloned. More correct to say not the object cloning but subgraph cloning. Few cloning regimes exist:
+If the object is being cloned (both from factory or from alive object) then all references to other objects are also cloned. More correct to say not the object cloning but subgraph cloning. Few cloning regimes exist:
 * shallow cloning is when just a top-level object is cloned and all references to other objects just copied if any
 * deep cloning is when all referenced objects are also cloned excluding constant objects
 * full cloning is when constant objects are also cloned
+
 
 ## Event-driven
 The execution model is based on the event processing. Any object can send an Event with any data to another object to change the state:
@@ -431,24 +432,24 @@ void WindowPresenter::Method() {
 All events are stored in the *aether::Obj* class and can be serialized with the object state. The object state is defined:
 * as current state which is serialized / deserialized in Serializator method.
 * as initial state and all events that the object received starting from the initial state.
-* the initial + event state can be transformd into current state or any intermediate state on the timeline between initial to current time.
+* the initial + event state can be transformed into current state or any intermediate state on the timeline between initial to current time.
 
-It means that an application behavior is recorded and can be replayed later which is helpful for reproducing problems and debugging. Also two versions of the application can be launched on different devices and can be synchronized by sending event to each-other.
+It means that an application behavior is recorded and can be replayed later which is helpful for reproducing problems and debugging. Also two versions of the application can be launched on different devices and can be synchronized by sending events to each-other.
 *(This functionality is under development)*
 
 ## Model-Presenter
 A model-presenter pattern is easily implemented by using:
 * CreateObjByClassId("Presenter") function passes through the inheritance chain and creates the last class so when the model creates the presenter the actual specific presenter is created like "PresenterWin32".
-* The Event system provides thread-safe mechanism to communicate between logic and GUI threads and standartize the communication.
+* The Event system provides thread-safe mechanism to communicate between logic and GUI threads and standardize the communication.
 * The application records all events from Presenter and later the application behavior can be replayed in another environment, for example, with empty Presenter which just sends Events (like clicking on the button) into the Model.
 * A subset of Events can be used for telemetry (analytics).
-* If the application creates a new window then ObjPtr::Clone method from unloaded object is used. The subgraph contains model node and presenter node already linked to each other.
+* If the application creates a new window then ObjPtr::Clone method from an unloaded object is used. The subgraph contains model nodes and presenter nodes already linked to each other.
 
 ![A graph of the example application](images/model_presenter.png)
 * Any application starts with root node *App*. The node can set *{1, "lang/en"}* key for storage index 1. The index 1 is bound to the path of *Title*. In this particular case the application is localized with english language. A separate directory exists for each language. The application can be easily upgraded - it's just the overwriting the state that belongs to the *Title* object.
-* Window is a cross-platform part of model that keeps window position and other state.
-* The Window keep reference to *EditControl* which also a part of model and keeps the text that the user edits.
-* *WindowPresenter* and *EditPresenter* are instantiated with a real platform-specific objects. Presenters are state-less objects.
+* Window is a cross-platform part of the model that keeps window position and other state.
+* The Window keep reference to *EditControl* which is also a part of the model and keeps the text that the user edits.
+* *WindowPresenter* and *EditPresenter* are instantiated with real platform-specific objects. Presenters are stateless objects.
 
 It is possible to combine two nodes of the model into a single node or merge presenters but it is better to split model into smaller objects that simplifies the application upgrade and development - avoiding **Massive View-Controller** problem.
 
@@ -462,7 +463,7 @@ The code is header-only and highly customizable:
 * Serialization method is very robust and can be used for double-buffering in multi-threading applications.
 
 ### Development stage
-Because all resources are pre-compiled and verified by the application in development mode then it is easy to buikd resource tracking system that observes a resource file changing, serializes the state of the graph that the resource affects and restores the graph. During the deserialization an object re-compiles resource and the application is modified without re-launching.
+Because all resources are pre-compiled and verified by the application in the development mode then it is easy to build a resource tracking system that observes resource files changing, serializes the state of the graph that the resource affects and restores the subgraph. During the deserialization an object re-compiles the resource and the application is modified without re-launching.
 
 ## Development plan
 ### Pre-release stage
