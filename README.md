@@ -303,7 +303,7 @@ A specific path is set for each object in the application. path is the index tha
 * A user's account is stored on server and that state is shared across multiple instances of the client application over multiple user's devices.
 * An application stores "snapshots" of the application state to be restored then from one of them.
 * Multiple users can access a single document for editing. The application uses remote path on server to store the shared document state.
-* Any subgraph of an appication can be shared by storing the state on remote server. Another point of view: any application object can reference to a remote subgraph. Example: a shared across multiple users document is referencing the sheet which is being edited by other users.
+* Any subgraph of an application can be shared by storing the state on remote server. Another point of view: any application object can reference to a remote subgraph. Example: a shared across multiple users document is referencing the sheet which is being edited by other users.
 * A server application keeps references to all users' accounts subgraphs.
 
 ## Development and runtime modes
@@ -314,7 +314,7 @@ It is possible to split the application into development mode where all pre-proc
 * reduce the binary size by moving-out the validation/import code from runtime mode
 * speed-up developing by tracking changes of the source resources and validate only updated resources
 * perform exhausting validation of all resources. A typical case is when the developer updates an image mistakenly and the problem appears on the client side much later when the image is going to be loaded due to the application event but not at the application launch time.
-* simple application upgrade because the resources representation is uniformed into the application objects states. It is neccessary to upgrade only affected objects' state.
+* simple application upgrade because the resources representation is uniformed into the application objects states. It is necessary to upgrade only affected objects' state.
 
 ### Initial state
 The development mode is intended to construct the application graph and to serialize the graph. Here is an example of how the development mode can be defined:
