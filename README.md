@@ -396,11 +396,60 @@ If the object is being to be cloned (both from factory or from alive object) the
 * deep cloning is when all referenced objects are also cloned excluding constant objects
 * full cloning is when constant objects are also cloned
 
-# UNDER CONSTRUCTION
 ## Event-driven
-### Collapse events into state, per sub-graph
+The execution model is based on the event processing. Any object can send an Event with any data to another object to change the state:
+```cpp
+class EventMove : public aether::Event {
+public:
+  AETHER_OBJ(EventMove, Event);
+  int x_;
+  template <typename T> void Serializator(T& s, int flags) { s & x_; }
+};
+
+// Receiver:
+bool Window::OnEvent(const aether::Event::ptr& event) {
+  switch (event->GetId()) {
+    case EventMove::kId:
+      // Update internal state:
+      x_ = EventMove::ptr(event)->x_;
+      return true;
+    default:
+      return aether::Obj::OnEvent(event);
+  }
+}
+
+// Somewhere in sender:
+void WindowPresenter::Method() {
+  EventMove::ptr event(aether::Obj::CreateObjByClassId(EventMove::kId));
+  event->x_ = window_x_coord;
+  window_->PushEvent(event);
+}
+```
+All events are stored in the *aether::Obj* class and can be serialized with the object state. The object state is defined:
+* as current state which is serialized / deserialized in Serializator method.
+* as initial state and all events that the object received starting from the initial state.
+* the initial + event state can be transformd into current state or any intermediate state on the timeline between initial to current time.
+
+It means that an application behavior is recorded and can be replayed later which is helpful for reproducing problems and debugging. Also two versions of the application can be launched on different devices and can be synchronized by sending event to each-other.
+*(This functionality is under development)*
 
 ## Model-Presenter
+A model-presenter pattern is easily implemented by using:
+* CreateObjByClassId("Presenter") function passes through the inheritance chain and creates the last class so when the model creates the presenter the actual specific presenter is created like "PresenterWin32".
+* The Event system provides thread-safe mechanism to communicate between logic and GUI threads and standartize the communication.
+* The application records all events from Presenter and later the application behavior can be replayed in another environment, for example, with empty Presenter which just sends Events (like clicking on the button) into the Model.
+* A subset of Events can be used for telemetry (analytics).
+* If the application creates a new window then ObjPtr::Clone method from unloaded object is used. The subgraph contains model node and presenter node already linked to each other.
+
+![A graph of the example application](images/model_presenter.png)
+* Any application starts with root node *App*. The node can set *{1, "lang/en"}* key for storage index 1. The index 1 is bound to the path of *Title*. In this particular case the application is localized with english language. A separate directory exists for each language. The application can be easily upgraded - it's just the overwriting the state that belongs to the *Title* object.
+* Window is a cross-platform part of model that keeps window position and other state.
+* The Window keep reference to *EditControl* which also a part of model and keeps the text that the user edits.
+* *WindowPresenter* and *EditPresenter* are instantiated with a real platform-specific objects. Presenters are state-less objects.
+
+It is possible to combine two nodes of the model into a single node or merge presenters but it is better to split model into smaller objects that simplifies the application upgrade and development - avoiding **Massive View-Controller** problem.
+
+
 ### Cross-platform
 ### Mix: model-presenter-model-presenter
 ### Empty presenter, reproducing problems = telemetry
@@ -410,3 +459,4 @@ If the object is being to be cloned (both from factory or from alive object) the
 ## Header-only, custom streams, exception handling, RAII
 ## Multithreading fast serialization and double-buffering
 ## Developing changing resource in run-time
+# UNDER CONSTRUCTION
