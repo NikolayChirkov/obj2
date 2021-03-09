@@ -54,7 +54,7 @@ int main() {
 *   **Versioning** of the serialized state and executable is automatic: simplifies upgrade and messaging between application’s instances
 *   **Model-Presenter** for cross-platform applications with event-driven model change
 *   **Debugging, automated testing**: event-driven model records all state changes and can be reproduced in any platform-specific environment
-*   **Code size, performance, reliability**. The application is split into development mode, where the graph is constructed, all intermediate resources are pre-compiled and verified and is just deserialized then from binary.
+*   **Code size, performance, reliability**. The application is split into development mode, where the graph is constructed, all intermediate resources are pre-compiled and verified and are just deserialized then from binary in run-time mode.
 *   **Distributed** applications just share the part of the graph.
 
 
@@ -83,15 +83,12 @@ A cross-platform (Windows, macOS, iOS, Android) text editor with automatically s
   - [Cloning of alive object](#cloning-of-alive-object)
   - [Subgraph cloning](#subgraph-cloning)
 - [Event-driven](#event-driven)
-  - [Collapse events into state, per sub-graph]
 - [Model-Presenter](#model-presenter)
-  - [Cross-platform]]
-  - [Mix: model-presenter-model-presenter]
-  - [Empty presenter, reproducing problems, telemetry]
-  - [Automated tests for whole app with empty presenters]
-- [Header-only, custom streams, exception handling, RAII](#Header-only-custom-streams-exception-handling-RAII)
-- [Multithreading fast serialization and double-buffering](#multithreading-fast-serialization-and-double-buffering)
-- [Developing changing resource in run-time](#developing-changing-resource-in-run-time)
+  - [Cross-platform](#cross-platform)
+  - [Development stage](#development-stage)
+- [Development plan](#development-plan)
+  - [Pre-release stage](#pre-release-stage)
+  - [Further plans](#further-plans)
 
 
 ## Class casting
@@ -160,6 +157,12 @@ Interface::ptr interface = aether::Obj::CreateObjByClassId("Interface");
 
 ## Serialization
 Serialization of the application model/state is done with input/output stream that saves an object data, references to other objects. A special *mstream* class is provided but any other custom stream with required functionality can be used. A user-side call-backs implement saving/loading the serialized data, for example as files, or database etc.
+Just a single method must be implemented for serialization / deserialization. The method is also used for initializing objects from pre-compiled state. It also can be used for double-buffering in multithreaded applications.
+```cpp
+template <typename T> void Serializator(T& s, int flags) {
+  s & my_data & my_pointer_to_other_objects;
+}
+```
 
 ### Class state serialization
 To avoid possible mismatches when class members are serialized and deserialized a unified bidirectional method is used:
@@ -451,12 +454,30 @@ It is possible to combine two nodes of the model into a single node or merge pre
 
 
 ### Cross-platform
-### Mix: model-presenter-model-presenter
-### Empty presenter, reproducing problems = telemetry
-### Automated tests for whole app with empty presenters
+The Model contains the state of the application and all business-logic. Presenter is just a thin object with the remaining platform-specific code.
+The code is header-only and highly customizable:
+* user-defined streams can be used for serialization / deserialization
+* Custom exception handling or even without the support of exceptions
+* The library doesn't require C++ RTTI feature to be turned on and uses another way for robust object pointers downcasting
+* Serialization method is very robust and can be used for double-buffering in multi-threading applications.
 
+### Development stage
+Because all resources are pre-compiled and verified by the application in development mode then it is easy to buikd resource tracking system that observes a resource file changing, serializes the state of the graph that the resource affects and restores the graph. During the deserialization an object re-compiles resource and the application is modified without re-launching.
 
-## Header-only, custom streams, exception handling, RAII
-## Multithreading fast serialization and double-buffering
-## Developing changing resource in run-time
-# UNDER CONSTRUCTION
+## Development plan
+### Pre-release stage
+The project currently is in pre-release stage and is not production ready (experimental) so some systems are going to be changed significantly:
+* Events serialization and object state management involving events
+* Thread-safe events processing
+* ObjStorage can be changed to extend just 256 values
+* Tests will be re-created
+* exception / logging / custom streams / RAII will be re-designed
+* UUIDv4 for object id
+* enumerator / saver / loader user-defined functions will be moved into the App root object
+
+### Further plans
+* Support distributed models with messaging transport
+* Multi-threaded and distributed execution
+* Telemetry
+* Resource file observer
+* *Load and then release unused* technique to avoid constant objects redundant creation
