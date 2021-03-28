@@ -16,7 +16,7 @@
 class MainPresenterMac : public MainPresenter {
 public:
   AETHER_OBJ(MainPresenterMac, MainPresenter);
-  template <typename T> void Serializator(T& s, int flags) { }
+  template <typename T> void Serializator(T& s) { }
   virtual bool OnEvent(const aether::Event::ptr& event);
   virtual void OnLoaded();
   MainWindow* window_;
@@ -66,7 +66,7 @@ public:
 class TextPresenterMac : public TextPresenter {
 public:
   AETHER_OBJ(TextPresenterMac, TextPresenter);
-  template <typename T> void Serializator(T& s, int flags) {}
+  template <typename T> void Serializator(T& s) {}
   virtual bool OnEvent(const aether::Event::ptr& event);
   virtual void OnLoaded();
   NSTextView* text_view_;

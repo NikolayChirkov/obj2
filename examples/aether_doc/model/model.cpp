@@ -58,19 +58,16 @@ Main::Main() {
 #endif  // AETHER_DOC_DEV
 }
 
-template <typename T> void Main::Serializator(T& s, int flags) {
-  if (flags & aether::Obj::Serialization::kRefs) s & presenter_ & text_;
-  if (flags & aether::Obj::Serialization::kData) {
-    s & x_ & y_ & w_ & h_ & display_w_ & display_h_;
+template <typename T> void Main::Serializator(T& s) {
+  s & presenter_ & text_ & x_ & y_ & w_ & h_ & display_w_ & display_h_;
 #ifndef AETHER_DOC_DEV
-    if (std::is_base_of<aether::istream, T>::value) {
-      if (x_ == -1) {
-        x_ = 300;
-        y_ = 300;
-      }
+  if (std::is_base_of<aether::istream, T>::value) {
+    if (x_ == -1) {
+      x_ = 300;
+      y_ = 300;
     }
-#endif  // !AETHER_DOC_DEV
   }
+#endif  // !AETHER_DOC_DEV
 }
 
 void Main::OnLoaded() {
@@ -113,9 +110,7 @@ App::App() {
 #endif  // AETHER_DOC_DEV
 }
 
-template <typename T> void App::Serializator(T& s, int flags) {
-  if (flags & aether::Obj::Serialization::kRefs) s & main_;
-}
+template <typename T> void App::Serializator(T& s) { s & main_; }
 
 bool App::OnEvent(const aether::Event::ptr& event) {
   main_->PushEvent(event);

@@ -249,11 +249,11 @@ template <class T> Ptr<Obj> DeserializeRef(T& s);
 
 #define AETHER_SERIALIZE_(CLS, BASE) \
   static constexpr uint32_t kBaseId = qcstudio::crc32::from_literal(#BASE).value; \
-  virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s, s.custom_->flags_); } \
+  virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s); } \
   virtual void SerializeBase(AETHER_OMSTREAM& s, uint32_t class_id) { \
     AETHER_OMSTREAM os; \
     os.custom_ = s.custom_; \
-    CLS::Serializator(os, os.custom_->flags_); \
+    CLS::Serializator(os); \
     s.custom_->store_facility_(id_, class_id, storage_, os); \
     if (qcstudio::crc32::from_literal("Obj").value != qcstudio::crc32::from_literal(#BASE).value) \
       BASE::SerializeBase(s, qcstudio::crc32::from_literal(#BASE).value); \
@@ -262,7 +262,7 @@ template <class T> Ptr<Obj> DeserializeRef(T& s);
     AETHER_IMSTREAM is; \
     is.custom_ = s.custom_; \
     is.custom_->load_facility_(id_, class_id, storage_, is); \
-    if (!is.stream_.empty()) CLS::Serializator(is, is.custom_->flags_); \
+    if (!is.stream_.empty()) CLS::Serializator(is); \
     if (qcstudio::crc32::from_literal("Obj").value != qcstudio::crc32::from_literal(#BASE).value) \
       BASE::DeserializeBase(s, qcstudio::crc32::from_literal(#BASE).value); \
   } \
@@ -385,7 +385,7 @@ public:
   AETHER_CLS(Obj);
   AETHER_INTERFACES(Obj);
   AETHER_SERIALIZE(Obj);
-  template <typename T> void Serializator(T& s, int flags) const {}
+  template <typename T> void Serializator(T& s) const {}
 
   ObjId id_;
   ObjFlags flags_;
@@ -456,7 +456,7 @@ public:
   AETHER_OBJ(Event);
   std::chrono::system_clock::time_point time_point_;
   Obj::ptr obj_;
-  template <typename T> void Serializator(T& s, int flags) { s & time_point_ & obj_; }
+  template <typename T> void Serializator(T& s) { s & time_point_ & obj_; }
 };
 
 // The event can be processed directly in this thread or postponed for later accepting in other thread.

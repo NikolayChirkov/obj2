@@ -37,7 +37,7 @@ namespace {
 class MainPresenterWin : public MainPresenter {
 public:
   AETHER_OBJ(MainPresenterWin, MainPresenter);
-  template <typename T> void Serializator(T& s, int flags) { }
+  template <typename T> void Serializator(T& s) { }
   virtual bool OnEvent(const aether::Event::ptr& event);
   virtual void OnLoaded();
   HWND hWnd;
@@ -46,7 +46,7 @@ public:
 class TextPresenterWin : public TextPresenter {
 public:
   AETHER_OBJ(TextPresenterWin, TextPresenter);
-  template <typename T> void Serializator(T& s, int flags) {}
+  template <typename T> void Serializator(T& s) {}
   virtual bool OnEvent(const aether::Event::ptr& event);
   virtual void OnLoaded();
   HWND hWnd_;

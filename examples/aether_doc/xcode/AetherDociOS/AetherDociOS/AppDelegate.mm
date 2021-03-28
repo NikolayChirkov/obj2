@@ -17,7 +17,7 @@
 class MainPresenterIOS : public MainPresenter {
 public:
   AETHER_OBJ(MainPresenterIOS, MainPresenter);
-  template <typename T> void Serializator(T& s, int flags) { }
+  template <typename T> void Serializator(T& s) { }
   virtual bool OnEvent(const aether::Event::ptr& event) { return true; };
   virtual void OnLoaded() {};
 };
