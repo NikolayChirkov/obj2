@@ -23,6 +23,8 @@
 #include <unordered_map>
 #include <unordered_set>
 #include "../../third_party/crc32/crc32.h"
+#include <random>
+#include <limits> 
 
 namespace aether {
 class Domain;
@@ -40,11 +42,13 @@ namespace aether {
 class ObjId {
 public:
   using Type = uint32_t;
-  ObjId() = default;
+  ObjId() { Invalidate(); }
   ObjId(const Type& i) : id_(i) {}
   static ObjId GenerateUnique() {
-    static int i=0;
-    return ++i;//std::rand());
+    static std::random_device dev;
+    static std::mt19937 rng(dev());
+    static std::uniform_int_distribution<std::mt19937::result_type> dist6(1, std::numeric_limits<Type>::max());
+    return dist6(rng);
   }
   void Invalidate() { id_ = 0; }
   bool IsValid() const { return id_ != 0; }
@@ -108,6 +112,10 @@ template <class T> class Ptr {
   // Example: A::ptr a2(std::move(a1));
   Ptr(Ptr&& p) {
     ptr_ = p.ptr_;
+    SetId(p.GetId());
+    SetFlags(p.GetFlags());
+    SetStorage(p.GetStorage());
+    p.id_.Invalidate();
     p.ptr_ = nullptr;
   }
   // Example: B::ptr b(std::move(a));
@@ -125,6 +133,10 @@ template <class T> class Ptr {
       // Can't cast to this pointer so just release the original pointer.
       p.Release();
     }
+    SetId(p.GetId());
+    SetFlags(p.GetFlags());
+    SetStorage(p.GetStorage());
+    p.id_.Invalidate();
   }
 
   // Example: a1 = a2;
@@ -172,6 +184,7 @@ template <class T> class Ptr {
         SetFlags(p.GetFlags());
         SetStorage(p.GetStorage());
         p.ptr_ = nullptr;
+        p.id_.Invalidate();
       }
     }
     return *this;
@@ -191,6 +204,7 @@ template <class T> class Ptr {
       } else {
         ptr_ = ptr;
         p.ptr_ = nullptr;
+        p.id_.Invalidate();
       }
     }
     return *this;
@@ -204,23 +218,23 @@ template <class T> class Ptr {
   const ObjId& GetId() const { return ptr_ ? ptr_->id_ : id_; }
   void SetId(const ObjId& i) {
     if (ptr_) ptr_->id_ = i;
-    else id_ = i;
+    id_ = i;
   }
   ObjFlags GetFlags() const { return ptr_ ? ptr_->flags_ : flags_; }
   void SetFlags(ObjFlags flags) {
     if (ptr_) ptr_->flags_ = flags;
-    else flags_ = flags;
+    flags_ = flags;
   }
   ObjStorage GetStorage() const { return ptr_ ? ptr_->storage_ : storage_; }
   void SetStorage(ObjStorage storage) {
     if (ptr_) ptr_->storage_ = storage;
-    else storage_ = storage;
+    storage_ = storage;
   }
 
   void Serialize(StoreFacility s, int flags) const;
   void Unload();
   void Load(EnumerateFacility e, LoadFacility l);
-  Ptr Clone(LoadFacility load_facility) const;
+  Ptr Clone(EnumerateFacility enumerate_facility, LoadFacility load_facility) const;
 
   // Protected section.
   void Init(T* p);
@@ -612,7 +626,7 @@ template <typename T> void Ptr<T>::Init(T* p) {
   if (ptr_) ptr_->reference_count_++;
 }
 
-template <typename T> Ptr<T> Ptr<T>::Clone(LoadFacility load_facility) const {
+template <typename T> Ptr<T> Ptr<T>::Clone(EnumerateFacility enumerate_facility, LoadFacility load_facility) const {
   Obj::ptr o;
   // Clone whole hierarchy from the unloaded subgraph.
   if ((GetFlags() & ObjFlags::kLoadable) && !(GetFlags() & ObjFlags::kLoaded)) {
@@ -623,6 +637,7 @@ template <typename T> Ptr<T> Ptr<T>::Clone(LoadFacility load_facility) const {
     Domain domain;
     domain.flags_ = Obj::Serialization::kRefs | Obj::Serialization::kData | Obj::Serialization::kConsts;
     domain.load_facility_ = load_facility;
+    domain.enumerate_facility_ = enumerate_facility;
     is.custom_ = &domain;
     Obj::Registry<void>::first_release_ = false;
     is >> o;
@@ -633,6 +648,10 @@ template <typename T> Ptr<T> Ptr<T>::Clone(LoadFacility load_facility) const {
       it.first->id_ = ObjId::GenerateUnique();
       Obj::AddObject(it.first);
     }
+    for (auto o : domain.ordered_objects_) {
+      o->OnLoaded();
+    }
+    o.id_ = o->id_;
   } else {
     // TODO: Clone from alive objects with options:
     //   - clone just top-level object with reference to existing objects

@@ -15,7 +15,7 @@
 #include <windows.h>
 HINSTANCE hInstance;
 
-namespace {
+/*namespace {
   // Convert a wide Unicode string to an UTF8 string
   std::string WcsToUtf8(const std::wstring& wstr) {
     if (wstr.empty()) return std::string();
@@ -32,7 +32,7 @@ namespace {
     MultiByteToWideChar(CP_UTF8, 0, str.data(), static_cast<int>(str.size()), wstr_to.data(), size_needed);
     return wstr_to;
   }
-}
+}*/
 
 class MainPresenterWin : public MainPresenter {
 public:
@@ -40,43 +40,48 @@ public:
   template <typename T> void Serializator(T& s) { }
   virtual bool OnEvent(const aether::Event::ptr& event);
   virtual void OnLoaded();
+  void OnClick() {
+    main_->PushEvent(new Event1());
+  }
   HWND hWnd;
 };
 
-class TextPresenterWin : public TextPresenter {
+class DocWindowPresenterWin : public DocWindowPresenter {
 public:
-  AETHER_OBJ(TextPresenterWin, TextPresenter);
+  AETHER_OBJ(DocWindowPresenterWin, DocWindowPresenter);
   template <typename T> void Serializator(T& s) {}
   virtual bool OnEvent(const aether::Event::ptr& event);
   virtual void OnLoaded();
   HWND hWnd_;
 };
 
-static std::map<HWND, aether::Obj*> presenters_;
-static std::map<int, HWND> id_to_hwnd_;
+
+/*class TextPresenterWin : public TextPresenter {
+public:
+  AETHER_OBJ(TextPresenterWin, TextPresenter);
+  template <typename T> void Serializator(T& s) {}
+  virtual bool OnEvent(const aether::Event::ptr& event);
+  virtual void OnLoaded();
+  HWND hWnd_;
+};*/
+
+//static std::map<HWND, aether::Obj*> presenters_;
+//static std::map<int, HWND> id_to_hwnd_;
+HWND hwndButton;
+MainPresenterWin* main_presenter;
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
   switch (uMsg) {
   case WM_DESTROY:
     PostQuitMessage(0);
     return 0;
-  case WM_EXITSIZEMOVE:
-    RECT rc;
-    GetWindowRect(hwnd, &rc);
-    MainPresenterWin::ptr(presenters_[hwnd])->OnMove(rc.left, rc.top);
-    return 0;
   case WM_COMMAND: {
     switch (HIWORD(wParam)) {
-    case EN_CHANGE: {
-      HWND hWnd = id_to_hwnd_[LOWORD(wParam)];
-      int num_symbols = SendMessage(hWnd, WM_GETTEXTLENGTH, 0, 0);
-      std::wstring wide_string;
-      wide_string.resize(num_symbols);
-      SendMessage(hWnd, WM_GETTEXT, (WPARAM)num_symbols * sizeof(wchar_t), (LPARAM)wide_string.data());
-      EventTextChanged::ptr e(new EventTextChanged(0, 0, WcsToUtf8(wide_string)));
-      TextPresenterWin::ptr(presenters_[hWnd])->text_->PushEvent(e);
+    case BN_CLICKED:
+      if ((HWND)lParam == hwndButton) {
+        main_presenter->OnClick();
+      }
       break;
-    }
     }
     break;
   }
@@ -92,24 +97,76 @@ void MainPresenterWin::OnLoaded() {
   wc.lpszClassName = kWndClassName;
   RegisterClass(&wc);
   hWnd = CreateWindowEx(0, kWndClassName, L"Aether::Doc", WS_OVERLAPPEDWINDOW,
-    main_->x_, main_->y_, main_->w_, main_->h_, NULL, NULL, hInstance, NULL);
+    CW_USEDEFAULT, CW_USEDEFAULT, 200, 200, NULL, NULL, hInstance, NULL);
   if (hWnd == NULL) return;
-  presenters_[hWnd] = this;
+
+  hwndButton = CreateWindow(L"BUTTON", L"OK", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+    10, 10, 100, 100, hWnd, NULL, hInstance, NULL);
+  main_presenter = this;
   ShowWindow(hWnd, SW_SHOW);
 }
 
 bool MainPresenterWin::OnEvent(const aether::Event::ptr& event) {
   switch (event->GetId()) {
-  case EventPos::kId:
-    SetWindowPos(hWnd, NULL, EventPos::ptr(event)->x_, EventPos::ptr(event)->y_, 0, 0, SWP_NOOWNERZORDER | SWP_NOSIZE | SWP_NOZORDER);
-    return false;
   default:
     return aether::Obj::OnEvent(event);
   }
 }
 AETHER_IMPL(MainPresenterWin);
 
-void TextPresenterWin::OnLoaded() {
+
+
+DocWindowPresenterWin* doc_presenter;
+
+LRESULT CALLBACK DocWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+  switch (uMsg) {
+  case WM_DESTROY:
+    //PostQuitMessage(0);
+    return 0;
+  case WM_COMMAND: {
+    switch (HIWORD(wParam)) {
+      /*    case EN_CHANGE: {
+            HWND hWnd = id_to_hwnd_[LOWORD(wParam)];
+            int num_symbols = SendMessage(hWnd, WM_GETTEXTLENGTH, 0, 0);
+            std::wstring wide_string;
+            wide_string.resize(num_symbols);
+            SendMessage(hWnd, WM_GETTEXT, (WPARAM)num_symbols * sizeof(wchar_t), (LPARAM)wide_string.data());
+            EventTextChanged::ptr e(new EventTextChanged(0, 0, WcsToUtf8(wide_string)));
+            TextPresenterWin::ptr(presenters_[hWnd])->text_->PushEvent(e);
+            break;
+          }*/
+    }
+    break;
+  }
+  }
+  return DefWindowProc(hwnd, uMsg, wParam, lParam);
+}
+
+
+void DocWindowPresenterWin::OnLoaded() {
+  const wchar_t kWndClassName[] = L"AetherDocDocWindowClass";
+  WNDCLASS wc = {};
+  wc.lpfnWndProc = DocWindowProc;
+  wc.hInstance = hInstance;
+  wc.lpszClassName = kWndClassName;
+  RegisterClass(&wc);
+  hWnd_ = CreateWindowEx(0, kWndClassName, L"Aether::DocWindow", WS_OVERLAPPEDWINDOW,
+    CW_USEDEFAULT, CW_USEDEFAULT, 200, 200, NULL, NULL, hInstance, NULL);
+  //if (hWnd_ == NULL) return;
+
+  doc_presenter = this;
+  ShowWindow(hWnd_, SW_SHOW);
+}
+
+bool DocWindowPresenterWin::OnEvent(const aether::Event::ptr& event) {
+  switch (event->GetId()) {
+  default:
+    return aether::Obj::OnEvent(event);
+  }
+}
+AETHER_IMPL(DocWindowPresenterWin);
+
+/*void TextPresenterWin::OnLoaded() {
   HWND hWnd = CreateWindowEx(WS_EX_CLIENTEDGE, TEXT("Edit"), TEXT("test"), WS_CHILD | WS_VISIBLE | WS_VSCROLL |
     ES_LEFT | ES_MULTILINE | ES_AUTOVSCROLL | WS_BORDER, 10, 10, 140, 60, presenters_.begin()->first, (HMENU)123, NULL, NULL);
   SendMessage(hWnd, WM_SETTEXT, 0, (LPARAM)Utf8ToWcs(text_->string_).c_str());
@@ -127,7 +184,7 @@ bool TextPresenterWin::OnEvent(const aether::Event::ptr& event) {
     return aether::Obj::OnEvent(event);
   }
 }
-AETHER_IMPL(TextPresenterWin);
+AETHER_IMPL(TextPresenterWin);*/
 
 
 #ifdef _DEBUG
