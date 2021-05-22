@@ -21,7 +21,7 @@ public:
   template <typename T> void Serializator(T& s) { Event::Serializator(s); }
 };
 
-/*class EventTextChanged : public aether::Event {
+class EventTextChanged : public aether::Event {
 public:
   AETHER_OBJ(EventTextChanged, Event);
   EventTextChanged() = default;
@@ -54,7 +54,7 @@ public:
   std::string string_;
   template <typename T> void Serializator(T& s) { s & presenter_ & string_; }
   virtual bool OnEvent(const aether::Event::ptr& event);
-};*/
+};
 
 class DocWindow;
 class DocWindowPresenter : public aether::Obj {
@@ -69,6 +69,7 @@ public:
   AETHER_OBJ(DocWindow);
   DocWindow();
   DocWindowPresenter::ptr presenter_;
+  Text::ptr text_;
   template <typename T> void Serializator(T& s);
   virtual bool OnEvent(const aether::Event::ptr& event);
   virtual void OnLoaded();

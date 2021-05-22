@@ -59,11 +59,11 @@ auto loader = [](const aether::ObjId& obj_id, uint32_t class_id, aether::ObjStor
 
 AETHER_IMPL(Event1);
 
-/*AETHER_IMPL(EventTextChanged);
+AETHER_IMPL(EventTextChanged);
 
 Text::Text() {
 #ifdef AETHER_DOC_DEV
-  aether::ObjId id1{789};
+  aether::ObjId id1{111};
   presenter_ = { aether::Obj::CreateObjByClassId(TextPresenter::kId, id1) };
   string_ = "Some initial text";
 #endif  // OBSERVER_DEV
@@ -79,12 +79,14 @@ bool Text::OnEvent(const aether::Event::ptr& event) {
       return aether::Obj::OnEvent(event);
   }
 }
-AETHER_IMPL(Text);*/
+AETHER_IMPL(Text);
 
 DocWindow::DocWindow() {
 #ifdef AETHER_DOC_DEV
   aether::ObjId id1{ 789 };
   presenter_ = { aether::Obj::CreateObjByClassId(DocWindowPresenter::kId, id1) };
+  text_ = { aether::Obj::CreateObjByClassId(Text::kId) };
+  text_->presenter_->text_ = text_;
 #endif  // OBSERVER_DEV
 }
 
@@ -95,7 +97,7 @@ bool DocWindow::OnEvent(const aether::Event::ptr& event) {
   }
 }
 template <typename T> void DocWindow::Serializator(T& s) {
-  s & presenter_;
+  s & presenter_ & text_;
 }
 
 void DocWindow::OnLoaded() {

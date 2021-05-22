@@ -15,7 +15,7 @@
 #include <windows.h>
 HINSTANCE hInstance;
 
-/*namespace {
+namespace {
   // Convert a wide Unicode string to an UTF8 string
   std::string WcsToUtf8(const std::wstring& wstr) {
     if (wstr.empty()) return std::string();
@@ -32,7 +32,7 @@ HINSTANCE hInstance;
     MultiByteToWideChar(CP_UTF8, 0, str.data(), static_cast<int>(str.size()), wstr_to.data(), size_needed);
     return wstr_to;
   }
-}*/
+}
 
 class MainPresenterWin : public MainPresenter {
 public:
@@ -56,14 +56,14 @@ public:
 };
 
 
-/*class TextPresenterWin : public TextPresenter {
+class TextPresenterWin : public TextPresenter {
 public:
   AETHER_OBJ(TextPresenterWin, TextPresenter);
   template <typename T> void Serializator(T& s) {}
   virtual bool OnEvent(const aether::Event::ptr& event);
   virtual void OnLoaded();
   HWND hWnd_;
-};*/
+};
 
 //static std::map<HWND, aether::Obj*> presenters_;
 //static std::map<int, HWND> id_to_hwnd_;
@@ -166,12 +166,14 @@ bool DocWindowPresenterWin::OnEvent(const aether::Event::ptr& event) {
 }
 AETHER_IMPL(DocWindowPresenterWin);
 
-/*void TextPresenterWin::OnLoaded() {
+void TextPresenterWin::OnLoaded() {
+//  HWND hWnd = CreateWindowEx(WS_EX_CLIENTEDGE, TEXT("Edit"), TEXT("test"), WS_CHILD | WS_VISIBLE | WS_VSCROLL |
+    //ES_LEFT | ES_MULTILINE | ES_AUTOVSCROLL | WS_BORDER, 10, 10, 140, 60, presenters_.begin()->first, (HMENU)123, NULL, NULL);
   HWND hWnd = CreateWindowEx(WS_EX_CLIENTEDGE, TEXT("Edit"), TEXT("test"), WS_CHILD | WS_VISIBLE | WS_VSCROLL |
-    ES_LEFT | ES_MULTILINE | ES_AUTOVSCROLL | WS_BORDER, 10, 10, 140, 60, presenters_.begin()->first, (HMENU)123, NULL, NULL);
+    ES_LEFT | ES_MULTILINE | ES_AUTOVSCROLL | WS_BORDER, 10, 10, 140, 60, 0, (HMENU)123, NULL, NULL);
   SendMessage(hWnd, WM_SETTEXT, 0, (LPARAM)Utf8ToWcs(text_->string_).c_str());
-  id_to_hwnd_[123] = hWnd;
-  presenters_[hWnd] = this;
+  //id_to_hwnd_[123] = hWnd;
+  //presenters_[hWnd] = this;
 }
 
 bool TextPresenterWin::OnEvent(const aether::Event::ptr& event) {
@@ -184,7 +186,7 @@ bool TextPresenterWin::OnEvent(const aether::Event::ptr& event) {
     return aether::Obj::OnEvent(event);
   }
 }
-AETHER_IMPL(TextPresenterWin);*/
+AETHER_IMPL(TextPresenterWin);
 
 
 #ifdef _DEBUG
