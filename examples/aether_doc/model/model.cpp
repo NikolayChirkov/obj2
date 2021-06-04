@@ -60,6 +60,15 @@ AETHER_IMPL(EventTextChanged);
 AETHER_IMPL(MainWindow);
 AETHER_IMPL(Text);
 
+MainWindowPresenter::MainWindowPresenter() {
+#ifdef AETHER_DOC_DEV
+  text_ = { aether::Obj::CreateObjByClassId(Text::kId) };
+  text_.SetStorage({ 1 });
+  text_->string_ = "Initial text";
+  text_->presenter_ = this;
+#endif  // AETHER_DOC_DEV
+}
+
 App::App() {
 #ifdef AETHER_DOC_DEV
   // Presenter Id should be same on all platforms.
@@ -69,12 +78,6 @@ App::App() {
   main_window_ = { aether::Obj::CreateObjByClassId(MainWindow::kId) };
   main_window_->presenter_ = presenter;
   presenter->main_window_ = main_window_;
-
-  text_ = { aether::Obj::CreateObjByClassId(Text::kId) };
-  text_.SetStorage({ 1 });
-  text_->string_ = "Initial text";
-  text_->presenter_ = presenter;
-  presenter->text_ = text_;
 #endif  // AETHER_DOC_DEV
 }
 

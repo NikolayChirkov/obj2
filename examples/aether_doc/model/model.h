@@ -27,31 +27,18 @@ public:
   }
 };
 
-
-class MainWindow;
-class Text;
-class MainWindowPresenter : public aether::Obj {
-public:
-  AETHER_OBJ(MainWindowPresenter);
-  aether::Ptr<MainWindow> main_window_;
-  aether::Ptr<Text> text_;
-  template <typename T> void Serializator(T& s) { s & main_window_ & text_; }
-  virtual void OnTextChanged(int p, int n, const std::string& t) {
-    aether::Obj::ptr(text_)->PushEvent(new EventTextChanged{ p, n, t });
-  }
-};
-
+class MainWindowPresenter;
 class Text : public aether::Obj {
 public:
   AETHER_OBJ(Text);
-  MainWindowPresenter::ptr presenter_;
+  aether::Ptr <MainWindowPresenter> presenter_;
   std::string string_;
   template <typename T> void Serializator(T& s) { s & presenter_ & string_; }
   bool OnEvent(const aether::Event::ptr& event) {
     switch (event->GetId()) {
     case EventTextChanged::kId:
       string_ = EventTextChanged::ptr(event)->inserted_text_;
-      presenter_->PushEvent(event);
+      aether::Obj::ptr(presenter_)->PushEvent(event);
       return true;
     default:
       return aether::Obj::OnEvent(event);
@@ -62,8 +49,20 @@ public:
 class MainWindow : public aether::Obj {
 public:
   AETHER_OBJ(MainWindow);
-  MainWindowPresenter::ptr presenter_;
+  aether::Ptr <MainWindowPresenter> presenter_;
   template <typename T> void Serializator(T& s) { s & presenter_; }
+};
+
+class MainWindowPresenter : public aether::Obj {
+public:
+  AETHER_OBJ(MainWindowPresenter);
+  MainWindowPresenter();
+  MainWindow::ptr main_window_;
+  Text::ptr text_;
+  template <typename T> void Serializator(T& s) { s & main_window_ & text_; }
+  virtual void OnTextChanged(int p, int n, const std::string& t) {
+    text_->PushEvent(new EventTextChanged{ p, n, t });
+  }
 };
 
 class App : public aether::Obj {
@@ -71,8 +70,8 @@ public:
   AETHER_OBJ(App);
   App();
   MainWindow::ptr main_window_;
-  Text::ptr text_;
-  template <typename T> void Serializator(T& s) { s & main_window_ & text_; }
+  //Text::ptr text_;
+  template <typename T> void Serializator(T& s) { s & main_window_; }
 
   static App::ptr Create(const std::string& path, const std::string& subpath);
   static void Release(App::ptr&& app);
