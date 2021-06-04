@@ -56,105 +56,27 @@ auto loader = [](const aether::ObjId& obj_id, uint32_t class_id, aether::ObjStor
 };
 
 
-
-AETHER_IMPL(Event1);
-
 AETHER_IMPL(EventTextChanged);
-
-Text::Text() {
-#ifdef AETHER_DOC_DEV
-  aether::ObjId id1{111};
-  presenter_ = { aether::Obj::CreateObjByClassId(TextPresenter::kId, id1) };
-  string_ = "Some initial text";
-#endif  // OBSERVER_DEV
-}
-
-bool Text::OnEvent(const aether::Event::ptr& event) {
-  switch (event->GetId()) {
-    case EventTextChanged::kId:
-      string_ = EventTextChanged::ptr(event)->inserted_text_;
-      presenter_->PushEvent(event);
-      return true;
-    default:
-      return aether::Obj::OnEvent(event);
-  }
-}
+AETHER_IMPL(MainWindow);
 AETHER_IMPL(Text);
-
-DocWindow::DocWindow() {
-#ifdef AETHER_DOC_DEV
-  aether::ObjId id1{ 789 };
-  presenter_ = { aether::Obj::CreateObjByClassId(DocWindowPresenter::kId, id1) };
-  text_ = { aether::Obj::CreateObjByClassId(Text::kId) };
-  text_->presenter_->text_ = text_;
-#endif  // OBSERVER_DEV
-}
-
-bool DocWindow::OnEvent(const aether::Event::ptr& event) {
-  switch (event->GetId()) {
-  default:
-    return aether::Obj::OnEvent(event);
-  }
-}
-template <typename T> void DocWindow::Serializator(T& s) {
-  s & presenter_ & text_;
-}
-
-void DocWindow::OnLoaded() {
-}
-
-AETHER_IMPL(DocWindow);
-
-
-Main::Main() {
-#ifdef AETHER_DOC_DEV
-  id_ = 123;
-  aether::ObjId id1{456};
-  presenter_ = { aether::Obj::CreateObjByClassId(MainPresenter::kId, id1) };
-  doc_window_prefab_ = { aether::Obj::CreateObjByClassId(DocWindow::kId) };
-  doc_window_prefab_.SetFlags(aether::ObjFlags::kLoadable);
-  doc_window_prefab_->presenter_->doc_window_ = doc_window_prefab_;
-//  text_ = { aether::Obj::CreateObjByClassId(Text::kId) };
-//  text_->presenter_->text_ = text_;
-#endif  // AETHER_DOC_DEV
-}
-
-template <typename T> void Main::Serializator(T& s) {
-  s & doc_window_prefab_ & doc_windows_ & presenter_;
-}
-
-void Main::OnLoaded() {
-}
-
-bool Main::OnEvent(const aether::Event::ptr& event) {
-  switch (event->GetId()) {
-  case Event1::kId:
-    //doc_window_prefab_.Load(enumerator, loader);
-    doc_windows_.push_back(doc_window_prefab_.Clone(enumerator, loader));
-    presenter_->PushEvent(event);
-    return true;
-  default:
-    return aether::Obj::OnEvent(event);
-  }
-}
-AETHER_IMPL(Main);
 
 App::App() {
 #ifdef AETHER_DOC_DEV
-  main_ = { aether::Obj::CreateObjByClassId(Main::kId) };
-  main_->presenter_->main_ = main_;
+  // Presenter Id should be same on all platforms.
+  static const int kPresenterId = 456;
+  MainWindowPresenter::ptr presenter = { aether::Obj::CreateObjByClassId(MainWindowPresenter::kId, {kPresenterId}) };
+  
+  main_window_ = { aether::Obj::CreateObjByClassId(MainWindow::kId) };
+  main_window_->presenter_ = presenter;
+  presenter->main_window_ = main_window_;
+
+  text_ = { aether::Obj::CreateObjByClassId(Text::kId) };
+  text_->string_ = "Initial text";
+  text_->presenter_ = presenter;
+  presenter->text_ = text_;
 #endif  // AETHER_DOC_DEV
 }
 
-template <typename T> void App::Serializator(T& s) { s & main_; }
-
-bool App::OnEvent(const aether::Event::ptr& event) {
-  main_->PushEvent(event);
-  return false;
-}
-
-void App::OnLoaded() {
-}
 AETHER_IMPL(App);
 
 App::ptr App::Create(const std::string& path) {

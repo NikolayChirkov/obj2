@@ -14,13 +14,6 @@
 
 #include "../../../aether/obj/obj.h"
 
-class Event1 : public aether::Event {
-public:
-  AETHER_OBJ(Event1, Event);
-  Event1() = default;
-  template <typename T> void Serializator(T& s) { Event::Serializator(s); }
-};
-
 class EventTextChanged : public aether::Event {
 public:
   AETHER_OBJ(EventTextChanged, Event);
@@ -35,12 +28,14 @@ public:
 };
 
 
+class MainWindow;
 class Text;
-class TextPresenter : public aether::Obj {
+class MainWindowPresenter : public aether::Obj {
 public:
-  AETHER_OBJ(TextPresenter);
+  AETHER_OBJ(MainWindowPresenter);
+  aether::Ptr<MainWindow> main_window_;
   aether::Ptr<Text> text_;
-  template <typename T> void Serializator(T& s) { s & text_; }
+  template <typename T> void Serializator(T& s) { s & main_window_ & text_; }
   virtual void OnTextChanged(int p, int n, const std::string& t) {
     aether::Obj::ptr(text_)->PushEvent(new EventTextChanged{ p, n, t });
   }
@@ -49,62 +44,35 @@ public:
 class Text : public aether::Obj {
 public:
   AETHER_OBJ(Text);
-  Text();
-  TextPresenter::ptr presenter_;
+  MainWindowPresenter::ptr presenter_;
   std::string string_;
   template <typename T> void Serializator(T& s) { s & presenter_ & string_; }
-  virtual bool OnEvent(const aether::Event::ptr& event);
+  bool OnEvent(const aether::Event::ptr& event) {
+    switch (event->GetId()) {
+    case EventTextChanged::kId:
+      string_ = EventTextChanged::ptr(event)->inserted_text_;
+      presenter_->PushEvent(event);
+      return true;
+    default:
+      return aether::Obj::OnEvent(event);
+    }
+  }
 };
 
-class DocWindow;
-class DocWindowPresenter : public aether::Obj {
+class MainWindow : public aether::Obj {
 public:
-  AETHER_OBJ(DocWindowPresenter);
-  aether::Ptr<DocWindow> doc_window_;
-  template <typename T> void Serializator(T& s) { s & doc_window_; }
-};
-
-class DocWindow : public aether::Obj {
-public:
-  AETHER_OBJ(DocWindow);
-  DocWindow();
-  DocWindowPresenter::ptr presenter_;
-  Text::ptr text_;
-  template <typename T> void Serializator(T& s);
-  virtual bool OnEvent(const aether::Event::ptr& event);
-  virtual void OnLoaded();
-};
-
-class Main;
-class MainPresenter : public aether::Obj {
-public:
-  AETHER_OBJ(MainPresenter);
-  aether::Ptr<Main> main_;
-  template <typename T> void Serializator(T& s) { s & main_; }
-};
-
-// Main Window with a single button.
-class Main : public aether::Obj {
-public:
-  AETHER_OBJ(Main);
-  Main();
-  MainPresenter::ptr presenter_;
-  DocWindow::ptr doc_window_prefab_;
-  std::vector<DocWindow::ptr> doc_windows_;
-//  Text::ptr text_;
-  template <typename T> void Serializator(T& s);
-  virtual bool OnEvent(const aether::Event::ptr& event);
-  virtual void OnLoaded();
+  AETHER_OBJ(MainWindow);
+  MainWindowPresenter::ptr presenter_;
+  template <typename T> void Serializator(T& s) { s & presenter_; }
 };
 
 class App : public aether::Obj {
 public:
   AETHER_OBJ(App);
   App();
-  Main::ptr main_;
-  template <typename T> void Serializator(T& s);
-  virtual bool OnEvent(const aether::Event::ptr& event);
-  virtual void OnLoaded();
+  MainWindow::ptr main_window_;
+  Text::ptr text_;
+  template <typename T> void Serializator(T& s) { s & main_window_ & text_; }
 
   static App::ptr Create(const std::string& path);
   static void Release(App::ptr&& app);
