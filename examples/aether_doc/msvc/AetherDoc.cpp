@@ -103,7 +103,12 @@ int __cdecl main() {
 int APIENTRY wWinMain(HINSTANCE hInstance1, HINSTANCE, LPWSTR, int) {
   hInstance = hInstance1;
 #endif
-  App::ptr app = App::Create("state");
+  std::string subpath;
+  int nArgs;
+  LPWSTR* szArglist = CommandLineToArgvW(GetCommandLineW(), &nArgs);
+  if (szArglist && nArgs > 1) subpath = WcsToUtf8(szArglist[1]);
+
+  App::ptr app = App::Create("state", subpath);
   MSG msg = {};
   while (GetMessage(&msg, NULL, 0, 0)) {
     TranslateMessage(&msg);

@@ -64,13 +64,14 @@ App::App() {
 #ifdef AETHER_DOC_DEV
   // Presenter Id should be same on all platforms.
   static const int kPresenterId = 456;
-  MainWindowPresenter::ptr presenter = { aether::Obj::CreateObjByClassId(MainWindowPresenter::kId, {kPresenterId}) };
+  MainWindowPresenter::ptr presenter = { aether::Obj::CreateObjByClassId(MainWindowPresenter::kId, {{kPresenterId}}) };
   
   main_window_ = { aether::Obj::CreateObjByClassId(MainWindow::kId) };
   main_window_->presenter_ = presenter;
   presenter->main_window_ = main_window_;
 
   text_ = { aether::Obj::CreateObjByClassId(Text::kId) };
+  text_.SetStorage({ 1 });
   text_->string_ = "Initial text";
   text_->presenter_ = presenter;
   presenter->text_ = text_;
@@ -79,9 +80,11 @@ App::App() {
 
 AETHER_IMPL(App);
 
-App::ptr App::Create(const std::string& path) {
+App::ptr App::Create(const std::string& path, const std::string& subpath) {
   static const int kObserverRootId = 666;
   root_path_ = path;
+  storage_to_path_[0] = subpath;
+  storage_to_path_[1] = "text";
 #ifdef AETHER_DOC_DEV
   {
     std::filesystem::remove_all(root_path_);
@@ -89,7 +92,6 @@ App::ptr App::Create(const std::string& path) {
     App::ptr app{ aether::Obj::CreateObjByClassId(App::kId) };
     app.SetId(kObserverRootId);
     app.Serialize(saver, aether::Obj::Serialization::kConsts | aether::Obj::Serialization::kRefs | aether::Obj::Serialization::kData);
-    storage_to_path_.clear();
   }
 #endif  // AETHER_DOC_DEV
   App::ptr app;

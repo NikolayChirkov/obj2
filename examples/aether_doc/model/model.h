@@ -74,7 +74,7 @@ public:
   Text::ptr text_;
   template <typename T> void Serializator(T& s) { s & main_window_ & text_; }
 
-  static App::ptr Create(const std::string& path);
+  static App::ptr Create(const std::string& path, const std::string& subpath);
   static void Release(App::ptr&& app);
 };
 
