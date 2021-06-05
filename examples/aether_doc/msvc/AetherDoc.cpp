@@ -45,11 +45,11 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
   case WM_COMMAND: {
     switch (HIWORD(wParam)) {
     case EN_CHANGE: {
-      int num_symbols = SendMessage(hWndEdit, WM_GETTEXTLENGTH, 0, 0);
+      auto num_symbols = SendMessage(hWndEdit, WM_GETTEXTLENGTH, 0, 0);
       std::wstring wide_string;
       wide_string.resize(num_symbols);
-      SendMessage(hWndEdit, WM_GETTEXT, (WPARAM)num_symbols * sizeof(wchar_t), (LPARAM)wide_string.data());
-      presenter->OnTextChanged(0, num_symbols, WcsToUtf8(wide_string));
+      SendMessage(hWndEdit, WM_GETTEXT, num_symbols * sizeof(wchar_t), (LPARAM)wide_string.data());
+      presenter->OnTextChanged(0, static_cast<int>(num_symbols), WcsToUtf8(wide_string));
       break;
     }
     }

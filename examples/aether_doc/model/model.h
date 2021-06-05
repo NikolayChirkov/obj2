@@ -46,18 +46,12 @@ public:
   }
 };
 
-class MainWindow : public aether::Obj {
-public:
-  AETHER_OBJ(MainWindow);
-  aether::Ptr <MainWindowPresenter> presenter_;
-  template <typename T> void Serializator(T& s) { s & presenter_; }
-};
-
+class MainWindow;
 class MainWindowPresenter : public aether::Obj {
 public:
   AETHER_OBJ(MainWindowPresenter);
   MainWindowPresenter();
-  MainWindow::ptr main_window_;
+  aether::Ptr<MainWindow> main_window_;
   Text::ptr text_;
   template <typename T> void Serializator(T& s) { s & main_window_ & text_; }
   virtual void OnTextChanged(int p, int n, const std::string& t) {
@@ -65,12 +59,19 @@ public:
   }
 };
 
+class MainWindow : public aether::Obj {
+public:
+  AETHER_OBJ(MainWindow);
+  MainWindow();
+  aether::Ptr <MainWindowPresenter> presenter_;
+  template <typename T> void Serializator(T& s) { s & presenter_; }
+};
+
 class App : public aether::Obj {
 public:
   AETHER_OBJ(App);
   App();
   MainWindow::ptr main_window_;
-  //Text::ptr text_;
   template <typename T> void Serializator(T& s) { s & main_window_; }
 
   static App::ptr Create(const std::string& path, const std::string& subpath);
