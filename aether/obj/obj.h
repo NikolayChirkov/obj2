@@ -53,6 +53,8 @@ public:
   void Invalidate() { id_ = 0; }
   bool IsValid() const { return id_ != 0; }
   bool operator < (const ObjId& i) const { return id_ < i.id_; }
+  bool operator != (const ObjId& i) const { return id_ != i.id_; }
+  bool operator == (const ObjId& i) const { return id_ == i.id_; }
   friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const ObjId& i) { return s << i.id_; }
   friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, ObjId& i) { return s >> i.id_; }
 

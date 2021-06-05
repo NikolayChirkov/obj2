@@ -1,0 +1,37 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.28307.902
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AetherDoc", "AetherDoc.vcxproj", "{522F0EA6-13C1-49DE-9273-1903C04E3252}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		DebugDev|x64 = DebugDev|x64
+		DebugDev|x86 = DebugDev|x86
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{522F0EA6-13C1-49DE-9273-1903C04E3252}.Debug|x64.ActiveCfg = Debug|x64
+		{522F0EA6-13C1-49DE-9273-1903C04E3252}.Debug|x64.Build.0 = Debug|x64
+		{522F0EA6-13C1-49DE-9273-1903C04E3252}.Debug|x86.ActiveCfg = Debug|Win32
+		{522F0EA6-13C1-49DE-9273-1903C04E3252}.Debug|x86.Build.0 = Debug|Win32
+		{522F0EA6-13C1-49DE-9273-1903C04E3252}.DebugDev|x64.ActiveCfg = DebugDev|x64
+		{522F0EA6-13C1-49DE-9273-1903C04E3252}.DebugDev|x64.Build.0 = DebugDev|x64
+		{522F0EA6-13C1-49DE-9273-1903C04E3252}.DebugDev|x86.ActiveCfg = DebugDev|Win32
+		{522F0EA6-13C1-49DE-9273-1903C04E3252}.DebugDev|x86.Build.0 = DebugDev|Win32
+		{522F0EA6-13C1-49DE-9273-1903C04E3252}.Release|x64.ActiveCfg = Release|x64
+		{522F0EA6-13C1-49DE-9273-1903C04E3252}.Release|x64.Build.0 = Release|x64
+		{522F0EA6-13C1-49DE-9273-1903C04E3252}.Release|x86.ActiveCfg = Release|Win32
+		{522F0EA6-13C1-49DE-9273-1903C04E3252}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {0A12AA89-AEB6-420B-81A0-C744FB029D42}
+	EndGlobalSection
+EndGlobal
