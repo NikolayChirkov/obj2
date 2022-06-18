@@ -17,6 +17,7 @@
 		0175F8CB25B49850008F1934 /* 00_ptr.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0175F8C225B49850008F1934 /* 00_ptr.cpp */; };
 		0175F8CC25B49850008F1934 /* 01_domain.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0175F8C325B49850008F1934 /* 01_domain.cpp */; };
 		0175F8CD25B49850008F1934 /* 06_factory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0175F8C425B49850008F1934 /* 06_factory.cpp */; };
+		0197998D27EC2BE3009AA766 /* 09_weak.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0197998C27EC2BE3009AA766 /* 09_weak.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -43,6 +44,7 @@
 		0175F8C225B49850008F1934 /* 00_ptr.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = 00_ptr.cpp; sourceTree = "<group>"; };
 		0175F8C325B49850008F1934 /* 01_domain.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = 01_domain.cpp; sourceTree = "<group>"; };
 		0175F8C425B49850008F1934 /* 06_factory.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = 06_factory.cpp; sourceTree = "<group>"; };
+		0197998C27EC2BE3009AA766 /* 09_weak.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = 09_weak.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -84,6 +86,7 @@
 				0175F8C425B49850008F1934 /* 06_factory.cpp */,
 				0175F8BF25B49850008F1934 /* 07_app.cpp */,
 				0175F8BE25B49850008F1934 /* 08_graph.cpp */,
+				0197998C27EC2BE3009AA766 /* 09_weak.cpp */,
 				0175F8B425B497DD008F1934 /* main.cpp */,
 			);
 			path = obj_develop;
@@ -115,7 +118,7 @@
 		0175F8A925B497DD008F1934 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 1230;
+				LastUpgradeCheck = 1310;
 				TargetAttributes = {
 					0175F8B025B497DD008F1934 = {
 						CreatedOnToolsVersion = 12.3;
@@ -148,6 +151,7 @@
 				0175F8CB25B49850008F1934 /* 00_ptr.cpp in Sources */,
 				0175F8C825B49850008F1934 /* 07_app.cpp in Sources */,
 				0175F8C625B49850008F1934 /* 05_versioning.cpp in Sources */,
+				0197998D27EC2BE3009AA766 /* 09_weak.cpp in Sources */,
 				0175F8C525B49850008F1934 /* 03_event_processor.cpp in Sources */,
 				0175F8CD25B49850008F1934 /* 06_factory.cpp in Sources */,
 				0175F8C725B49850008F1934 /* 08_graph.cpp in Sources */,
@@ -276,6 +280,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
+				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
@@ -285,6 +290,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
+				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};

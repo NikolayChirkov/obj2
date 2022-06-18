@@ -89,62 +89,74 @@
 //   |-C1
 //     |-C0
 
-/*
+
 #include <fstream>
 
 static std::unordered_map<aether::ObjStorage, std::string> storage_to_path_;
+static std::filesystem::path root_path_;
 
-static auto saver = [](const std::string& path, aether::ObjStorage storage, const AETHER_OMSTREAM& os){
-  std::filesystem::create_directories(std::filesystem::path{"state"} / storage_to_path_[storage]);
-  auto p = std::filesystem::path{"state"} / storage_to_path_[storage] / path;
+auto saver = [](const aether::ObjId& obj_id, uint32_t class_id, aether::ObjStorage storage, const AETHER_OMSTREAM& os) {
+  std::filesystem::path dir = root_path_ / storage_to_path_[storage] / obj_id.ToString();
+  std::filesystem::create_directories(dir);
+  auto p = dir / std::to_string(class_id);
   std::ofstream f(p.c_str(), std::ios::out | std::ios::binary | std::ios::trunc);
   //   bool b = f.good();
   f.write((const char*)os.stream_.data(), os.stream_.size());
-  std::cout << p.c_str() << " size: " << os.stream_.size() << "\n";
+  std::cout << p.u8string() << " size: " << os.stream_.size() << "\n";
 };
 
-static auto loader = [](const std::string& path, aether::ObjStorage storage, AETHER_IMSTREAM& is){
-  auto p = std::filesystem::path{"state"} / storage_to_path_[storage] / path;
+auto enumerator = [](const aether::ObjId& obj_id, aether::ObjStorage storage) {
+  std::string path = obj_id.ToString();
+  auto p = root_path_ / storage_to_path_[storage] / path;
+  std::vector<uint32_t> classes;
+  for (auto& f : std::filesystem::directory_iterator(p)) {
+    // Convert filename into integer value.
+    auto c = std::stoull(f.path().filename().string(), nullptr, 10);
+    classes.push_back(static_cast<uint32_t>(c));
+  }
+  return classes;
+};
+
+auto loader = [](const aether::ObjId& obj_id, uint32_t class_id, aether::ObjStorage storage, AETHER_IMSTREAM& is) {
+  std::filesystem::path dir = root_path_ / storage_to_path_[storage] / obj_id.ToString();
+  auto p = dir / std::to_string(class_id);
   std::ifstream f(p.c_str(), std::ios::in | std::ios::binary);
-  f.seekg (0, f.end);
+  if (!f.good()) return;
+  f.seekg(0, f.end);
   std::streamoff length = f.tellg();
-  f.seekg (0, f.beg);
-  is.stream_.resize(length);
+  f.seekg(0, f.beg);
+  is.stream_.resize(static_cast<size_t>(length));
   f.read((char*)is.stream_.data(), length);
 };
 
-class B : public aether::Obj {
+class B01 : public aether::Obj {
 public:
-  AETHER_CLS(B);
-  AETHER_SERIALIZE(B);
-  AETHER_INTERFACES(B);
-  B() = default;
-  B(float f) : f_(f) {}
-  virtual ~B() { std::cout << "~B[ " << id_.ToString() << " ]: " << f_ << "\n"; }
+  AETHER_OBJ(B01);
+  B01() = default;
+  B01(float f) : f_(f) {}
+  virtual ~B01() { std::cout << "~B[ " << id_.ToString() << " ]: " << f_ << "\n"; }
 
   float f_;
-  std::vector<B::ptr> o_;
-  template <typename T> void Serializator(T& s, int flags) {
+  std::vector<B01::ptr> o_;
+  template <typename T> void Serializator(T& s) {
     s & f_ & o_;
   }
 };
-AETHER_IMPL(B);
+AETHER_IMPL(B01);
 
-class Root : public aether::Obj {
+class Root01 : public aether::Obj {
 public:
-  AETHER_CLS(Root);
-  AETHER_SERIALIZE(Root);
-  AETHER_INTERFACES(Root);
-  Root() = default;
-  Root(int i) : i_(i) {}
-  virtual ~Root() { std::cout << "~Root " << i_ << "\n"; }
+  AETHER_OBJ(Root01);
+  Root01() = default;
+  Root01(int i) : i_(i) {}
+  virtual ~Root01() { std::cout << "~Root " << i_ << "\n"; }
   int i_;
-  std::vector<B::ptr> o_;
-  template <typename T> void Serializator(T& s, int flags) {
+  std::vector<B01::ptr> o_;
+  template <typename T> void Serializator(T& s) {
     s & i_ & o_;
   }
 };
-AETHER_IMPL(Root);
+AETHER_IMPL(Root01);
 
 void DomainTest() {
 
@@ -168,13 +180,13 @@ void DomainTest() {
 //      r1 = nullptr;
 //    }
 
-  Root::ptr root(new Root(123));
+  Root01::ptr root(new Root01(123));
   root.SetId(666);
   {
-    B::ptr b1(new B(2.71f));
+    B01::ptr b1(new B01(2.71f));
     b1->o_.push_back({});
 
-    B::ptr b2(new B(3.14f));
+    B01::ptr b2(new B01(3.14f));
     b2.SetFlags(aether::ObjFlags::kLoadable | aether::ObjFlags::kLoaded);
     b2->o_.push_back(b1);
     b1->o_.push_back(b2);
@@ -192,14 +204,14 @@ void DomainTest() {
   }
   {
     std::cout << "Restoring...\n";
-    Root::ptr root;
+    Root01::ptr root;
     root.SetId(666);
     root.SetFlags(aether::ObjFlags::kLoaded);
-    root.Load(loader);
-    B::ptr r1 = root->o_[0].Clone(loader);
-    B::ptr r2 = root->o_[0].Clone(loader);
+    root.Load(enumerator, loader);
+    B01::ptr r1 = root->o_[0].Clone(enumerator, loader);
+    B01::ptr r2 = root->o_[0].Clone(enumerator, loader);
     root->o_.push_back(r2);
-    root->o_[0].Load(loader);
+    root->o_[0].Load(enumerator, loader);
     r1 = nullptr;
     r2 = nullptr;
     root.Unload();
@@ -207,4 +219,3 @@ void DomainTest() {
   }
 }
 
-*/

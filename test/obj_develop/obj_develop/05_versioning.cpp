@@ -11,7 +11,7 @@
 // =============================================================================
 
 
-#include <iostream>
+/*#include <iostream>
 #include <fstream>
 #include <map>
 #include "../../../aether/obj/obj.h"
@@ -65,9 +65,7 @@ public:
 
 class A : public Obj {
 public:
-  AETHER_CLS(A);
-  AETHER_SERIALIZE(A);
-  AETHER_INTERFACES(A);
+  AETHER_OBJ(A);
   A() {
 #ifdef OBSERVER_DEV
     id_ = aether::ObjId::GenerateUnique();
@@ -75,15 +73,13 @@ public:
 #endif  // OBSERVER_DEV
   }
   int i;
-  template <typename T> void Serializator(T& s, int flags) { s & i; }
+  template <typename T> void Serializator(T& s) { s & i; }
 };
 AETHER_IMPL(A);
 
 class B1 : public A {
 public:
-  AETHER_CLS(B1);
-  AETHER_SERIALIZE(B1, A);
-  AETHER_INTERFACES(B1, A);
+  AETHER_OBJ(B1);
   B1() {
 #ifdef OBSERVER_DEV
     id_ = aether::ObjId::GenerateUnique();
@@ -91,15 +87,13 @@ public:
     f = 0.123f;  // must be initialized into default value
   }
   float f;
-  template <typename T> void Serializator(T& s, int flags) { s & f; }
+  template <typename T> void Serializator(T& s) { s & f; }
 };
 AETHER_IMPL(B1);
 
 class B2 : public A {
 public:
-  AETHER_CLS(B2);
-  AETHER_SERIALIZE(B2, A);
-  AETHER_INTERFACES(B2, A);
+  AETHER_OBJ(B2, A);
   B2() {
 #ifdef OBSERVER_DEV
     id_ = aether::ObjId::GenerateUnique();
@@ -107,15 +101,13 @@ public:
     s = "123t";  // must be initialized into default value
   }
   std::string s;
-  template <typename T> void Serializator(T& ss, int flags) { ss & s; }
+  template <typename T> void Serializator(T& ss) { ss & s; }
 };
 AETHER_IMPL(B2);
 
 class B2C : public B2 {
 public:
-  AETHER_CLS(B2C);
-  AETHER_SERIALIZE(B2C, B2);
-  AETHER_INTERFACES(B2C, B2, A);
+  AETHER_OBJ(B2C, B2);
   B2C() {
 #ifdef OBSERVER_DEV
     id_ = aether::ObjId::GenerateUnique();
@@ -123,18 +115,16 @@ public:
     d = 1.23e200;  // must be initialized into default value
   }
   double d;
-  template <typename T> void Serializator(T& s, int flags) { s & d; }
+  template <typename T> void Serializator(T& s) { s & d; }
 };
 AETHER_IMPL(B2C);
 
 class Root : public Obj {
 public:
-  AETHER_CLS(Root);
-  AETHER_SERIALIZE(Root);
-  AETHER_INTERFACES(Root);
+  AETHER_OBJ(Root);
   
   std::vector<Obj::ptr> v;
-  template <typename T> void Serializator(T& s, int flags) { s & v; }
+  template <typename T> void Serializator(T& s) { s & v; }
 };
 AETHER_IMPL(Root);
 
@@ -175,3 +165,4 @@ void Versioning() {
   //TestAccessor::UnregisterClass<V2>();
   root.Load(enumerator, loader);
 }
+*/

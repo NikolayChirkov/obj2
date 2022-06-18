@@ -30,9 +30,7 @@ public:
 
 class A : public PureInterface1 {
 public:
-  AETHER_CLS(A);
-  AETHER_SERIALIZE(A);
-  AETHER_INTERFACES(A, PureInterface1);
+  AETHER_OBJ(A, PureInterface1);
 
   virtual ~A() {}
   virtual int Get1() const {
@@ -70,7 +68,7 @@ TEST_CASE( "Obj: Create, Pure, Cast, Serialize", "obj" ) {
   REQUIRE(PureInterface1::ptr(o)->Get1() == 123);
 }
 
-class PureInterface2 : public virtual Obj {
+/*class PureInterface2 : public virtual Obj {
 public:
   AETHER_CLS(PureInterface2);
   AETHER_INTERFACES(PureInterface2);
@@ -447,4 +445,4 @@ TEST_CASE( "Versioning", "obj" ) {
     REQUIRE(v13);
     REQUIRE(v13->i == 333);
   }
-}
+}*/

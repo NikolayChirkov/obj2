@@ -66,7 +66,16 @@ protected:
 class ObjFlags {
   uint8_t value_;
 public:
-  enum { kLoadable = 1, kLoaded = 2, kConst = 4, };
+  enum {
+    // Loads if serialized as loaded. Remeins unloaded if serialized as unloaded.
+    kLoadable = 1,
+    // Doesn't load the object. Remains null until the object is loaded by other pointer.
+    kWeak = 2,
+    // The object is never changed.
+    kConst = 4,
+    // The object was loaded at serialization step.
+    kLoaded = 8,
+  };
   operator uint8_t&() { return value_; }
   ObjFlags(decltype(value_) v) : value_(v) {}
   ObjFlags() : value_(kLoaded) {}

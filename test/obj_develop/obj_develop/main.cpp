@@ -22,8 +22,9 @@ extern void DevMode();
 extern void Versioning();
 extern void Graph();
 extern void AppRun();
+extern void Loadable();
 
 int main(int argc, const char * argv[]) {
-  Versioning();
+  DomainTest();
   return 0;
 }
