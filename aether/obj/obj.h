@@ -31,11 +31,9 @@ class Domain;
 class Obj;
 }
 
-#ifndef AETHER_OMSTREAM
 #include "mstream.h"
 #define AETHER_OMSTREAM aether::omstream<aether::Domain*>
 #define AETHER_IMSTREAM aether::imstream<aether::Domain*>
-#endif
 
 namespace aether {
 
@@ -81,21 +79,16 @@ public:
   ObjFlags() : value_(kLoaded) {}
 };
 
-// TODO: move load-store-enumerate facilities under the root object to simplify calls to Ptr::Clone() etc.
-using ObjStorage = uint8_t;
-using StoreFacility = std::function<void(const ObjId& obj_id, uint32_t class_id, ObjStorage storage,
-                                         const AETHER_OMSTREAM& os)>;
-using EnumerateFacility = std::function<std::vector<uint32_t>(const ObjId& obj_id, ObjStorage storage)>;
-using LoadFacility = std::function<void(const ObjId& obj_id, uint32_t class_id, ObjStorage storage,
-                                        AETHER_IMSTREAM& is)>;
+using StoreFacility = std::function<void(const ObjId& obj_id, uint32_t class_id, const AETHER_OMSTREAM& os)>;
+using EnumerateFacility = std::function<std::vector<uint32_t>(const ObjId& obj_id)>;
+using LoadFacility = std::function<void(const ObjId& obj_id, uint32_t class_id, AETHER_IMSTREAM& is)>;
 
 template <class T> class Ptr {
  public:
-  // If pointer is null then Id, flags and storage are in the pointer.
+  // If pointer is null then Id, flags are in the pointer.
   T* ptr_;
   ObjId id_;
   ObjFlags flags_;
-  ObjStorage storage_;
 
   // Example: A::ptr a;
   Ptr() { ptr_ = nullptr; }
@@ -108,7 +101,6 @@ template <class T> class Ptr {
     Init(p.ptr_);
     SetId(p.GetId());
     SetFlags(p.GetFlags());
-    SetStorage(p.GetStorage());
   }
   // Example: B::ptr b((A*)nullptr);
   template <class T1> Ptr(T1* p) { InitCast(p); }
@@ -118,14 +110,12 @@ template <class T> class Ptr {
     InitCast(p.ptr_);
     SetId(p.GetId());
     SetFlags(p.GetFlags());
-    SetStorage(p.GetStorage());
   }
   // Example: A::ptr a2(std::move(a1));
   Ptr(Ptr&& p) {
     ptr_ = p.ptr_;
     SetId(p.GetId());
     SetFlags(p.GetFlags());
-    SetStorage(p.GetStorage());
     p.id_.Invalidate();
     p.ptr_ = nullptr;
   }
@@ -146,7 +136,6 @@ template <class T> class Ptr {
     }
     SetId(p.GetId());
     SetFlags(p.GetFlags());
-    SetStorage(p.GetStorage());
     p.id_.Invalidate();
   }
 
@@ -160,7 +149,6 @@ template <class T> class Ptr {
       Init(p.ptr_);
       SetId(p.GetId());
       SetFlags(p.GetFlags());
-      SetStorage(p.GetStorage());
     }
     return *this;
   }
@@ -174,7 +162,6 @@ template <class T> class Ptr {
     InitCast(p.ptr_);
     SetId(p.GetId());
     SetFlags(p.GetFlags());
-    SetStorage(p.GetStorage());
     return *this;
   }
   // Example: a2 = std::move(a1);
@@ -185,7 +172,6 @@ template <class T> class Ptr {
         // Pointing to the same object - release the source.
         SetId(p.GetId());
         SetFlags(p.GetFlags());
-        SetStorage(p.GetStorage());
         p.Release();
       } else {
         // Another object is comming.
@@ -193,7 +179,6 @@ template <class T> class Ptr {
         ptr_ = p.ptr_;
         SetId(p.GetId());
         SetFlags(p.GetFlags());
-        SetStorage(p.GetStorage());
         p.ptr_ = nullptr;
         p.id_.Invalidate();
       }
@@ -205,7 +190,6 @@ template <class T> class Ptr {
     if (!p) {
       SetId(p.GetId());
       SetFlags(p.GetFlags());
-      SetStorage(p.GetStorage());
       Release();
     } else {
       T* ptr = static_cast<T*>(p.ptr_->DynamicCast(T::kId));
@@ -236,16 +220,10 @@ template <class T> class Ptr {
     if (ptr_) ptr_->flags_ = flags;
     flags_ = flags;
   }
-  ObjStorage GetStorage() const { return ptr_ ? ptr_->storage_ : storage_; }
-  void SetStorage(ObjStorage storage) {
-    if (ptr_) ptr_->storage_ = storage;
-    storage_ = storage;
-  }
 
-  void Serialize(StoreFacility s, int flags) const;
+  void Serialize(StoreFacility s) const;
   void Unload();
   void Load(EnumerateFacility e, LoadFacility l);
-  Ptr Clone(EnumerateFacility enumerate_facility, LoadFacility load_facility) const;
 
   // Protected section.
   void Init(T* p);
@@ -272,67 +250,8 @@ template <class T, class T1> bool SerializeRef(T& s, const Ptr<T1>& o1);
 template <class T> Ptr<Obj> DeserializeRef(T& s);
 
 
-#define AETHER_SERIALIZE_(CLS, BASE) \
-  static constexpr uint32_t kBaseId = qcstudio::crc32::from_literal(#BASE).value; \
-  virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s); } \
-  virtual void SerializeBase(AETHER_OMSTREAM& s, uint32_t class_id) { \
-    AETHER_OMSTREAM os; \
-    os.custom_ = s.custom_; \
-    CLS::Serializator(os); \
-    s.custom_->store_facility_(id_, class_id, storage_, os); \
-    if (qcstudio::crc32::from_literal("Obj").value != qcstudio::crc32::from_literal(#BASE).value) \
-      BASE::SerializeBase(s, qcstudio::crc32::from_literal(#BASE).value); \
-  } \
-  virtual void DeserializeBase(AETHER_IMSTREAM& s, uint32_t class_id) { \
-    AETHER_IMSTREAM is; \
-    is.custom_ = s.custom_; \
-    is.custom_->load_facility_(id_, class_id, storage_, is); \
-    if (!is.stream_.empty()) CLS::Serializator(is); \
-    if (qcstudio::crc32::from_literal("Obj").value != qcstudio::crc32::from_literal(#BASE).value) \
-      BASE::DeserializeBase(s, qcstudio::crc32::from_literal(#BASE).value); \
-  } \
-  friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const CLS::ptr& o) { \
-    if (SerializeRef(s, o)) o->SerializeBase(s, o->GetId()); \
-    return s; \
-  } \
-  friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, CLS::ptr& o) { \
-    o = DeserializeRef(s); \
-    return s; \
-  }
-
-#define AETHER_SERIALIZE_CLS1(CLS) AETHER_SERIALIZE_(CLS, Obj)
-#define AETHER_SERIALIZE_CLS2(CLS, CLS1) AETHER_SERIALIZE_(CLS, CLS1)
-#define AETHER_GET_MACRO(_1, _2, NAME, ...) NAME
-#define AETHER_SERIALIZE(...) AETHER_VSPP(AETHER_GET_MACRO(__VA_ARGS__, \
-AETHER_SERIALIZE_CLS2, AETHER_SERIALIZE_CLS1)(__VA_ARGS__))
-// VS++ bug
-#define AETHER_VSPP(x) x
-
-
-#define AETHER_INTERFACES(...) \
-  template <class ...> struct ClassList {}; void* DynamicCastInternal(uint32_t, ClassList<>) { return nullptr; }\
-  template <class C, class ...N> void* DynamicCastInternal(uint32_t i, ClassList<C, N...>) {\
-    if (C::kId != i) return DynamicCastInternal(i, ClassList<N...>()); \
-    return static_cast<C*>(this); \
-  } \
-  template <class ...N> void* DynamicCastInternal(uint32_t i) { return DynamicCastInternal(i, ClassList<N...>()); }\
-  virtual void* DynamicCast(uint32_t id) { return DynamicCastInternal<__VA_ARGS__, Obj>(id); }
-
-#define AETHER_CLS(CLS) \
-  typedef aether::Ptr<CLS> ptr; \
-  static aether::Obj::Registrar<CLS> registrar_; \
-  static constexpr uint32_t kId = qcstudio::crc32::from_literal(#CLS).value; \
-  virtual uint32_t GetId() const { return kId; }
-
-#define AETHER_OBJ1(CLS) AETHER_CLS(CLS); AETHER_INTERFACES(CLS); AETHER_SERIALIZE(CLS);
-#define AETHER_OBJ2(CLS, CLS1) AETHER_CLS(CLS); AETHER_INTERFACES(CLS, CLS1); AETHER_SERIALIZE(CLS, CLS1);
-#define AETHER_OBJ(...) AETHER_VSPP(AETHER_GET_MACRO(__VA_ARGS__, AETHER_OBJ2, AETHER_OBJ1)(__VA_ARGS__))
-
-#define AETHER_IMPL(CLS) aether::Obj::Registrar<CLS> CLS::registrar_(CLS::kId, CLS::kBaseId);
-
 class Domain {
 public:
-  int flags_;
   StoreFacility store_facility_;
   EnumerateFacility enumerate_facility_;
   LoadFacility load_facility_;
@@ -345,7 +264,6 @@ public:
   }
 };
 
-class Event;
 class Obj {
 protected:
   template <class T> struct Registrar {
@@ -355,11 +273,6 @@ protected:
   };
 
 public:
-  // Returns true if the state of the object has been changed.
-  virtual bool OnEvent(const Ptr<Event>& event) { return false; }
-  // The event can be processed directly in this thread or postponed for later accepting in other thread.
-  inline virtual void PushEvent(const Ptr<Event>& e);
-
   static Obj* CreateObjByClassId(uint32_t cls_id, ObjId obj_id) {
     Obj* o = Registry<void>::CreateObjByClassId(cls_id);
     o->id_ = obj_id;
@@ -375,7 +288,6 @@ public:
   Obj() {
     id_ = 0;
     flags_ = ObjFlags::kLoaded;
-    storage_ = 0;
   }
   virtual ~Obj() {
     auto it = Registry<void>::all_objects_.find(id_);
@@ -407,15 +319,29 @@ public:
     return Registry<void>::registry_->find(class_id) != Registry<void>::registry_->end();
   }
 
-  AETHER_CLS(Obj);
-  AETHER_INTERFACES(Obj);
-  AETHER_SERIALIZE(Obj);
+  typedef Ptr<Obj> ptr;
+  static Registrar<Obj> registrar_;
+  static constexpr uint32_t kId = qcstudio::crc32::from_literal("Obj").value;
+  static constexpr uint32_t kBaseId = qcstudio::crc32::from_literal("Obj").value;
+  virtual uint32_t GetId() const { return kId; }
+  
+  virtual void* DynamicCast(uint32_t id) { return id == Obj::kId ? static_cast<Obj*>(this) : nullptr; }
+  
+  virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s); }
+  virtual void SerializeBase(AETHER_OMSTREAM& s, uint32_t class_id) { }
+  virtual void DeserializeBase(AETHER_IMSTREAM& s, uint32_t class_id) { }
+  friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const Obj::ptr& o) {
+    if (SerializeRef(s, o)) o->SerializeBase(s, o->GetId());
+    return s;
+  }
+  friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, Obj::ptr& o) {
+    o = DeserializeRef(s);
+    return s;
+  }
   template <typename T> void Serializator(T& s) const {}
 
   ObjId id_;
   ObjFlags flags_;
-  ObjStorage storage_;
-  enum Serialization { kConsts = 1 << 0, kData = 1 << 1, kRefs = 1 << 2 };
 protected:
   template <class Dummy> class Registry {
   public:
@@ -476,32 +402,13 @@ template <class Dummy> bool Obj::Registry<Dummy>::manual_release_ = false;
 template <class Dummy> std::map<ObjId, Obj*> Obj::Registry<Dummy>::all_objects_;
 
 
-class Event : public Obj {
-public:
-  AETHER_OBJ(Event);
-  std::chrono::system_clock::time_point time_point_;
-  Obj::ptr obj_;
-  template <typename T> void Serializator(T& s) { s & time_point_ & obj_; }
-};
-
-// The event can be processed directly in this thread or postponed for later accepting in other thread.
-inline void Obj::PushEvent(const Ptr<Event>& e) {
-  e->obj_ = {this};
-  e->time_point_ = std::chrono::system_clock::now();
-  OnEvent(e);
-  // TODO: if (OnEvent(e)) root_->StoreEvent(e);
-}
-
 template <class T, class T1> bool SerializeRef(T& s, const Ptr<T1>& o) {
   if (!o && !(o.GetFlags() & ObjFlags::kLoadable)) {
-    s << ObjId{0} << ObjFlags{} << ObjStorage{0};
+    s << ObjId{0} << ObjFlags{};
     return false;
   }
-  s << o.GetId() << o.GetFlags() << o.GetStorage();
+  s << o.GetId() << o.GetFlags();
   if (!o || s.custom_->FindAndAddObject(o.ptr_)) return false;
-
-  // Don't serialize constant objects if not directed.
-  if (!(s.custom_->flags_ & Obj::Serialization::kConsts) && (o.GetFlags() & ObjFlags::kConst)) return false;
   return true;
 }
 
@@ -516,8 +423,7 @@ template <typename T> void Ptr<T>::Release() {
 
     // Count all references to all objects which are accessible from this pointer that is going to be released.
     Domain domain;
-    domain.flags_ = Obj::Serialization::kRefs | Obj::Serialization::kConsts;
-    domain.store_facility_ = [](const ObjId&, uint32_t, ObjStorage, const AETHER_OMSTREAM&) {};
+    domain.store_facility_ = [](const ObjId&, uint32_t, const AETHER_OMSTREAM&) {};
     AETHER_OMSTREAM os2;
     os2.custom_ = &domain;
     os2 << *this;
@@ -558,15 +464,13 @@ template <typename T> void Ptr<T>::Release() {
 template <class T> Obj::ptr DeserializeRef(T& s) {
   ObjId obj_id;
   ObjFlags obj_flags;
-  ObjStorage obj_storage;
-  s >> obj_id >> obj_flags >> obj_storage;
+  s >> obj_id >> obj_flags;
   if (!obj_id.IsValid()) return {};
   if(!(obj_flags & ObjFlags::kLoaded)) {
     Obj::ptr o;
     // Distinguish 'unloaded' from 'nullptr'
     o.SetId(obj_id);
     o.SetFlags(obj_flags);
-    o.SetStorage(obj_storage);
     return o;
   }
 
@@ -574,7 +478,7 @@ template <class T> Obj::ptr DeserializeRef(T& s) {
   Obj* obj = Obj::FindObject(obj_id);
   if (obj) return obj;
 
-  std::vector<uint32_t> classes = s.custom_->enumerate_facility_(obj_id, obj_storage);
+  std::vector<uint32_t> classes = s.custom_->enumerate_facility_(obj_id);
   uint32_t class_id = classes[0];
   for (auto c : classes) {
     if (Obj::IsExist(c) && Obj::IsLast(c)) {
@@ -585,20 +489,17 @@ template <class T> Obj::ptr DeserializeRef(T& s) {
   obj = Obj::CreateObjByClassId(class_id, obj_id);
   obj->id_ = obj_id;
   obj->flags_ = obj_flags;
-  obj->storage_ = obj_storage;
   // Add object to the list of already loaded before deserialization to avoid infinite loop of cyclic references.
   Obj::AddObject(obj);
   // Track all deserialized objects.
   s.custom_->FindAndAddObject(obj);
-  // TODO: single storage is used for the whole hierarchy - change it to per-leve specific storage.
   obj->DeserializeBase(s, obj->GetId());
   return obj;
 }
 
 
-template <typename T> void Ptr<T>::Serialize(StoreFacility store_facility, int flags) const {
+template <typename T> void Ptr<T>::Serialize(StoreFacility store_facility) const {
   Domain domain;
-  domain.flags_ = flags;
   domain.store_facility_ = store_facility;
   AETHER_OMSTREAM os;
   os.custom_ = &domain;
@@ -609,7 +510,6 @@ template <typename T> void Ptr<T>::Unload() {
   if (!ptr_) return;
   id_ = GetId();
   flags_ = GetFlags() & (~ObjFlags::kLoaded);
-  storage_ = GetStorage();
   Release();
 }
 
@@ -617,12 +517,11 @@ template <typename T> void Ptr<T>::Load(EnumerateFacility enumerate_facility, Lo
   if (ptr_) return;
   AETHER_IMSTREAM is;
   Domain domain;
-  domain.flags_ = Obj::Serialization::kRefs | Obj::Serialization::kData | Obj::Serialization::kConsts;
   domain.enumerate_facility_ = enumerate_facility;
   domain.load_facility_ = load_facility;
   is.custom_ = &domain;
   AETHER_OMSTREAM os;
-  os << GetId() << (GetFlags() | ObjFlags::kLoaded) << GetStorage();
+  os << GetId() << (GetFlags() | ObjFlags::kLoaded);
   is.stream_ = std::move(os.stream_);
   Obj::Registry<void>::first_release_ = false;
   is >> *this;
@@ -636,41 +535,6 @@ template <typename T> void Ptr<T>::Init(T* p) {
   ptr_ = p;
   if (ptr_) ptr_->reference_count_++;
 }
-
-template <typename T> Ptr<T> Ptr<T>::Clone(EnumerateFacility enumerate_facility, LoadFacility load_facility) const {
-  Obj::ptr o;
-  // Clone whole hierarchy from the unloaded subgraph.
-  if ((GetFlags() & ObjFlags::kLoadable) && !(GetFlags() & ObjFlags::kLoaded)) {
-    AETHER_OMSTREAM os;
-    os << GetId() << (GetFlags() | ObjFlags::kLoaded) << GetStorage();
-    AETHER_IMSTREAM is;
-    is.stream_ = std::move(os.stream_);
-    Domain domain;
-    domain.flags_ = Obj::Serialization::kRefs | Obj::Serialization::kData | Obj::Serialization::kConsts;
-    domain.load_facility_ = load_facility;
-    domain.enumerate_facility_ = enumerate_facility;
-    is.custom_ = &domain;
-    Obj::Registry<void>::first_release_ = false;
-    is >> o;
-    Obj::Registry<void>::first_release_ = true;
-    // Make Ids of loaded objects unique and re-register objects globally.
-    for (auto it : domain.objects_) {
-      Obj::RemoveObject(it.first);
-      it.first->id_ = ObjId::GenerateUnique();
-      Obj::AddObject(it.first);
-    }
-    for (auto o : domain.ordered_objects_) {
-      o->OnLoaded();
-    }
-    o.id_ = o->id_;
-  } else {
-    // TODO: Clone from alive objects with options:
-    //   - clone just top-level object with reference to existing objects
-    //   - clone whole hierarchy, except kConst objects which are always referenced
-  }
-  return o;
-}
-
 
 }  // namespace aether
 

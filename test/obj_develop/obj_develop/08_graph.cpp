@@ -15,6 +15,7 @@
 #include <vector>
 #include <set>
 
+/*
 struct O;
 struct P {
   O* o_;
@@ -91,3 +92,4 @@ void Graph() {
   
   std::cout << "Run graph\n";
 }
+*/

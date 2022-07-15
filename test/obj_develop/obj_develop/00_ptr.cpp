@@ -12,7 +12,7 @@
 
 #include <iostream>
 #include "../../../aether/obj/obj.h"
-
+/*
 using namespace aether;
 
 class A00 : public Obj {
@@ -79,3 +79,4 @@ AETHER_IMPL(B00);
      int asf=0;
    }
 }
+*/

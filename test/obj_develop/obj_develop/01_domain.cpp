@@ -16,82 +16,8 @@
 #include <set>
 #include <filesystem>
 #include "../../../aether/obj/obj.h"
-// * - domain initially loaded
-// # - domain initially unloaded
-// 0 - zero pointer
-// B0 - class B, instance 0
-// () - class factory
-
-// ZeroObjPointers: nullptr reference to the object
-// A0*
-// |-B = 0
-
-// SingleObjReference
-// A0*
-// |-B0
-
-// BaseClassReference: serialization/deserialization through reference to the base class
-// A0*
-// |-B0 (Obj::ptr)
-
-// MultipleObjReference: referencing different objects of a single class
-// A0*
-// |-B0
-// |-B1
-
-// Hierarchy
-// A0*
-// |-B0
-//   |-C0
-
-
-// HierachichalDomains
-// A0*
-// |-B*
-//   |-C0*
-//   |-C1#
-
-// SharedReference: C0 is referenced twice
-// A0*
-// |-C0
-// |-C0
-
-
-// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
-// SharedReference: C0 is referenced with child domain
-// A0*
-// |-C0
-// |-B0*
-//   |-C0
-
-// CrossRerefenceDifferentLevel
-// A0*
-// |-B0
-//   |-A0
-
-// CrossRerefenceSameLevel
-// A0*
-// |-B0
-//   |-B1
-// |-B1
-//   |-B0
-
-// LoadUnload: the state is saved/restored
-//   Cross references within a single level
-//   Cross references with different level
-// A0*
-// |-C0
-// |-B0#
-//   |-C0
-//     |-B0
-//     |-C1
-//   |-C1
-//     |-C0
-
-
 #include <fstream>
-
+/*
 static std::unordered_map<aether::ObjStorage, std::string> storage_to_path_;
 static std::filesystem::path root_path_;
 
@@ -158,27 +84,33 @@ public:
 };
 AETHER_IMPL(Root01);
 
-void DomainTest() {
+void DomainTest() {*/
 
-    std::filesystem::remove_all("state");
-//    {
-//      Root::ptr root(new Root(123));
-//      root.SetFlags(aether::ObjFlags::kLoadable | aether::ObjFlags::kLoaded);
-//      B::ptr b(new B(2.71f));
-//      B::ptr b2(new B(3.14f));
-//      b->o_.push_back(b2);
-//      b2->o_.push_back(b);
-//      root->o_.push_back(b);
-//      root->o_.push_back(b2);
-//      b = nullptr;
-//      b2 = nullptr;
-//      root.Serialize(saver, aether::Obj::Serialization::kConsts | aether::Obj::Serialization::kRefs | aether::Obj::Serialization::kData);
-//      root.Unload();
-//      Root::ptr r1 = root.Clone(loader);
-//      int sdf=0;
-//      root = nullptr;
-//      r1 = nullptr;
-//    }
+/*  auto storage = [](uint32_t class_id) -> std::string {
+    return class_id == B01::kId ? "ru" : "";
+  };
+
+  Domain d0;
+  std::vector<std::map<std::string, std::map<std::string, std::vector<uint8_t>>>> blob;
+  size_t current_state = 0;
+  d0.serializator = [&blob, &storage, current_state](const aether::Obj::ptr& o,
+                                                     const uint8_t* data,
+                                                     size_t offset, size_t size) {
+    uint32_t class_id = o->GetId();
+    auto obj_id = o.obj_id_;
+    blob.resize(current_state + 1);
+    auto& f = blob[current_state][storage(class_id) + "/" + std::to_string(class_id)][obj_id.ToString()];
+    f.insert(f.begin() + offset, data, data + size);
+  };
+  d0.deserializator = [&blob, &storage](const aether::ObjId& obj_id, uint32_t class_id, uint8_t* data, size_t offset,
+                                        size_t size) {
+  };
+  d0.enumerator = [](const aether::ObjId& obj_id) { };
+  A::ptr a = aether::Obj::CreateObjByClassId(d0, A::kId);
+  a.Serialize(aether::Obj::Serialization::kConsts | aether::Obj::Serialization::kRefs | aether::Obj::Serialization::kData);
+*/
+  
+/*    std::filesystem::remove_all("state");
 
   Root01::ptr root(new Root01(123));
   root.SetId(666);
@@ -219,3 +151,4 @@ void DomainTest() {
   }
 }
 
+*/

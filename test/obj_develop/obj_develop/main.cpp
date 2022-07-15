@@ -25,6 +25,6 @@ extern void AppRun();
 extern void Loadable();
 
 int main(int argc, const char * argv[]) {
-  DomainTest();
+  Versioning();
   return 0;
 }
