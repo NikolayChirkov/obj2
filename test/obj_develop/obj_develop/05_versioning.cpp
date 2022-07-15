@@ -474,6 +474,92 @@ void Versioning() {
     REQUIRE((erased == std::set{2, 3, 4}));
     int asf=0;
   }
+  {
+    std::cout << "\n\n\n";
+    A_00::ptr a(aether::Obj::CreateObjByClassId(A_00::kId, 1));
+    a->i_ = 1;
+    A_00::ptr b1{aether::Obj::CreateObjByClassId(A_00::kId, 2)};
+    b1->i_ = 2;
+    A_00::ptr b2{b1};
+    
+    A_00::ptr d1(aether::Obj::CreateObjByClassId(A_00::kId, 3));
+    d1->i_ = 3;
+    A_00::ptr d2{d1};
+    A_00::ptr c{aether::Obj::CreateObjByClassId(A_00::kId, 4)};
+    c->i_ = 4;
+    
+    a->a_.push_back(std::move(b1));
+    c->a_.push_back(std::move(b2));
+    c->a_.push_back(std::move(d2));
+    d1->a_.push_back(std::move(c));
+    
+    erased.clear();
+    d1 = nullptr;
+    REQUIRE((erased == std::set{3, 4}));
+    erased.clear();
+    a = nullptr;
+    REQUIRE((erased == std::set{1, 2}));
+    int asf=0;
+  }
+  {
+    std::cout << "\n\n\n";
+    A_00::ptr a1(aether::Obj::CreateObjByClassId(A_00::kId, 1));
+    a1->i_ = 1;
+    A_00::ptr a2{a1};
+    A_00::ptr b{aether::Obj::CreateObjByClassId(A_00::kId, 2)};
+    b->i_ = 2;
+    
+    b->a_.push_back(std::move(a2));
+    a1->a_.push_back(std::move(b));
+    
+    erased.clear();
+    a1 = nullptr;
+    REQUIRE((erased == std::set{1, 2}));
+  }
+  {
+    std::cout << "\n\n\n";
+    A_00::ptr a1(aether::Obj::CreateObjByClassId(A_00::kId, 1));
+    a1->i_ = 1;
+    A_00::ptr a2{a1};
+    A_00::ptr b{aether::Obj::CreateObjByClassId(A_00::kId, 2)};
+    b->i_ = 2;
+    A_00::ptr c1(aether::Obj::CreateObjByClassId(A_00::kId, 3));
+    c1->i_ = 3;
+    A_00::ptr c2{c1};
+
+    b->a_.push_back(std::move(a2));
+    a1->a_.push_back(std::move(c2));
+    c1->a_.push_back(std::move(b));
+
+    erased.clear();
+    a1 = nullptr;
+    REQUIRE(erased.empty());
+    c1 = nullptr;
+    REQUIRE((erased == std::set{1, 2, 3}));
+  }
+
+  {
+    std::cout << "\n\n\n";
+    A_00::ptr a(aether::Obj::CreateObjByClassId(A_00::kId, 1));
+    a->i_ = 1;
+    A_00::ptr b1{aether::Obj::CreateObjByClassId(A_00::kId, 2)};
+    b1->i_ = 2;
+    A_00::ptr b2{b1};
+    A_00::ptr b3{b1};
+    A_00::ptr c(aether::Obj::CreateObjByClassId(A_00::kId, 3));
+    c->i_ = 3;
+    
+    a->a_.push_back(std::move(b1));
+    c->a_.push_back(std::move(b2));
+    b3->a_.push_back(std::move(c));
+    
+    erased.clear();
+    a = nullptr;
+    REQUIRE((erased == std::set{1}));
+    b3 = nullptr;
+    REQUIRE((erased == std::set{1, 2, 3}));
+  }
+
 //  {
 //    // nullptr = A*
 //    A_00::ptr a1{new A_00()};
