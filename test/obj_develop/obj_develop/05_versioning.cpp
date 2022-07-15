@@ -14,9 +14,12 @@
 #include <iostream>
 #include <fstream>
 #include <map>
+#include <set>
 #include "../../../aether/obj/obj.h"
 
 using namespace aether;
+
+std::set<int> erased;
 
 class A_00 : public Obj {
 public:
@@ -67,9 +70,13 @@ public:
   }
 
   
-  virtual ~A_00() { std::cout << "~A\n"; }
-  template <typename T> void Serializator(T& s) { s & i_;}
+  virtual ~A_00() {
+    erased.insert(i_);
+    std::cout << "~A: " << i_ << "\n";
+  }
+  template <typename T> void Serializator(T& s) { s & i_ & a_;}
   int i_ = 123;
+  std::vector<A_00::ptr> a_;
 };
 aether::Obj::Registrar<A_00> A_00::registrar_(A_00::kId, A_00::kBaseId);
 
@@ -439,6 +446,33 @@ void Versioning() {
     root.SetFlags(ObjFlags::kLoaded);
     root.Load(enumerator, loader);
     int sdf=0;
+  }
+  {
+    std::cout << "\n\n\n";
+    A_00::ptr a(aether::Obj::CreateObjByClassId(A_00::kId, 1));
+    a->i_ = 1;
+    A_00::ptr b1{aether::Obj::CreateObjByClassId(A_00::kId, 2)};
+    b1->i_ = 2;
+    A_00::ptr b2{b1};
+
+    A_00::ptr d1(aether::Obj::CreateObjByClassId(A_00::kId, 3));
+    d1->i_ = 3;
+    A_00::ptr d2{d1};
+    A_00::ptr c{aether::Obj::CreateObjByClassId(A_00::kId, 4)};
+    c->i_ = 4;
+    
+    a->a_.push_back(std::move(b1));
+    c->a_.push_back(std::move(b2));
+    c->a_.push_back(std::move(d2));
+    d1->a_.push_back(std::move(c));
+
+    erased.clear();
+    a = nullptr;
+    REQUIRE((erased == std::set{1}));
+    erased.clear();
+    d1 = nullptr;
+    REQUIRE((erased == std::set{2, 3, 4}));
+    int asf=0;
   }
 //  {
 //    // nullptr = A*

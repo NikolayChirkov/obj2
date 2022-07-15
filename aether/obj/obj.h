@@ -415,6 +415,7 @@ template <class T, class T1> bool SerializeRef(T& s, const Ptr<T1>& o) {
 template <typename T> void Ptr<T>::Release() {
   if (!ptr_) return;
   if (Obj::Registry<void>::manual_release_) {
+    ptr_->reference_count_--;
     ptr_ = nullptr;
     return;
   }
