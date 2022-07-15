@@ -72,7 +72,6 @@ public:
   
   virtual ~A_00() {
     erased.insert(i_);
-    std::cout << "~A: " << i_ << "\n";
   }
   template <typename T> void Serializator(T& s) { s & i_ & a_;}
   int i_ = 123;
@@ -433,7 +432,6 @@ void Versioning() {
   }
   {
     A_00::ptr a0(aether::Obj::CreateObjByClassId(A_00::kId, 1));
-    int asf=0;
   }
   {
     A_00::ptr root(aether::Obj::CreateObjByClassId(A_00::kId, 666));
@@ -445,7 +443,6 @@ void Versioning() {
     root.SetId(666);
     root.SetFlags(ObjFlags::kLoaded);
     root.Load(enumerator, loader);
-    int sdf=0;
   }
   {
     std::cout << "\n\n\n";
@@ -472,7 +469,6 @@ void Versioning() {
     erased.clear();
     d1 = nullptr;
     REQUIRE((erased == std::set{2, 3, 4}));
-    int asf=0;
   }
   {
     std::cout << "\n\n\n";
@@ -499,7 +495,6 @@ void Versioning() {
     erased.clear();
     a = nullptr;
     REQUIRE((erased == std::set{1, 2}));
-    int asf=0;
   }
   {
     std::cout << "\n\n\n";
@@ -534,6 +529,7 @@ void Versioning() {
     erased.clear();
     a1 = nullptr;
     REQUIRE(erased.empty());
+    erased.clear();
     c1 = nullptr;
     REQUIRE((erased == std::set{1, 2, 3}));
   }
@@ -556,8 +552,9 @@ void Versioning() {
     erased.clear();
     a = nullptr;
     REQUIRE((erased == std::set{1}));
+    erased.clear();
     b3 = nullptr;
-    REQUIRE((erased == std::set{1, 2, 3}));
+    REQUIRE((erased == std::set{2, 3}));
   }
 
 //  {
