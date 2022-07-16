@@ -23,7 +23,6 @@ std::set<int> erased;
 
 class A_00 : public Obj {
 public:
-  //AETHER_CLS(A_00);
   typedef Ptr<A_00> ptr;
   // TODO: use UUID as class ID
   // TODO: rename to kClassId, kBaseClassId, GetClassId
@@ -33,21 +32,15 @@ public:
   inline static Obj::Registrar<A_00> registrar_ = aether::Obj::Registrar<A_00>(kId, kBaseId);
   virtual uint32_t GetId() const { return kId; }
 
-  //AETHER_INTERFACES(A_00);
   virtual void* DynamicCast(uint32_t id) {
-    switch (id) {
-      case kId: return static_cast<A_00*>(this);
-      case Obj::kId: return static_cast<Obj*>(this);
-      default: return nullptr;
-    }
+    return id == kId ? static_cast<A_00*>(this) : Obj::DynamicCast(id);
   }
 
-  //AETHER_SERIALIZE(A_00);
   virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s); }
   virtual void SerializeBase(AETHER_OMSTREAM& s, uint32_t class_id) {
     AETHER_OMSTREAM os;
     os.custom_ = s.custom_;
-    A_00::Serializator(os);
+    Serializator(os);
     s.custom_->store_facility_(id_, class_id, os);
 //    if (qcstudio::crc32::from_literal("Obj").value != qcstudio::crc32::from_literal("Obj").value)
 //      aether::Obj::SerializeBase(s, qcstudio::crc32::from_literal("Obj").value);
@@ -125,22 +118,18 @@ public:
   typedef Ptr<V1> ptr;
   static constexpr uint32_t kId = qcstudio::crc32::from_literal("V1").value;
   static constexpr uint32_t kBaseId = qcstudio::crc32::from_literal("Obj").value;
-  inline static Obj::Registrar<V1> registrar_ = aether::Obj::Registrar<V1>(kId, kBaseId);
+  inline static Registrar<V1> registrar_ = Registrar<V1>(kId, kBaseId);
   virtual uint32_t GetId() const { return kId; }
   
   virtual void* DynamicCast(uint32_t id) {
-    switch (id) {
-      case kId: return static_cast<V1*>(this);
-      case Obj::kId: return static_cast<Obj*>(this);
-      default: return nullptr;
-    }
+    return id == kId ? static_cast<V1*>(this) : Obj::DynamicCast(id);
   }
   
   virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s); }
   virtual void SerializeBase(AETHER_OMSTREAM& s, uint32_t class_id) {
     AETHER_OMSTREAM os;
     os.custom_ = s.custom_;
-    V1::Serializator(os);
+    Serializator(os);
     s.custom_->store_facility_(id_, class_id, os);
     //    if (qcstudio::crc32::from_literal("Obj").value != qcstudio::crc32::from_literal("Obj").value)
     //      aether::Obj::SerializeBase(s, qcstudio::crc32::from_literal("Obj").value);
@@ -173,16 +162,11 @@ public:
   typedef Ptr<V2> ptr;
   static constexpr uint32_t kId = qcstudio::crc32::from_literal("V2").value;
   static constexpr uint32_t kBaseId = qcstudio::crc32::from_literal("V1").value;
-  inline static Obj::Registrar<V2> registrar_ = aether::Obj::Registrar<V2>(kId, kBaseId);
+  inline static Registrar<V2> registrar_ = Registrar<V2>(kId, kBaseId);
   virtual uint32_t GetId() const { return kId; }
   
   virtual void* DynamicCast(uint32_t id) {
-    switch (id) {
-      case kId: return static_cast<V2*>(this);
-      case V1::kId: return static_cast<V1*>(this);
-      case Obj::kId: return static_cast<Obj*>(this);
-      default: return nullptr;
-    }
+    return id == kId ? static_cast<V2*>(this) : V1::DynamicCast(id);
   }
   
   virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s); }
@@ -221,20 +205,13 @@ public:
   typedef Ptr<V3> ptr;
   static constexpr uint32_t kId = qcstudio::crc32::from_literal("V3").value;
   static constexpr uint32_t kBaseId = qcstudio::crc32::from_literal("V2").value;
-  inline static Obj::Registrar<V3> registrar_ = aether::Obj::Registrar<V3>(kId, kBaseId);
+  inline static Registrar<V3> registrar_ = Registrar<V3>(kId, kBaseId);
   virtual uint32_t GetId() const { return kId; }
   
   virtual void* DynamicCast(uint32_t id) {
-    switch (id) {
-      case kId: return static_cast<V3*>(this);
-      case V2::kId: return static_cast<V2*>(this);
-      case V1::kId: return static_cast<V1*>(this);
-      case Obj::kId: return static_cast<Obj*>(this);
-      default: return nullptr;
-    }
+    return id == kId ? static_cast<V3*>(this) : V2::DynamicCast(id);
   }
   
-  //AETHER_SERIALIZE(A_00);
   virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s); }
   virtual void SerializeBase(AETHER_OMSTREAM& s, uint32_t class_id) {
     AETHER_OMSTREAM os;

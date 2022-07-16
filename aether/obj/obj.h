@@ -320,7 +320,6 @@ public:
   }
 
   typedef Ptr<Obj> ptr;
-  static Registrar<Obj> registrar_;
   static constexpr uint32_t kId = qcstudio::crc32::from_literal("Obj").value;
   static constexpr uint32_t kBaseId = qcstudio::crc32::from_literal("Obj").value;
   virtual uint32_t GetId() const { return kId; }
@@ -330,11 +329,11 @@ public:
   virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s); }
   virtual void SerializeBase(AETHER_OMSTREAM& s, uint32_t class_id) { }
   virtual void DeserializeBase(AETHER_IMSTREAM& s, uint32_t class_id) { }
-  friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const Obj::ptr& o) {
+  friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const ptr& o) {
     if (SerializeRef(s, o)) o->SerializeBase(s, o->GetId());
     return s;
   }
-  friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, Obj::ptr& o) {
+  friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, ptr& o) {
     o = DeserializeRef(s);
     return s;
   }
