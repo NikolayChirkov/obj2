@@ -124,21 +124,19 @@ public:
 class V1 : public Obj {
 public:
   typedef Ptr<V1> ptr;
-  static Obj::Registrar<V1> registrar_;
   static constexpr uint32_t kId = qcstudio::crc32::from_literal("V1").value;
   static constexpr uint32_t kBaseId = qcstudio::crc32::from_literal("Obj").value;
+  inline static Obj::Registrar<V1> registrar_ = aether::Obj::Registrar<V1>(kId, kBaseId);
   virtual uint32_t GetId() const { return kId; }
   
-  //AETHER_INTERFACES(A_00);
   virtual void* DynamicCast(uint32_t id) {
     switch (id) {
-      case V1::kId: return static_cast<V1*>(this);
+      case kId: return static_cast<V1*>(this);
       case Obj::kId: return static_cast<Obj*>(this);
       default: return nullptr;
     }
   }
   
-  //AETHER_SERIALIZE(A_00);
   virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s); }
   virtual void SerializeBase(AETHER_OMSTREAM& s, uint32_t class_id) {
     AETHER_OMSTREAM os;
@@ -156,11 +154,11 @@ public:
     //    if (qcstudio::crc32::from_literal("Obj").value != qcstudio::crc32::from_literal(#BASE).value)
     //      BASE::DeserializeBase(s, qcstudio::crc32::from_literal(#BASE).value);
   }
-  friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const V1::ptr& o) {
+  friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const ptr& o) {
     if (SerializeRef(s, o)) o->SerializeBase(s, o->GetId());
     return s;
   }
-  friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, V1::ptr& o) {
+  friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, ptr& o) {
     o = DeserializeRef(s);
     return s;
   }
@@ -170,47 +168,44 @@ public:
     return s & i;
   }
 };
-aether::Obj::Registrar<V1> V1::registrar_(V1::kId, V1::kBaseId);
 
 class V2 : public V1 {
 public:
   typedef Ptr<V2> ptr;
-  static Obj::Registrar<V2> registrar_;
   static constexpr uint32_t kId = qcstudio::crc32::from_literal("V2").value;
   static constexpr uint32_t kBaseId = qcstudio::crc32::from_literal("V1").value;
+  inline static Obj::Registrar<V2> registrar_ = aether::Obj::Registrar<V2>(kId, kBaseId);
   virtual uint32_t GetId() const { return kId; }
   
-  //AETHER_INTERFACES(A_00);
   virtual void* DynamicCast(uint32_t id) {
     switch (id) {
-      case V2::kId: return static_cast<V2*>(this);
+      case kId: return static_cast<V2*>(this);
       case V1::kId: return static_cast<V1*>(this);
       case Obj::kId: return static_cast<Obj*>(this);
       default: return nullptr;
     }
   }
   
-  //AETHER_SERIALIZE(A_00);
   virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s); }
   virtual void SerializeBase(AETHER_OMSTREAM& s, uint32_t class_id) {
     AETHER_OMSTREAM os;
     os.custom_ = s.custom_;
     Serializator(os);
     s.custom_->store_facility_(id_, class_id, os);
-    V1::SerializeBase(s, qcstudio::crc32::from_literal("V1").value);
+    V1::SerializeBase(s, kBaseId);
   }
   virtual void DeserializeBase(AETHER_IMSTREAM& s, uint32_t class_id) {
     AETHER_IMSTREAM is;
     is.custom_ = s.custom_;
     is.custom_->load_facility_(id_, class_id, is);
     if (!is.stream_.empty()) Serializator(is);
-    V1::DeserializeBase(s, qcstudio::crc32::from_literal("V1").value);
+    V1::DeserializeBase(s, kBaseId);
   }
-  friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const V2::ptr& o) {
+  friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const ptr& o) {
     if (SerializeRef(s, o)) o->SerializeBase(s, o->GetId());
     return s;
   }
-  friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, V2::ptr& o) {
+  friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, ptr& o) {
     o = DeserializeRef(s);
     return s;
   }
@@ -221,20 +216,18 @@ public:
     return s & f;
   }
 };
-aether::Obj::Registrar<V2> V2::registrar_(V2::kId, V2::kBaseId);
 
 class V3 : public V2 {
 public:
   typedef Ptr<V3> ptr;
-  static Obj::Registrar<V3> registrar_;
   static constexpr uint32_t kId = qcstudio::crc32::from_literal("V3").value;
   static constexpr uint32_t kBaseId = qcstudio::crc32::from_literal("V2").value;
+  inline static Obj::Registrar<V3> registrar_ = aether::Obj::Registrar<V3>(kId, kBaseId);
   virtual uint32_t GetId() const { return kId; }
   
-  //AETHER_INTERFACES(A_00);
   virtual void* DynamicCast(uint32_t id) {
     switch (id) {
-      case V3::kId: return static_cast<V3*>(this);
+      case kId: return static_cast<V3*>(this);
       case V2::kId: return static_cast<V2*>(this);
       case V1::kId: return static_cast<V1*>(this);
       case Obj::kId: return static_cast<Obj*>(this);
@@ -249,20 +242,20 @@ public:
     os.custom_ = s.custom_;
     Serializator(os);
     s.custom_->store_facility_(id_, class_id, os);
-    V2::SerializeBase(s, qcstudio::crc32::from_literal("V2").value);
+    V2::SerializeBase(s, kBaseId);
   }
   virtual void DeserializeBase(AETHER_IMSTREAM& s, uint32_t class_id) {
     AETHER_IMSTREAM is;
     is.custom_ = s.custom_;
     is.custom_->load_facility_(id_, class_id, is);
     if (!is.stream_.empty()) Serializator(is);
-    V2::DeserializeBase(s, qcstudio::crc32::from_literal("V2").value);
+    V2::DeserializeBase(s, kBaseId);
   }
-  friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const V3::ptr& o) {
+  friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const ptr& o) {
     if (SerializeRef(s, o)) o->SerializeBase(s, o->GetId());
     return s;
   }
-  friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, V3::ptr& o) {
+  friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, ptr& o) {
     o = DeserializeRef(s);
     return s;
   }
@@ -273,7 +266,6 @@ public:
     return s & s_;
   }
 };
-aether::Obj::Registrar<V3> V3::registrar_(V3::kId, V3::kBaseId);
 
 #include <assert.h>
 #define REQUIRE assert
