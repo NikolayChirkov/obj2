@@ -268,19 +268,19 @@ class Obj {
 protected:
   template <class T> struct Registrar {
     Registrar(uint32_t cls_id, uint32_t base_id) {
-      Obj::Registry<void>::RegisterClass(cls_id, base_id, []{ return new T(); });
+      Registry::RegisterClass(cls_id, base_id, []{ return new T(); });
     }
   };
 
 public:
   static Obj* CreateObjByClassId(uint32_t cls_id, ObjId obj_id) {
-    Obj* o = Registry<void>::CreateObjByClassId(cls_id);
+    Obj* o = Registry::CreateObjByClassId(cls_id);
     o->id_ = obj_id;
     return o;
   }
 
   static Obj* CreateObjByClassId(uint32_t cls_id) {
-    Obj* o = Registry<void>::CreateObjByClassId(cls_id);
+    Obj* o = Registry::CreateObjByClassId(cls_id);
     o->id_ = ObjId::GenerateUnique();
     return o;
   }
@@ -290,33 +290,33 @@ public:
     flags_ = ObjFlags::kLoaded;
   }
   virtual ~Obj() {
-    auto it = Registry<void>::all_objects_.find(id_);
-    if (it != Registry<void>::all_objects_.end()) Registry<void>::all_objects_.erase(it);
+    auto it = Registry::all_objects_.find(id_);
+    if (it != Registry::all_objects_.end()) Registry::all_objects_.erase(it);
   }
 
   virtual void OnLoaded() {}
 
   static void AddObject(Obj* o) {
-    Registry<void>::all_objects_[o->id_] = o;
+    Registry::all_objects_[o->id_] = o;
   }
 
   static void RemoveObject(Obj* o) {
-    auto it = Registry<void>::all_objects_.find(o->id_);
-    assert(it != Registry<void>::all_objects_.end());
-    Registry<void>::all_objects_.erase(it);
+    auto it = Registry::all_objects_.find(o->id_);
+    assert(it != Registry::all_objects_.end());
+    Registry::all_objects_.erase(it);
   }
 
   static Obj* FindObject(ObjId obj_id) {
-    auto it = Registry<void>::all_objects_.find(obj_id);
-    if (it != Registry<void>::all_objects_.end()) return it->second;
+    auto it = Registry::all_objects_.find(obj_id);
+    if (it != Registry::all_objects_.end()) return it->second;
     return nullptr;
   }
 
   static bool IsLast(uint32_t class_id) {
-    return Registry<void>::base_to_derived_->find(class_id) == Obj::Registry<void>::base_to_derived_->end();
+    return Registry::base_to_derived_->find(class_id) == Obj::Registry::base_to_derived_->end();
   }
   static bool IsExist(uint32_t class_id) {
-    return Registry<void>::registry_->find(class_id) != Registry<void>::registry_->end();
+    return Registry::registry_->find(class_id) != Registry::registry_->end();
   }
 
   typedef Ptr<Obj> ptr;
@@ -341,8 +341,9 @@ public:
 
   ObjId id_;
   ObjFlags flags_;
-protected:
-  template <class Dummy> class Registry {
+  int reference_count_ = 0;
+  
+  class Registry {
   public:
     static void RegisterClass(uint32_t cls_id, uint32_t base_id, std::function<Obj*()> factory) {
       static bool initialized = false;
@@ -358,7 +359,7 @@ protected:
       (*registry_)[cls_id] = factory;
       if (base_id != qcstudio::crc32::from_literal("Obj").value) (*base_to_derived_)[base_id].push_back(cls_id);
     }
-
+    
     static void UnregisterClass(uint32_t cls_id) {
       auto it = registry_->find(cls_id);
       if (it != registry_->end()) registry_->erase(it);
@@ -367,12 +368,13 @@ protected:
         it = it->second.empty() ? base_to_derived_->erase(it) : std::next(it);
       }
     }
-
+    
     // Creates the most far derivative without ambiguous inheritance.
     static Obj* CreateObjByClassId(uint32_t base_id) {
       uint32_t derived_id = base_id;
       while (true) {
         auto d = base_to_derived_->find(derived_id);
+        // If the derived is not found or multiple derives are found.
         if (d == base_to_derived_->end() || d->second.size() > 1) break;
         derived_id = d->second[0];
       }
@@ -380,25 +382,14 @@ protected:
       if (it == registry_->end()) return nullptr;
       return it->second();
     }
-
-    static std::map<ObjId, Obj*> all_objects_;
-    static bool first_release_;
-    static bool manual_release_;
-    static std::unordered_map<uint32_t, std::vector<uint32_t>>* base_to_derived_;
-    static std::unordered_map<uint32_t, std::function<Obj*()>>* registry_;
+    
+    inline static std::map<ObjId, Obj*> all_objects_;
+    inline static bool first_release_ = true;
+    inline static bool manual_release_ = false;
+    inline static std::unordered_map<uint32_t, std::vector<uint32_t>>* base_to_derived_;
+    inline static std::unordered_map<uint32_t, std::function<Obj*()>>* registry_;
   };
-  template <class T> friend class Ptr;
-  friend class Domain;
-  int reference_count_ = 0;
-  friend class TestAccessor;
 };
-
-template <class Dummy> std::unordered_map<uint32_t, std::function<Obj*()>>* Obj::Registry<Dummy>::registry_;
-template <class Dummy> std::unordered_map<uint32_t, std::vector<uint32_t>>* Obj::Registry<Dummy>::base_to_derived_;
-template <class Dummy> bool Obj::Registry<Dummy>::first_release_ = true;
-template <class Dummy> bool Obj::Registry<Dummy>::manual_release_ = false;
-// TODO: move this member under the Root object to support superroot with sub-roots.
-template <class Dummy> std::map<ObjId, Obj*> Obj::Registry<Dummy>::all_objects_;
 
 
 template <class T, class T1> bool SerializeRef(T& s, const Ptr<T1>& o) {
@@ -413,13 +404,13 @@ template <class T, class T1> bool SerializeRef(T& s, const Ptr<T1>& o) {
 
 template <typename T> void Ptr<T>::Release() {
   if (!ptr_) return;
-  if (Obj::Registry<void>::manual_release_) {
+  if (Obj::Registry::manual_release_) {
     ptr_->reference_count_--;
     ptr_ = nullptr;
     return;
   }
-  if (Obj::Registry<void>::first_release_) {
-    Obj::Registry<void>::first_release_ = false;
+  if (Obj::Registry::first_release_) {
+    Obj::Registry::first_release_ = false;
 
     // Count all references to all objects which are accessible from this pointer that is going to be released.
     Domain domain;
@@ -449,11 +440,11 @@ template <typename T> void Ptr<T>::Release() {
     if (release.empty()) {
       ptr_->reference_count_--;
     } else {
-      Obj::Registry<void>::manual_release_ = true;
+      Obj::Registry::manual_release_ = true;
       for (auto r : release) delete r;
-      Obj::Registry<void>::manual_release_ = false;
+      Obj::Registry::manual_release_ = false;
     }
-    Obj::Registry<void>::first_release_ = true;
+    Obj::Registry::first_release_ = true;
     ptr_ = nullptr;
     return;
   }
@@ -523,9 +514,9 @@ template <typename T> void Ptr<T>::Load(EnumerateFacility enumerate_facility, Lo
   AETHER_OMSTREAM os;
   os << GetId() << (GetFlags() | ObjFlags::kLoaded);
   is.stream_ = std::move(os.stream_);
-  Obj::Registry<void>::first_release_ = false;
+  Obj::Registry::first_release_ = false;
   is >> *this;
-  Obj::Registry<void>::first_release_ = true;
+  Obj::Registry::first_release_ = true;
   for (auto o : domain.ordered_objects_) {
     o->OnLoaded();
   }

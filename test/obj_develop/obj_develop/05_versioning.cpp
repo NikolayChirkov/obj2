@@ -29,7 +29,7 @@ public:
   static constexpr uint32_t kId = qcstudio::crc32::from_literal("A_00").value;
   // TODO: support multiple base classes
   static constexpr uint32_t kBaseId = qcstudio::crc32::from_literal("Obj").value;
-  inline static Obj::Registrar<A_00> registrar_ = aether::Obj::Registrar<A_00>(kId, kBaseId);
+  inline static Registrar<A_00> registrar_ = Registrar<A_00>(kId, kBaseId);
   virtual uint32_t GetId() const { return kId; }
 
   virtual void* DynamicCast(uint32_t id) {
@@ -108,7 +108,7 @@ class TestAccessor {
 public:
   template<class T>
   static void UnregisterClass() {
-    aether::Obj::Registry<void>::UnregisterClass(T::kId);
+    aether::Obj::Registry::UnregisterClass(T::kId);
   }
 };
 }
