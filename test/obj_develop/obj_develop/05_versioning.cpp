@@ -25,18 +25,18 @@ class A_00 : public Obj {
 public:
   //AETHER_CLS(A_00);
   typedef Ptr<A_00> ptr;
-  static Obj::Registrar<A_00> registrar_;
   // TODO: use UUID as class ID
   // TODO: rename to kClassId, kBaseClassId, GetClassId
   static constexpr uint32_t kId = qcstudio::crc32::from_literal("A_00").value;
   // TODO: support multiple base classes
   static constexpr uint32_t kBaseId = qcstudio::crc32::from_literal("Obj").value;
+  inline static Obj::Registrar<A_00> registrar_ = aether::Obj::Registrar<A_00>(kId, kBaseId);
   virtual uint32_t GetId() const { return kId; }
 
   //AETHER_INTERFACES(A_00);
   virtual void* DynamicCast(uint32_t id) {
     switch (id) {
-      case A_00::kId: return static_cast<A_00*>(this);
+      case kId: return static_cast<A_00*>(this);
       case Obj::kId: return static_cast<Obj*>(this);
       default: return nullptr;
     }
@@ -60,11 +60,11 @@ public:
 //    if (qcstudio::crc32::from_literal("Obj").value != qcstudio::crc32::from_literal(#BASE).value)
 //      BASE::DeserializeBase(s, qcstudio::crc32::from_literal(#BASE).value);
   }
-  friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const A_00::ptr& o) {
+  friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const ptr& o) {
     if (SerializeRef(s, o)) o->SerializeBase(s, o->GetId());
     return s;
   }
-  friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, A_00::ptr& o) {
+  friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, ptr& o) {
     o = DeserializeRef(s);
     return s;
   }
@@ -77,7 +77,6 @@ public:
   int i_ = 123;
   std::vector<A_00::ptr> a_;
 };
-aether::Obj::Registrar<A_00> A_00::registrar_(A_00::kId, A_00::kBaseId);
 
 auto saver = [](const aether::ObjId& obj_id, uint32_t class_id, const AETHER_OMSTREAM& os){
   std::filesystem::path dir = std::filesystem::path{"state"} / obj_id.ToString();
