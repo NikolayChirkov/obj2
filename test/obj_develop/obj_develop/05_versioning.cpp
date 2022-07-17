@@ -26,35 +26,35 @@ public:
   typedef Ptr<A_00> ptr;
   // TODO: use UUID as class ID
   // TODO: rename to kClassId, kBaseClassId, GetClassId
-  static constexpr uint32_t kId = qcstudio::crc32::from_literal("A_00").value;
+  static constexpr uint32_t kClassId = qcstudio::crc32::from_literal("A_00").value;
   // TODO: support multiple base classes
-  static constexpr uint32_t kBaseId = qcstudio::crc32::from_literal("Obj").value;
-  inline static Registrar<A_00> registrar_ = Registrar<A_00>(kId, kBaseId);
-  virtual uint32_t GetId() const { return kId; }
+  static constexpr uint32_t kBaseClassId = qcstudio::crc32::from_literal("Obj").value;
+  inline static Registrar<A_00> registrar_ = Registrar<A_00>(kClassId, kBaseClassId);
+  virtual uint32_t GetId() const { return kClassId; }
 
   virtual void* DynamicCast(uint32_t id) {
-    return id == kId ? static_cast<A_00*>(this) : Obj::DynamicCast(id);
+    return id == kClassId ? static_cast<A_00*>(this) : Obj::DynamicCast(id);
   }
 
   virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s); }
-  virtual void SerializeBase(AETHER_OMSTREAM& s, uint32_t class_id) {
+  virtual void SerializeBase(AETHER_OMSTREAM& s) {
     AETHER_OMSTREAM os;
     os.custom_ = s.custom_;
     Serializator(os);
-    s.custom_->store_facility_(id_, class_id, os);
+    s.custom_->store_facility_(id_, kClassId, os);
 //    if (qcstudio::crc32::from_literal("Obj").value != qcstudio::crc32::from_literal("Obj").value)
 //      aether::Obj::SerializeBase(s, qcstudio::crc32::from_literal("Obj").value);
   }
-  virtual void DeserializeBase(AETHER_IMSTREAM& s, uint32_t class_id) {
+  virtual void DeserializeBase(AETHER_IMSTREAM& s) {
     AETHER_IMSTREAM is;
     is.custom_ = s.custom_;
-    is.custom_->load_facility_(id_, class_id, is);
+    is.custom_->load_facility_(id_, kClassId, is);
     if (!is.stream_.empty()) Serializator(is);
 //    if (qcstudio::crc32::from_literal("Obj").value != qcstudio::crc32::from_literal(#BASE).value)
 //      BASE::DeserializeBase(s, qcstudio::crc32::from_literal(#BASE).value);
   }
   friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const ptr& o) {
-    if (SerializeRef(s, o)) o->SerializeBase(s, o->GetId());
+    if (SerializeRef(s, o)) o->SerializeBase(s);
     return s;
   }
   friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, ptr& o) {
@@ -108,7 +108,7 @@ class TestAccessor {
 public:
   template<class T>
   static void UnregisterClass() {
-    aether::Obj::Registry::UnregisterClass(T::kId);
+    aether::Obj::Registry::UnregisterClass(T::kClassId);
   }
 };
 }
@@ -116,34 +116,34 @@ public:
 class V1 : public Obj {
 public:
   typedef Ptr<V1> ptr;
-  static constexpr uint32_t kId = qcstudio::crc32::from_literal("V1").value;
-  static constexpr uint32_t kBaseId = qcstudio::crc32::from_literal("Obj").value;
-  inline static Registrar<V1> registrar_ = Registrar<V1>(kId, kBaseId);
-  virtual uint32_t GetId() const { return kId; }
+  static constexpr uint32_t kClassId = qcstudio::crc32::from_literal("V1").value;
+  static constexpr uint32_t kBaseClassId = qcstudio::crc32::from_literal("Obj").value;
+  inline static Registrar<V1> registrar_ = Registrar<V1>(kClassId, kBaseClassId);
+  virtual uint32_t GetId() const { return kClassId; }
   
   virtual void* DynamicCast(uint32_t id) {
-    return id == kId ? static_cast<V1*>(this) : Obj::DynamicCast(id);
+    return id == kClassId ? static_cast<V1*>(this) : Obj::DynamicCast(id);
   }
   
   virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s); }
-  virtual void SerializeBase(AETHER_OMSTREAM& s, uint32_t class_id) {
+  virtual void SerializeBase(AETHER_OMSTREAM& s) {
     AETHER_OMSTREAM os;
     os.custom_ = s.custom_;
     Serializator(os);
-    s.custom_->store_facility_(id_, class_id, os);
+    s.custom_->store_facility_(id_, kClassId, os);
     //    if (qcstudio::crc32::from_literal("Obj").value != qcstudio::crc32::from_literal("Obj").value)
     //      aether::Obj::SerializeBase(s, qcstudio::crc32::from_literal("Obj").value);
   }
-  virtual void DeserializeBase(AETHER_IMSTREAM& s, uint32_t class_id) {
+  virtual void DeserializeBase(AETHER_IMSTREAM& s) {
     AETHER_IMSTREAM is;
     is.custom_ = s.custom_;
-    is.custom_->load_facility_(id_, class_id, is);
+    is.custom_->load_facility_(id_, kClassId, is);
     if (!is.stream_.empty()) Serializator(is);
     //    if (qcstudio::crc32::from_literal("Obj").value != qcstudio::crc32::from_literal(#BASE).value)
     //      BASE::DeserializeBase(s, qcstudio::crc32::from_literal(#BASE).value);
   }
   friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const ptr& o) {
-    if (SerializeRef(s, o)) o->SerializeBase(s, o->GetId());
+    if (SerializeRef(s, o)) o->SerializeBase(s);
     return s;
   }
   friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, ptr& o) {
@@ -160,32 +160,32 @@ public:
 class V2 : public V1 {
 public:
   typedef Ptr<V2> ptr;
-  static constexpr uint32_t kId = qcstudio::crc32::from_literal("V2").value;
-  static constexpr uint32_t kBaseId = qcstudio::crc32::from_literal("V1").value;
-  inline static Registrar<V2> registrar_ = Registrar<V2>(kId, kBaseId);
-  virtual uint32_t GetId() const { return kId; }
+  static constexpr uint32_t kClassId = qcstudio::crc32::from_literal("V2").value;
+  static constexpr uint32_t kBaseClassId = qcstudio::crc32::from_literal("V1").value;
+  inline static Registrar<V2> registrar_ = Registrar<V2>(kClassId, kBaseClassId);
+  virtual uint32_t GetId() const { return kClassId; }
   
   virtual void* DynamicCast(uint32_t id) {
-    return id == kId ? static_cast<V2*>(this) : V1::DynamicCast(id);
+    return id == kClassId ? static_cast<V2*>(this) : V1::DynamicCast(id);
   }
   
   virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s); }
-  virtual void SerializeBase(AETHER_OMSTREAM& s, uint32_t class_id) {
+  virtual void SerializeBase(AETHER_OMSTREAM& s) {
     AETHER_OMSTREAM os;
     os.custom_ = s.custom_;
     Serializator(os);
-    s.custom_->store_facility_(id_, class_id, os);
-    V1::SerializeBase(s, kBaseId);
+    s.custom_->store_facility_(id_, kClassId, os);
+    V1::SerializeBase(s);
   }
-  virtual void DeserializeBase(AETHER_IMSTREAM& s, uint32_t class_id) {
+  virtual void DeserializeBase(AETHER_IMSTREAM& s) {
     AETHER_IMSTREAM is;
     is.custom_ = s.custom_;
-    is.custom_->load_facility_(id_, class_id, is);
+    is.custom_->load_facility_(id_, kClassId, is);
     if (!is.stream_.empty()) Serializator(is);
-    V1::DeserializeBase(s, kBaseId);
+    V1::DeserializeBase(s);
   }
   friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const ptr& o) {
-    if (SerializeRef(s, o)) o->SerializeBase(s, o->GetId());
+    if (SerializeRef(s, o)) o->SerializeBase(s);
     return s;
   }
   friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, ptr& o) {
@@ -203,32 +203,34 @@ public:
 class V3 : public V2 {
 public:
   typedef Ptr<V3> ptr;
-  static constexpr uint32_t kId = qcstudio::crc32::from_literal("V3").value;
-  static constexpr uint32_t kBaseId = qcstudio::crc32::from_literal("V2").value;
-  inline static Registrar<V3> registrar_ = Registrar<V3>(kId, kBaseId);
-  virtual uint32_t GetId() const { return kId; }
+  static constexpr uint32_t kClassId = qcstudio::crc32::from_literal("V3").value;
+  static constexpr uint32_t kBaseClassId = qcstudio::crc32::from_literal("V2").value;
+  inline static Registrar<V3> registrar_ = Registrar<V3>(kClassId, kBaseClassId);
+  virtual uint32_t GetId() const { return kClassId; }
   
   virtual void* DynamicCast(uint32_t id) {
-    return id == kId ? static_cast<V3*>(this) : V2::DynamicCast(id);
+    return id == kClassId ? static_cast<V3*>(this) : V2::DynamicCast(id);
   }
   
   virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s); }
-  virtual void SerializeBase(AETHER_OMSTREAM& s, uint32_t class_id) {
+  virtual void SerializeBase(AETHER_OMSTREAM& s) {
     AETHER_OMSTREAM os;
     os.custom_ = s.custom_;
     Serializator(os);
-    s.custom_->store_facility_(id_, class_id, os);
-    V2::SerializeBase(s, kBaseId);
+    s.custom_->store_facility_(id_, kClassId, os);
+    V2::SerializeBase(s);
   }
-  virtual void DeserializeBase(AETHER_IMSTREAM& s, uint32_t class_id) {
+  virtual void DeserializeBase(AETHER_IMSTREAM& s) {
     AETHER_IMSTREAM is;
     is.custom_ = s.custom_;
-    is.custom_->load_facility_(id_, class_id, is);
+    is.custom_->load_facility_(id_, kClassId, is);
     if (!is.stream_.empty()) Serializator(is);
-    V2::DeserializeBase(s, kBaseId);
+    V2::DeserializeBase(s);
   }
   friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const ptr& o) {
-    if (SerializeRef(s, o)) o->SerializeBase(s, o->GetId());
+    if (SerializeRef(s, o)) {
+      o->SerializeBase(s);
+    }
     return s;
   }
   friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, ptr& o) {
@@ -247,12 +249,12 @@ public:
 #define REQUIRE assert
 
 void FF() {
-  V1::ptr v1(aether::Obj::CreateObjByClassId(V1::kId, 1));
+  V1::ptr v1(aether::Obj::CreateObjByClassId(V1::kClassId, 1));
   v1->i = 111;
-  V2::ptr v2(aether::Obj::CreateObjByClassId(V2::kId, 2));
+  V2::ptr v2(aether::Obj::CreateObjByClassId(V2::kClassId, 2));
   v2->i = 222;
   v2->f = 2.22f;
-  V3::ptr v3(aether::Obj::CreateObjByClassId(V3::kId, 3));
+  V3::ptr v3(aether::Obj::CreateObjByClassId(V3::kClassId, 3));
   v3->i = 333;
   v3->f = 3.33f;
   v3->s_ = "text333";
@@ -399,10 +401,10 @@ void Versioning() {
     A_00::ptr a5(std::move(a3));
   }
   {
-    A_00::ptr a0(aether::Obj::CreateObjByClassId(A_00::kId, 1));
+    A_00::ptr a0(aether::Obj::CreateObjByClassId(A_00::kClassId, 1));
   }
   {
-    A_00::ptr root(aether::Obj::CreateObjByClassId(A_00::kId, 666));
+    A_00::ptr root(aether::Obj::CreateObjByClassId(A_00::kClassId, 666));
     root->i_ = 345;
     root.Serialize(saver);
   }
@@ -414,16 +416,16 @@ void Versioning() {
   }
   {
     std::cout << "\n\n\n";
-    A_00::ptr a(aether::Obj::CreateObjByClassId(A_00::kId, 1));
+    A_00::ptr a(aether::Obj::CreateObjByClassId(A_00::kClassId, 1));
     a->i_ = 1;
-    A_00::ptr b1{aether::Obj::CreateObjByClassId(A_00::kId, 2)};
+    A_00::ptr b1{aether::Obj::CreateObjByClassId(A_00::kClassId, 2)};
     b1->i_ = 2;
     A_00::ptr b2{b1};
 
-    A_00::ptr d1(aether::Obj::CreateObjByClassId(A_00::kId, 3));
+    A_00::ptr d1(aether::Obj::CreateObjByClassId(A_00::kClassId, 3));
     d1->i_ = 3;
     A_00::ptr d2{d1};
-    A_00::ptr c{aether::Obj::CreateObjByClassId(A_00::kId, 4)};
+    A_00::ptr c{aether::Obj::CreateObjByClassId(A_00::kClassId, 4)};
     c->i_ = 4;
     
     a->a_.push_back(std::move(b1));
@@ -440,16 +442,16 @@ void Versioning() {
   }
   {
     std::cout << "\n\n\n";
-    A_00::ptr a(aether::Obj::CreateObjByClassId(A_00::kId, 1));
+    A_00::ptr a(aether::Obj::CreateObjByClassId(A_00::kClassId, 1));
     a->i_ = 1;
-    A_00::ptr b1{aether::Obj::CreateObjByClassId(A_00::kId, 2)};
+    A_00::ptr b1{aether::Obj::CreateObjByClassId(A_00::kClassId, 2)};
     b1->i_ = 2;
     A_00::ptr b2{b1};
     
-    A_00::ptr d1(aether::Obj::CreateObjByClassId(A_00::kId, 3));
+    A_00::ptr d1(aether::Obj::CreateObjByClassId(A_00::kClassId, 3));
     d1->i_ = 3;
     A_00::ptr d2{d1};
-    A_00::ptr c{aether::Obj::CreateObjByClassId(A_00::kId, 4)};
+    A_00::ptr c{aether::Obj::CreateObjByClassId(A_00::kClassId, 4)};
     c->i_ = 4;
     
     a->a_.push_back(std::move(b1));
@@ -466,10 +468,10 @@ void Versioning() {
   }
   {
     std::cout << "\n\n\n";
-    A_00::ptr a1(aether::Obj::CreateObjByClassId(A_00::kId, 1));
+    A_00::ptr a1(aether::Obj::CreateObjByClassId(A_00::kClassId, 1));
     a1->i_ = 1;
     A_00::ptr a2{a1};
-    A_00::ptr b{aether::Obj::CreateObjByClassId(A_00::kId, 2)};
+    A_00::ptr b{aether::Obj::CreateObjByClassId(A_00::kClassId, 2)};
     b->i_ = 2;
     
     b->a_.push_back(std::move(a2));
@@ -481,12 +483,12 @@ void Versioning() {
   }
   {
     std::cout << "\n\n\n";
-    A_00::ptr a1(aether::Obj::CreateObjByClassId(A_00::kId, 1));
+    A_00::ptr a1(aether::Obj::CreateObjByClassId(A_00::kClassId, 1));
     a1->i_ = 1;
     A_00::ptr a2{a1};
-    A_00::ptr b{aether::Obj::CreateObjByClassId(A_00::kId, 2)};
+    A_00::ptr b{aether::Obj::CreateObjByClassId(A_00::kClassId, 2)};
     b->i_ = 2;
-    A_00::ptr c1(aether::Obj::CreateObjByClassId(A_00::kId, 3));
+    A_00::ptr c1(aether::Obj::CreateObjByClassId(A_00::kClassId, 3));
     c1->i_ = 3;
     A_00::ptr c2{c1};
 
@@ -504,13 +506,13 @@ void Versioning() {
 
   {
     std::cout << "\n\n\n";
-    A_00::ptr a(aether::Obj::CreateObjByClassId(A_00::kId, 1));
+    A_00::ptr a(aether::Obj::CreateObjByClassId(A_00::kClassId, 1));
     a->i_ = 1;
-    A_00::ptr b1{aether::Obj::CreateObjByClassId(A_00::kId, 2)};
+    A_00::ptr b1{aether::Obj::CreateObjByClassId(A_00::kClassId, 2)};
     b1->i_ = 2;
     A_00::ptr b2{b1};
     A_00::ptr b3{b1};
-    A_00::ptr c(aether::Obj::CreateObjByClassId(A_00::kId, 3));
+    A_00::ptr c(aether::Obj::CreateObjByClassId(A_00::kClassId, 3));
     c->i_ = 3;
     
     a->a_.push_back(std::move(b1));
@@ -594,7 +596,7 @@ class TestAccessor {
 public:
   template<class T>
   static void UnregisterClass() {
-    aether::Obj::Registry<void>::UnregisterClass(T::kId);
+    aether::Obj::Registry<void>::UnregisterClass(T::kClassId);
   }
 };
 }
@@ -656,12 +658,12 @@ public:
 AETHER_IMPL(Root_05);
 
 void Versioning() {
-  std::cout << "Obj " << aether::Obj::kId << "\n";
-  std::cout << "Root " << Root_05::kId << "\n";
-  std::cout << "A " << A_05::kId << "\n";
-  std::cout << "B1 " << B1_A_05::kId << "\n";
-  std::cout << "B2 " << B2_A_05::kId << "\n";
-  std::cout << "B2C " << C_B2_A_05::kId << "\n";
+  std::cout << "Obj " << aether::Obj::kClassId << "\n";
+  std::cout << "Root " << Root_05::kClassId << "\n";
+  std::cout << "A " << A_05::kClassId << "\n";
+  std::cout << "B1 " << B1_A_05::kClassId << "\n";
+  std::cout << "B2 " << B2_A_05::kClassId << "\n";
+  std::cout << "B2C " << C_B2_A_05::kClassId << "\n";
 #ifdef OBSERVER_DEV
   {
     std::filesystem::remove_all("state");

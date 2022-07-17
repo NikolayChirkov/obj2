@@ -125,7 +125,7 @@ template <class T> class Ptr {
       ptr_ = nullptr;
       return;
     }
-    T* ptr = static_cast<T*>(p.ptr_->DynamicCast(T::kId));
+    T* ptr = static_cast<T*>(p.ptr_->DynamicCast(T::kClassId));
     if (ptr) {
       ptr_ = ptr;
       p.ptr_ = nullptr;
@@ -192,7 +192,7 @@ template <class T> class Ptr {
       SetFlags(p.GetFlags());
       Release();
     } else {
-      T* ptr = static_cast<T*>(p.ptr_->DynamicCast(T::kId));
+      T* ptr = static_cast<T*>(p.ptr_->DynamicCast(T::kClassId));
       if (!ptr) {
         Release();
         p.Release();
@@ -227,7 +227,7 @@ template <class T> class Ptr {
 
   // Protected section.
   void Init(T* p);
-  template <class T1> void InitCast(T1* p) { Init(p ? static_cast<T*>(p->DynamicCast(T::kId)) : nullptr); }
+  template <class T1> void InitCast(T1* p) { Init(p ? static_cast<T*>(p->DynamicCast(T::kClassId)) : nullptr); }
   void Release();
   static constexpr uint32_t kObjClassId = qcstudio::crc32::from_literal("Obj").value;
 };
@@ -257,7 +257,7 @@ public:
   LoadFacility load_facility_;
   std::vector<Obj*> ordered_objects_;
   std::unordered_map<Obj*, int> objects_;
-  bool FindAndAddObject(Obj* o) {
+  bool FindOrAddObject(Obj* o) {
     auto& references_count = objects_[o];
     if (++references_count == 1) ordered_objects_.push_back(o);
     return references_count > 1;
@@ -320,17 +320,17 @@ public:
   }
 
   typedef Ptr<Obj> ptr;
-  static constexpr uint32_t kId = qcstudio::crc32::from_literal("Obj").value;
+  static constexpr uint32_t kClassId = qcstudio::crc32::from_literal("Obj").value;
   static constexpr uint32_t kBaseId = qcstudio::crc32::from_literal("Obj").value;
-  virtual uint32_t GetId() const { return kId; }
+  virtual uint32_t GetId() const { return kClassId; }
   
-  virtual void* DynamicCast(uint32_t id) { return id == Obj::kId ? static_cast<Obj*>(this) : nullptr; }
+  virtual void* DynamicCast(uint32_t id) { return id == Obj::kClassId ? static_cast<Obj*>(this) : nullptr; }
   
   virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s); }
-  virtual void SerializeBase(AETHER_OMSTREAM& s, uint32_t class_id) { }
-  virtual void DeserializeBase(AETHER_IMSTREAM& s, uint32_t class_id) { }
+  virtual void SerializeBase(AETHER_OMSTREAM& s) { }
+  virtual void DeserializeBase(AETHER_IMSTREAM& s) { }
   friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const ptr& o) {
-    if (SerializeRef(s, o)) o->SerializeBase(s, o->GetId());
+    if (SerializeRef(s, o)) o->SerializeBase(s);
     return s;
   }
   friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, ptr& o) {
@@ -398,7 +398,7 @@ template <class T, class T1> bool SerializeRef(T& s, const Ptr<T1>& o) {
     return false;
   }
   s << o.GetId() << o.GetFlags();
-  if (!o || s.custom_->FindAndAddObject(o.ptr_)) return false;
+  if (!o || s.custom_->FindOrAddObject(o.ptr_)) return false;
   return true;
 }
 
@@ -483,8 +483,8 @@ template <class T> Obj::ptr DeserializeRef(T& s) {
   // Add object to the list of already loaded before deserialization to avoid infinite loop of cyclic references.
   Obj::AddObject(obj);
   // Track all deserialized objects.
-  s.custom_->FindAndAddObject(obj);
-  obj->DeserializeBase(s, obj->GetId());
+  s.custom_->FindOrAddObject(obj);
+  obj->DeserializeBase(s);
   return obj;
 }
 
