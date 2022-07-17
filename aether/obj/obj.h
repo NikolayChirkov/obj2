@@ -257,10 +257,16 @@ public:
   LoadFacility load_facility_;
   std::vector<Obj*> ordered_objects_;
   std::unordered_map<Obj*, int> objects_;
-  bool FindOrAddObject(Obj* o) {
-    auto& references_count = objects_[o];
-    if (++references_count == 1) ordered_objects_.push_back(o);
-    return references_count > 1;
+  enum class Result { kFound, kAdded };
+  Result FindOrAddObject(Obj* o) {
+    if (auto it = objects_.find(o); it != objects_.end()) {
+      it->second++;
+      return Result::kFound;
+    } else {
+      ordered_objects_.push_back(o);
+      objects_.insert({o, 1});
+      return Result::kAdded;
+    }
   }
 };
 
@@ -398,7 +404,7 @@ template <class T, class T1> bool SerializeRef(T& s, const Ptr<T1>& o) {
     return false;
   }
   s << o.GetId() << o.GetFlags();
-  if (!o || s.custom_->FindOrAddObject(o.ptr_)) return false;
+  if (!o || s.custom_->FindOrAddObject(o.ptr_) == Domain::Result::kFound) return false;
   return true;
 }
 
@@ -483,7 +489,7 @@ template <class T> Obj::ptr DeserializeRef(T& s) {
   // Add object to the list of already loaded before deserialization to avoid infinite loop of cyclic references.
   Obj::AddObject(obj);
   // Track all deserialized objects.
-  s.custom_->FindOrAddObject(obj);
+  assert(s.custom_->FindOrAddObject(obj) == Domain::Result::kAdded);
   obj->DeserializeBase(s);
   return obj;
 }
