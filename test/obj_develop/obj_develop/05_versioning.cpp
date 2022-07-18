@@ -539,6 +539,12 @@ void Versioning() {
       auto b3 = root->a_.emplace_back(aether::Obj::CreateObjByClassId(A_00::kClassId, 3));
       b3->i_ = 3;
       b3.SetFlags(ObjFlags::kUnloadedByDefault);
+      auto& b4 = root->a_.emplace_back(aether::Obj::CreateObjByClassId(A_00::kClassId, 4));
+      b4->i_ = 4;
+      b4.Serialize(saver);
+      b4.Unload();
+      REQUIRE((erased == std::set{4}));
+      erased.clear();
       root.Serialize(saver);
     }
     REQUIRE((erased == std::set{666, 1, 3}));
@@ -552,8 +558,13 @@ void Versioning() {
       root->a_[2].Load(enumerator, loader);
       REQUIRE(!!root->a_[2]);
       REQUIRE(root->a_[2]->i_ == 3);
+
+      REQUIRE(!root->a_[3]);
+      root->a_[3].Load(enumerator, loader);
+      REQUIRE(!!root->a_[3]);
+      REQUIRE(root->a_[3]->i_ == 4);
     }
-    REQUIRE((erased == std::set{666, 1, 3}));
+    REQUIRE((erased == std::set{666, 1, 3, 4}));
   }
 }
 

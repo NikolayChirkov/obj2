@@ -67,6 +67,7 @@ public:
   enum {
     // The object is not loaded with deserialization. Obj::Load method must be used for loading.
     kUnloadedByDefault = 1,
+    kUnloaded = 2,
   };
   operator uint8_t&() { return value_; }
   ObjFlags(decltype(value_) v) : value_(v) {}
@@ -455,7 +456,7 @@ template <class T> Obj::ptr DeserializeRef(T& s) {
   ObjFlags obj_flags;
   s >> obj_id >> obj_flags;
   if (!obj_id.IsValid()) return {};
-  if(obj_flags & ObjFlags::kUnloadedByDefault) {
+  if(obj_flags & (ObjFlags::kUnloadedByDefault | ObjFlags::kUnloaded)) {
     Obj::ptr o;
     // Distinguish 'unloaded' from 'nullptr'
     o.SetId(obj_id);
@@ -477,7 +478,7 @@ template <class T> Obj::ptr DeserializeRef(T& s) {
   }
   obj = Obj::CreateObjByClassId(class_id, obj_id);
   obj->id_ = obj_id;
-  obj->flags_ = obj_flags;
+  obj->flags_ = obj_flags & (~ObjFlags::kUnloaded);
   // Add object to the list of already loaded before deserialization to avoid infinite loop of cyclic references.
   Obj::AddObject(obj);
   // Track all deserialized objects.
@@ -498,7 +499,7 @@ template <typename T> void Ptr<T>::Serialize(StoreFacility store_facility) const
 template <typename T> void Ptr<T>::Unload() {
   if (!ptr_) return;
   id_ = GetId();
-  flags_ = GetFlags();
+  flags_ = GetFlags() | ObjFlags::kUnloaded;
   Release();
 }
 
@@ -510,9 +511,9 @@ template <typename T> void Ptr<T>::Load(EnumerateFacility enumerate_facility, Lo
   domain.load_facility_ = load_facility;
   is.custom_ = &domain;
   // Preserve kUnloadedByDefault flag
-  auto flags = GetFlags();
+  auto flags = GetFlags() & (~ObjFlags::kUnloaded);
   AETHER_OMSTREAM os;
-  os << GetId() << (GetFlags() & (~ObjFlags::kUnloadedByDefault));
+  os << GetId() << (flags & (~ObjFlags::kUnloadedByDefault));
   is.stream_ = std::move(os.stream_);
   Obj::Registry::first_release_ = false;
   is >> *this;
