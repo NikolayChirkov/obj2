@@ -30,7 +30,7 @@ public:
   // TODO: support multiple base classes
   static constexpr uint32_t kBaseClassId = qcstudio::crc32::from_literal("Obj").value;
   inline static Registrar<A_00> registrar_ = Registrar<A_00>(kClassId, kBaseClassId);
-  virtual uint32_t GetId() const { return kClassId; }
+  virtual uint32_t GetClassId() const { return kClassId; }
 
   virtual void* DynamicCast(uint32_t id) {
     return id == kClassId ? static_cast<A_00*>(this) : Obj::DynamicCast(id);
@@ -119,7 +119,7 @@ public:
   static constexpr uint32_t kClassId = qcstudio::crc32::from_literal("V1").value;
   static constexpr uint32_t kBaseClassId = qcstudio::crc32::from_literal("Obj").value;
   inline static Registrar<V1> registrar_ = Registrar<V1>(kClassId, kBaseClassId);
-  virtual uint32_t GetId() const { return kClassId; }
+  virtual uint32_t GetClassId() const { return kClassId; }
   
   virtual void* DynamicCast(uint32_t id) {
     return id == kClassId ? static_cast<V1*>(this) : Obj::DynamicCast(id);
@@ -163,7 +163,7 @@ public:
   static constexpr uint32_t kClassId = qcstudio::crc32::from_literal("V2").value;
   static constexpr uint32_t kBaseClassId = qcstudio::crc32::from_literal("V1").value;
   inline static Registrar<V2> registrar_ = Registrar<V2>(kClassId, kBaseClassId);
-  virtual uint32_t GetId() const { return kClassId; }
+  virtual uint32_t GetClassId() const { return kClassId; }
   
   virtual void* DynamicCast(uint32_t id) {
     return id == kClassId ? static_cast<V2*>(this) : V1::DynamicCast(id);
@@ -206,7 +206,7 @@ public:
   static constexpr uint32_t kClassId = qcstudio::crc32::from_literal("V3").value;
   static constexpr uint32_t kBaseClassId = qcstudio::crc32::from_literal("V2").value;
   inline static Registrar<V3> registrar_ = Registrar<V3>(kClassId, kBaseClassId);
-  virtual uint32_t GetId() const { return kClassId; }
+  virtual uint32_t GetClassId() const { return kClassId; }
   
   virtual void* DynamicCast(uint32_t id) {
     return id == kClassId ? static_cast<V3*>(this) : V2::DynamicCast(id);

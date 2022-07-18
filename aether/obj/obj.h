@@ -328,7 +328,7 @@ public:
   typedef Ptr<Obj> ptr;
   static constexpr uint32_t kClassId = qcstudio::crc32::from_literal("Obj").value;
   static constexpr uint32_t kBaseId = qcstudio::crc32::from_literal("Obj").value;
-  virtual uint32_t GetId() const { return kClassId; }
+  virtual uint32_t GetClassId() const { return kClassId; }
   
   virtual void* DynamicCast(uint32_t id) { return id == Obj::kClassId ? static_cast<Obj*>(this) : nullptr; }
   
