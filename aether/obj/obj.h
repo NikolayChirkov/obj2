@@ -62,21 +62,15 @@ protected:
 };
 
 class ObjFlags {
-  uint8_t value_;
+  uint8_t value_ = 0;
 public:
   enum {
-    // Loads if serialized as loaded. Remeins unloaded if serialized as unloaded.
-    kLoadable = 1,
-    // Doesn't load the object. Remains null until the object is loaded by other pointer.
-    kWeak = 2,
-    // The object is never changed.
-    kConst = 4,
-    // The object was loaded at serialization step.
-    kLoaded = 8,
+    // The object is not loaded with deserialization. Obj::Load method must be used for loading.
+    kUnloadedByDefault = 1,
   };
   operator uint8_t&() { return value_; }
   ObjFlags(decltype(value_) v) : value_(v) {}
-  ObjFlags() : value_(kLoaded) {}
+  ObjFlags() = default;
 };
 
 using StoreFacility = std::function<void(const ObjId& obj_id, uint32_t class_id, const AETHER_OMSTREAM& os)>;
@@ -245,8 +239,8 @@ template <class T1, class T2> bool operator == (const Ptr<T1>& p1, const Ptr<T2>
 }
 template <class T1, class T2> bool operator != (const Ptr<T1>& p1, const Ptr<T2>& p2) { return !(p1 == p2); }
 
-
-template <class T, class T1> bool SerializeRef(T& s, const Ptr<T1>& o1);
+enum class SerializationResult { kReferenceOnly, kWholeObject };
+template <class T, class T1> SerializationResult SerializeRef(T& s, const Ptr<T1>& o1);
 template <class T> Ptr<Obj> DeserializeRef(T& s);
 
 
@@ -291,10 +285,8 @@ public:
     return o;
   }
 
-  Obj() {
-    id_ = 0;
-    flags_ = ObjFlags::kLoaded;
-  }
+  Obj() = default;
+  
   virtual ~Obj() {
     auto it = Registry::all_objects_.find(id_);
     if (it != Registry::all_objects_.end()) Registry::all_objects_.erase(it);
@@ -336,7 +328,9 @@ public:
   virtual void SerializeBase(AETHER_OMSTREAM& s) { }
   virtual void DeserializeBase(AETHER_IMSTREAM& s) { }
   friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const ptr& o) {
-    if (SerializeRef(s, o)) o->SerializeBase(s);
+    if (SerializeRef(s, o) == SerializationResult::kWholeObject) {
+      o->SerializeBase(s);
+    }
     return s;
   }
   friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, ptr& o) {
@@ -398,14 +392,12 @@ public:
 };
 
 
-template <class T, class T1> bool SerializeRef(T& s, const Ptr<T1>& o) {
-  if (!o && !(o.GetFlags() & ObjFlags::kLoadable)) {
-    s << ObjId{0} << ObjFlags{};
-    return false;
-  }
+template <class T, class T1> SerializationResult SerializeRef(T& s, const Ptr<T1>& o) {
   s << o.GetId() << o.GetFlags();
-  if (!o || s.custom_->FindOrAddObject(o.ptr_) == Domain::Result::kFound) return false;
-  return true;
+  if (!o || s.custom_->FindOrAddObject(o.ptr_) == Domain::Result::kFound) {
+    return SerializationResult::kReferenceOnly;
+  }
+  return SerializationResult::kWholeObject;
 }
 
 template <typename T> void Ptr<T>::Release() {
@@ -463,7 +455,7 @@ template <class T> Obj::ptr DeserializeRef(T& s) {
   ObjFlags obj_flags;
   s >> obj_id >> obj_flags;
   if (!obj_id.IsValid()) return {};
-  if(!(obj_flags & ObjFlags::kLoaded)) {
+  if(obj_flags & ObjFlags::kUnloadedByDefault) {
     Obj::ptr o;
     // Distinguish 'unloaded' from 'nullptr'
     o.SetId(obj_id);
@@ -506,7 +498,7 @@ template <typename T> void Ptr<T>::Serialize(StoreFacility store_facility) const
 template <typename T> void Ptr<T>::Unload() {
   if (!ptr_) return;
   id_ = GetId();
-  flags_ = GetFlags() & (~ObjFlags::kLoaded);
+  flags_ = GetFlags();
   Release();
 }
 
@@ -517,11 +509,14 @@ template <typename T> void Ptr<T>::Load(EnumerateFacility enumerate_facility, Lo
   domain.enumerate_facility_ = enumerate_facility;
   domain.load_facility_ = load_facility;
   is.custom_ = &domain;
+  // Preserve kUnloadedByDefault flag
+  auto flags = GetFlags();
   AETHER_OMSTREAM os;
-  os << GetId() << (GetFlags() | ObjFlags::kLoaded);
+  os << GetId() << (GetFlags() & (~ObjFlags::kUnloadedByDefault));
   is.stream_ = std::move(os.stream_);
   Obj::Registry::first_release_ = false;
   is >> *this;
+  SetFlags(flags);
   Obj::Registry::first_release_ = true;
   for (auto o : domain.ordered_objects_) {
     o->OnLoaded();

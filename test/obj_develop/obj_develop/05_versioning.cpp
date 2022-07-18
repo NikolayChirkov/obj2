@@ -54,7 +54,9 @@ public:
 //      BASE::DeserializeBase(s, qcstudio::crc32::from_literal(#BASE).value);
   }
   friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const ptr& o) {
-    if (SerializeRef(s, o)) o->SerializeBase(s);
+    if (SerializeRef(s, o) == SerializationResult::kWholeObject) {
+      o->SerializeBase(s);
+    }
     return s;
   }
   friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, ptr& o) {
@@ -143,7 +145,9 @@ public:
     //      BASE::DeserializeBase(s, qcstudio::crc32::from_literal(#BASE).value);
   }
   friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const ptr& o) {
-    if (SerializeRef(s, o)) o->SerializeBase(s);
+    if (SerializeRef(s, o) == SerializationResult::kWholeObject) {
+      o->SerializeBase(s);
+    }
     return s;
   }
   friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, ptr& o) {
@@ -185,7 +189,9 @@ public:
     V1::DeserializeBase(s);
   }
   friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const ptr& o) {
-    if (SerializeRef(s, o)) o->SerializeBase(s);
+    if (SerializeRef(s, o) == SerializationResult::kWholeObject) {
+      o->SerializeBase(s);
+    }
     return s;
   }
   friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, ptr& o) {
@@ -228,7 +234,7 @@ public:
     V2::DeserializeBase(s);
   }
   friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const ptr& o) {
-    if (SerializeRef(s, o)) {
+    if (SerializeRef(s, o) == SerializationResult::kWholeObject) {
       o->SerializeBase(s);
     }
     return s;
@@ -411,11 +417,9 @@ void Versioning() {
   {
     A_00::ptr root;
     root.SetId(666);
-    root.SetFlags(ObjFlags::kLoaded);
     root.Load(enumerator, loader);
   }
   {
-    std::cout << "\n\n\n";
     A_00::ptr a(aether::Obj::CreateObjByClassId(A_00::kClassId, 1));
     a->i_ = 1;
     A_00::ptr b1{aether::Obj::CreateObjByClassId(A_00::kClassId, 2)};
@@ -441,7 +445,6 @@ void Versioning() {
     REQUIRE((erased == std::set{2, 3, 4}));
   }
   {
-    std::cout << "\n\n\n";
     A_00::ptr a(aether::Obj::CreateObjByClassId(A_00::kClassId, 1));
     a->i_ = 1;
     A_00::ptr b1{aether::Obj::CreateObjByClassId(A_00::kClassId, 2)};
@@ -467,7 +470,6 @@ void Versioning() {
     REQUIRE((erased == std::set{1, 2}));
   }
   {
-    std::cout << "\n\n\n";
     A_00::ptr a1(aether::Obj::CreateObjByClassId(A_00::kClassId, 1));
     a1->i_ = 1;
     A_00::ptr a2{a1};
@@ -482,7 +484,6 @@ void Versioning() {
     REQUIRE((erased == std::set{1, 2}));
   }
   {
-    std::cout << "\n\n\n";
     A_00::ptr a1(aether::Obj::CreateObjByClassId(A_00::kClassId, 1));
     a1->i_ = 1;
     A_00::ptr a2{a1};
@@ -505,7 +506,6 @@ void Versioning() {
   }
 
   {
-    std::cout << "\n\n\n";
     A_00::ptr a(aether::Obj::CreateObjByClassId(A_00::kClassId, 1));
     a->i_ = 1;
     A_00::ptr b1{aether::Obj::CreateObjByClassId(A_00::kClassId, 2)};
@@ -526,180 +526,36 @@ void Versioning() {
     b3 = nullptr;
     REQUIRE((erased == std::set{2, 3}));
   }
-
-//  {
-//    // nullptr = A*
-//    A_00::ptr a1{new A_00()};
-//    a1 = a1;
-//    A_00* a = new A_00();
-//    A_00::ptr a2(a);
-//    A_00::ptr a3(a);
-//    A_00::ptr a4 = a1;
-//    A_00::ptr a5;
-//    a5 = std::move(a2);
-//    a5 = std::move(a5);
-//    A_00::ptr aa;
-//    a5 = std::move(aa); // source is not released
-//    a5 = std::move(a1); // source is released
-//    A_00::ptr a6(std::move(a3));
-//    a6 = std::move(aa);
-//    int asf=0;
-//  }
-//  {
-//    // Obj::nullptr = A*
-//    A_00::ptr a1{new A_00()};
-//    B_00::ptr b1{new B_00()};
-//    a1 = std::move(b1);
-//    int asf=0;
-//  }
-}
-
-/*#define OBSERVER_DEV
-#define OBSERVER_ROOT_ID 666
-static std::unordered_map<aether::ObjStorage, std::string> storage_to_path_;
-
-auto saver = [](const aether::ObjId& obj_id, uint32_t class_id, aether::ObjStorage storage, const AETHER_OMSTREAM& os){
-  std::filesystem::path dir = std::filesystem::path{"state"} / storage_to_path_[storage] / obj_id.ToString();
-  std::filesystem::create_directories(dir);
-  auto p = dir / std::to_string(class_id);
-  std::ofstream f(p.c_str(), std::ios::out | std::ios::binary | std::ios::trunc);
-  //   bool b = f.good();
-  f.write((const char*)os.stream_.data(), os.stream_.size());
-  std::cout << p.c_str() << " size: " << os.stream_.size() << "\n";
-};
-
-auto enumerator = [](const aether::ObjId& obj_id, aether::ObjStorage storage){
-  std::string path = obj_id.ToString();
-  auto p = std::filesystem::path{"state"} / storage_to_path_[storage] / path;
-  std::vector<uint32_t> classes;
-  for(auto& f: std::filesystem::directory_iterator(p)) {
-    classes.push_back(std::atoi(f.path().filename().c_str()));
-  }
-  return classes;
-};
-
-auto loader = [](const aether::ObjId& obj_id, uint32_t class_id, aether::ObjStorage storage, AETHER_IMSTREAM& is){
-  std::filesystem::path dir = std::filesystem::path{"state"} / storage_to_path_[storage] / obj_id.ToString();
-  auto p = dir / std::to_string(class_id);
-  std::ifstream f(p.c_str(), std::ios::in | std::ios::binary);
-  if (!f.good()) return;
-  f.seekg (0, f.end);
-  std::streamoff length = f.tellg();
-  f.seekg (0, f.beg);
-  is.stream_.resize(length);
-  f.read((char*)is.stream_.data(), length);
-};
-using namespace aether;
-
-namespace aether {
-class TestAccessor {
-public:
-  template<class T>
-  static void UnregisterClass() {
-    aether::Obj::Registry<void>::UnregisterClass(T::kClassId);
-  }
-};
-}
-
-#ifdef OBSERVER_DEV
-decltype(aether::Obj::id_) GenId() { return aether::ObjId::GenerateUnique(); }
-#endif  // OBSERVER_DEV
-
-class A_05 : public Obj {
-public:
-  AETHER_OBJ(A_05);
-  A_05() { GenId(); }
-  int i;
-  template <typename T> void Serializator(T& s) {
-    s & i;
-  }
-};
-AETHER_IMPL(A_05);
-
-class B1_A_05 : public A_05 {
-public:
-  AETHER_OBJ(B1_A_05, A_05);
-  B1_A_05() { GenId(); }
-  float f;
-  template <typename T> void Serializator(T& s) {
-    s & f;
-  }
-};
-AETHER_IMPL(B1_A_05);
-
-class B2_A_05 : public A_05 {
-public:
-  AETHER_OBJ(B2_A_05, A_05);
-  B2_A_05() { GenId(); }
-  std::string s;
-  template <typename T> void Serializator(T& ss) {
-    ss & s;
-  }
-};
-AETHER_IMPL(B2_A_05);
-
-class C_B2_A_05 : public B2_A_05 {
-public:
-  AETHER_OBJ(C_B2_A_05, B2_A_05);
-  C_B2_A_05() { GenId(); }
-  double d;
-  template <typename T> void Serializator(T& s) {
-    s & d;
-  }
-};
-AETHER_IMPL(C_B2_A_05);
-
-class Root_05 : public Obj {
-public:
-  AETHER_OBJ(Root_05);
-  std::vector<Obj::ptr> v;
-  template <typename T> void Serializator(T& s) { s & v; }
-};
-AETHER_IMPL(Root_05);
-
-void Versioning() {
-  std::cout << "Obj " << aether::Obj::kClassId << "\n";
-  std::cout << "Root " << Root_05::kClassId << "\n";
-  std::cout << "A " << A_05::kClassId << "\n";
-  std::cout << "B1 " << B1_A_05::kClassId << "\n";
-  std::cout << "B2 " << B2_A_05::kClassId << "\n";
-  std::cout << "B2C " << C_B2_A_05::kClassId << "\n";
-#ifdef OBSERVER_DEV
+  // Serialize / Load / Unload
   {
     std::filesystem::remove_all("state");
-    
-    Root_05::ptr root{new Root_05()};
-    root.SetId(OBSERVER_ROOT_ID);
-    
-    root->v.push_back({new A_05()});
-    A_05::ptr(root->v.back())->i = 456;
-
-    root->v.push_back({new B1_A_05()});
-    B1_A_05::ptr b(root->v.back());
-    b->f = 4.56f;
-    A_05::ptr(root->v.back())->i = 456;
-
-    root->v.push_back({new B2_A_05()});
-    B2_A_05::ptr(root->v.back())->s = "456abc";
-    A_05::ptr(root->v.back())->i = 456;
-
-    root->v.emplace_back(new C_B2_A_05());
-    C_B2_A_05::ptr(root->v.back())->d = 4.56e3_00;
-    B2_A_05::ptr(root->v.back())->s = "456abc";
-    A_05::ptr(B2_A_05::ptr(root->v.back()))->i = 456;
-
-    root.Serialize(saver, aether::Obj::Serialization::kConsts | aether::Obj::Serialization::kRefs | aether::Obj::Serialization::kData);
+    erased.clear();
+    {
+      A_00::ptr root(aether::Obj::CreateObjByClassId(A_00::kClassId, 666));
+      root->i_ = 666;
+      auto b1 = root->a_.emplace_back(aether::Obj::CreateObjByClassId(A_00::kClassId, 1));
+      b1->i_ = 1;
+      root->a_.emplace_back(A_00::ptr{});
+      auto b3 = root->a_.emplace_back(aether::Obj::CreateObjByClassId(A_00::kClassId, 3));
+      b3->i_ = 3;
+      b3.SetFlags(ObjFlags::kUnloadedByDefault);
+      root.Serialize(saver);
+    }
+    REQUIRE((erased == std::set{666, 1, 3}));
+    erased.clear();
+    {
+      A_00::ptr root;
+      root.SetId(666);
+      root.Load(enumerator, loader);
+      REQUIRE(!!root);
+      REQUIRE(root->i_ == 666);
+      root->a_[2].Load(enumerator, loader);
+      REQUIRE(!!root->a_[2]);
+      REQUIRE(root->a_[2]->i_ == 3);
+    }
+    REQUIRE((erased == std::set{666, 1, 3}));
   }
-#endif  // OBSERVER_DEV
-  Root_05::ptr root;
-  root.SetId(OBSERVER_ROOT_ID);
-  root.SetFlags(aether::ObjFlags::kLoaded);
-  //TestAccessor::UnregisterClass<V2>();
-  root.Load(enumerator, loader);
 }
-
-*/
-
 
 
 
