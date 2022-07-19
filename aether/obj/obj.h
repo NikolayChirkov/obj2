@@ -252,6 +252,8 @@ public:
   LoadFacility load_facility_;
   std::vector<Obj*> ordered_objects_;
   std::unordered_map<Obj*, int> objects_;
+  int max_depth_ = std::numeric_limits<int>::max();
+  int cur_depth_ = 0;
   enum class Result { kFound, kAdded };
   Result FindOrAddObject(Obj* o) {
     if (auto it = objects_.find(o); it != objects_.end()) {
@@ -329,9 +331,10 @@ public:
   virtual void SerializeBase(AETHER_OMSTREAM& s) { }
   virtual void DeserializeBase(AETHER_IMSTREAM& s) { }
   friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const ptr& o) {
-    if (SerializeRef(s, o) == SerializationResult::kWholeObject) {
+    if (++s.custom_->cur_depth_ <= s.custom_->max_depth_ && SerializeRef(s, o) == SerializationResult::kWholeObject) {
       o->SerializeBase(s);
     }
+    s.custom_->cur_depth_--;
     return s;
   }
   friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, ptr& o) {
@@ -404,43 +407,53 @@ template <class T, class T1> SerializationResult SerializeRef(T& s, const Ptr<T1
 template <typename T> void Ptr<T>::Release() {
   if (!ptr_) return;
   if (Obj::Registry::manual_release_) {
-    ptr_->reference_count_--;
     ptr_ = nullptr;
     return;
   }
   if (Obj::Registry::first_release_) {
     Obj::Registry::first_release_ = false;
 
-    // Count all references to all objects which are accessible from this pointer that is going to be released.
+    // Collect all objects reachable from the releasing pointer. Count references for objects.
     Domain domain;
     domain.store_facility_ = [](const ObjId&, uint32_t, const AETHER_OMSTREAM&) {};
     AETHER_OMSTREAM os2;
     os2.custom_ = &domain;
     os2 << *this;
 
-    std::vector<Obj*> release;
-    std::vector<Obj*> keep;
+    std::vector<Obj*> subgraph;
+    std::vector<Obj*> externally_referenced;
     for (auto it : domain.objects_) {
-      if (it.first->reference_count_ == it.second) release.push_back(it.first);
-      else keep.push_back(it.first);
+      // Determine if the object is referenced from outside the subgraph.
+      if (it.first->reference_count_ == it.second) subgraph.push_back(it.first);
+      else externally_referenced.push_back(it.first);
     }
 
-    // If a candidate for releasing is referenced directly or indirectly by the object that is kept then don't release.
-    for (auto k : keep) {
+    // Externally referenced objects are not released. Keep all objects referenced by the externally referenced object.
+    for (auto k : externally_referenced) {
       domain.objects_.clear();
       k->Serialize(os2);
-      for (auto it = release.begin(); it != release.end(); ) {
-        if (domain.objects_.find(*it) != domain.objects_.end()) it = release.erase(it);
+      for (auto it = subgraph.begin(); it != subgraph.end(); ) {
+        if (domain.objects_.find(*it) != domain.objects_.end()) it = subgraph.erase(it);
         else ++it;
       }
     }
 
-    // Maually release each object without recursive releasing.
-    if (release.empty()) {
+    if (subgraph.empty()) {
       ptr_->reference_count_--;
     } else {
+      os2.custom_->max_depth_ = 1;
+      for (auto r : subgraph) {
+        domain.objects_.clear();
+        r->Serialize(os2);
+        for (auto k : externally_referenced) {
+          if (domain.objects_.find(k) != domain.objects_.end()) {
+            k->reference_count_--;
+          }
+        }
+      }
+      // Maually release each object without recursive releasing.
       Obj::Registry::manual_release_ = true;
-      for (auto r : release) delete r;
+      for (auto r : subgraph) delete r;
       Obj::Registry::manual_release_ = false;
     }
     Obj::Registry::first_release_ = true;

@@ -54,9 +54,10 @@ public:
 //      BASE::DeserializeBase(s, qcstudio::crc32::from_literal(#BASE).value);
   }
   friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const ptr& o) {
-    if (SerializeRef(s, o) == SerializationResult::kWholeObject) {
+    if (++s.custom_->cur_depth_ <= s.custom_->max_depth_ && SerializeRef(s, o) == SerializationResult::kWholeObject) {
       o->SerializeBase(s);
     }
+    s.custom_->cur_depth_--;
     return s;
   }
   friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, ptr& o) {
@@ -145,9 +146,10 @@ public:
     //      BASE::DeserializeBase(s, qcstudio::crc32::from_literal(#BASE).value);
   }
   friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const ptr& o) {
-    if (SerializeRef(s, o) == SerializationResult::kWholeObject) {
+    if (++s.custom_->cur_depth_ <= s.custom_->max_depth_ && SerializeRef(s, o) == SerializationResult::kWholeObject) {
       o->SerializeBase(s);
     }
+    s.custom_->cur_depth_--;
     return s;
   }
   friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, ptr& o) {
@@ -189,9 +191,10 @@ public:
     V1::DeserializeBase(s);
   }
   friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const ptr& o) {
-    if (SerializeRef(s, o) == SerializationResult::kWholeObject) {
+    if (++s.custom_->cur_depth_ <= s.custom_->max_depth_ && SerializeRef(s, o) == SerializationResult::kWholeObject) {
       o->SerializeBase(s);
     }
+    s.custom_->cur_depth_--;
     return s;
   }
   friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, ptr& o) {
@@ -234,9 +237,10 @@ public:
     V2::DeserializeBase(s);
   }
   friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const ptr& o) {
-    if (SerializeRef(s, o) == SerializationResult::kWholeObject) {
+    if (++s.custom_->cur_depth_ <= s.custom_->max_depth_ && SerializeRef(s, o) == SerializationResult::kWholeObject) {
       o->SerializeBase(s);
     }
+    s.custom_->cur_depth_--;
     return s;
   }
   friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, ptr& o) {
@@ -431,10 +435,13 @@ void Versioning() {
     A_00::ptr d2{d1};
     A_00::ptr c{aether::Obj::CreateObjByClassId(A_00::kClassId, 4)};
     c->i_ = 4;
-    
+
+    a->a_.reserve(1);
     a->a_.push_back(std::move(b1));
+    c->a_.reserve(2);
     c->a_.push_back(std::move(b2));
     c->a_.push_back(std::move(d2));
+    d1->a_.reserve(1);
     d1->a_.push_back(std::move(c));
 
     erased.clear();
@@ -450,18 +457,21 @@ void Versioning() {
     A_00::ptr b1{aether::Obj::CreateObjByClassId(A_00::kClassId, 2)};
     b1->i_ = 2;
     A_00::ptr b2{b1};
-    
+
     A_00::ptr d1(aether::Obj::CreateObjByClassId(A_00::kClassId, 3));
     d1->i_ = 3;
     A_00::ptr d2{d1};
     A_00::ptr c{aether::Obj::CreateObjByClassId(A_00::kClassId, 4)};
     c->i_ = 4;
-    
+
+    a->a_.reserve(1);
     a->a_.push_back(std::move(b1));
+    c->a_.reserve(2);
     c->a_.push_back(std::move(b2));
     c->a_.push_back(std::move(d2));
+    d1->a_.reserve(1);
     d1->a_.push_back(std::move(c));
-    
+
     erased.clear();
     d1 = nullptr;
     REQUIRE((erased == std::set{3, 4}));
@@ -475,10 +485,12 @@ void Versioning() {
     A_00::ptr a2{a1};
     A_00::ptr b{aether::Obj::CreateObjByClassId(A_00::kClassId, 2)};
     b->i_ = 2;
-    
+
+    b->a_.reserve(1);
     b->a_.push_back(std::move(a2));
+    a1->a_.reserve(1);
     a1->a_.push_back(std::move(b));
-    
+
     erased.clear();
     a1 = nullptr;
     REQUIRE((erased == std::set{1, 2}));
@@ -493,8 +505,11 @@ void Versioning() {
     c1->i_ = 3;
     A_00::ptr c2{c1};
 
+    b->a_.reserve(1);
     b->a_.push_back(std::move(a2));
+    a1->a_.reserve(1);
     a1->a_.push_back(std::move(c2));
+    c1->a_.reserve(1);
     c1->a_.push_back(std::move(b));
 
     erased.clear();
@@ -515,8 +530,11 @@ void Versioning() {
     A_00::ptr c(aether::Obj::CreateObjByClassId(A_00::kClassId, 3));
     c->i_ = 3;
     
+    a->a_.reserve(1);
     a->a_.push_back(std::move(b1));
+    c->a_.reserve(1);
     c->a_.push_back(std::move(b2));
+    b3->a_.reserve(1);
     b3->a_.push_back(std::move(c));
     
     erased.clear();
@@ -533,6 +551,7 @@ void Versioning() {
     {
       A_00::ptr root(aether::Obj::CreateObjByClassId(A_00::kClassId, 666));
       root->i_ = 666;
+      root->a_.reserve(3);
       auto b1 = root->a_.emplace_back(aether::Obj::CreateObjByClassId(A_00::kClassId, 1));
       b1->i_ = 1;
       root->a_.emplace_back(A_00::ptr{});
@@ -541,11 +560,13 @@ void Versioning() {
       b3.SetFlags(ObjFlags::kUnloadedByDefault);
       auto& b4 = root->a_.emplace_back(aether::Obj::CreateObjByClassId(A_00::kClassId, 4));
       b4->i_ = 4;
+      erased.clear();
       b4.Serialize(saver);
       b4.Unload();
       REQUIRE((erased == std::set{4}));
       erased.clear();
       root.Serialize(saver);
+      int sdf=0;
     }
     REQUIRE((erased == std::set{666, 1, 3}));
     erased.clear();
