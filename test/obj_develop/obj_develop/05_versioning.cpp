@@ -258,7 +258,7 @@ public:
 #include <assert.h>
 #define REQUIRE assert
 
-void FF() {
+void Versioning1() {
   V1::ptr v1(aether::Obj::CreateObjByClassId(V1::kClassId, 1));
   v1->i = 111;
   V2::ptr v2(aether::Obj::CreateObjByClassId(V2::kClassId, 2));
@@ -393,10 +393,7 @@ void FF() {
   }
 }
 
-
-void Versioning() {
-  std::filesystem::remove_all("state");
-  FF();
+void Pointers() {
   {
     // Both nullptrs
     A_00::ptr a1;
@@ -413,29 +410,22 @@ void Versioning() {
   {
     A_00::ptr a0(aether::Obj::CreateObjByClassId(A_00::kClassId, 1));
   }
-  {
-    A_00::ptr root(aether::Obj::CreateObjByClassId(A_00::kClassId, 666));
-    root->i_ = 345;
-    root.Serialize(saver);
-  }
-  {
-    A_00::ptr root;
-    root.SetId(666);
-    root.Load(enumerator, loader);
-  }
+}
+
+void SubgraphReleasing() {
   {
     A_00::ptr a(aether::Obj::CreateObjByClassId(A_00::kClassId, 1));
     a->i_ = 1;
     A_00::ptr b1{aether::Obj::CreateObjByClassId(A_00::kClassId, 2)};
     b1->i_ = 2;
     A_00::ptr b2{b1};
-
+    
     A_00::ptr d1(aether::Obj::CreateObjByClassId(A_00::kClassId, 3));
     d1->i_ = 3;
     A_00::ptr d2{d1};
     A_00::ptr c{aether::Obj::CreateObjByClassId(A_00::kClassId, 4)};
     c->i_ = 4;
-
+    
     a->a_.reserve(1);
     a->a_.push_back(std::move(b1));
     c->a_.reserve(2);
@@ -443,7 +433,7 @@ void Versioning() {
     c->a_.push_back(std::move(d2));
     d1->a_.reserve(1);
     d1->a_.push_back(std::move(c));
-
+    
     erased.clear();
     a = nullptr;
     REQUIRE((erased == std::set{1}));
@@ -457,13 +447,13 @@ void Versioning() {
     A_00::ptr b1{aether::Obj::CreateObjByClassId(A_00::kClassId, 2)};
     b1->i_ = 2;
     A_00::ptr b2{b1};
-
+    
     A_00::ptr d1(aether::Obj::CreateObjByClassId(A_00::kClassId, 3));
     d1->i_ = 3;
     A_00::ptr d2{d1};
     A_00::ptr c{aether::Obj::CreateObjByClassId(A_00::kClassId, 4)};
     c->i_ = 4;
-
+    
     a->a_.reserve(1);
     a->a_.push_back(std::move(b1));
     c->a_.reserve(2);
@@ -471,7 +461,7 @@ void Versioning() {
     c->a_.push_back(std::move(d2));
     d1->a_.reserve(1);
     d1->a_.push_back(std::move(c));
-
+    
     erased.clear();
     d1 = nullptr;
     REQUIRE((erased == std::set{3, 4}));
@@ -485,12 +475,12 @@ void Versioning() {
     A_00::ptr a2{a1};
     A_00::ptr b{aether::Obj::CreateObjByClassId(A_00::kClassId, 2)};
     b->i_ = 2;
-
+    
     b->a_.reserve(1);
     b->a_.push_back(std::move(a2));
     a1->a_.reserve(1);
     a1->a_.push_back(std::move(b));
-
+    
     erased.clear();
     a1 = nullptr;
     REQUIRE((erased == std::set{1, 2}));
@@ -504,14 +494,14 @@ void Versioning() {
     A_00::ptr c1(aether::Obj::CreateObjByClassId(A_00::kClassId, 3));
     c1->i_ = 3;
     A_00::ptr c2{c1};
-
+    
     b->a_.reserve(1);
     b->a_.push_back(std::move(a2));
     a1->a_.reserve(1);
     a1->a_.push_back(std::move(c2));
     c1->a_.reserve(1);
     c1->a_.push_back(std::move(b));
-
+    
     erased.clear();
     a1 = nullptr;
     REQUIRE(erased.empty());
@@ -519,7 +509,7 @@ void Versioning() {
     c1 = nullptr;
     REQUIRE((erased == std::set{1, 2, 3}));
   }
-
+  
   {
     A_00::ptr a(aether::Obj::CreateObjByClassId(A_00::kClassId, 1));
     a->i_ = 1;
@@ -543,6 +533,20 @@ void Versioning() {
     erased.clear();
     b3 = nullptr;
     REQUIRE((erased == std::set{2, 3}));
+  }
+}
+
+void Serialization() {
+  {
+    std::filesystem::remove_all("state");
+    A_00::ptr root(aether::Obj::CreateObjByClassId(A_00::kClassId, 666));
+    root->i_ = 345;
+    root.Serialize(saver);
+  }
+  {
+    A_00::ptr root;
+    root.SetId(666);
+    root.Load(enumerator, loader);
   }
   // Serialize / Load / Unload
   {
@@ -579,7 +583,7 @@ void Versioning() {
       root->a_[2].Load(enumerator, loader);
       REQUIRE(!!root->a_[2]);
       REQUIRE(root->a_[2]->i_ == 3);
-
+      
       REQUIRE(!root->a_[3]);
       root->a_[3].Load(enumerator, loader);
       REQUIRE(!!root->a_[3]);
@@ -587,6 +591,14 @@ void Versioning() {
     }
     REQUIRE((erased == std::set{666, 1, 3, 4}));
   }
+}
+
+void Versioning() {
+  std::filesystem::remove_all("state");
+  Versioning1();
+  Pointers();
+  SubgraphReleasing();
+  Serialization();
 }
 
 
