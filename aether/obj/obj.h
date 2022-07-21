@@ -255,6 +255,12 @@ public:
   int max_depth_ = std::numeric_limits<int>::max();
   int cur_depth_ = 0;
 
+  Obj* Find(ObjId obj_id) const {
+    if (auto it = std::find_if(objects_.begin(), objects_.end(), [&obj_id](auto o) { return o.first->id_ == obj_id; });
+        it != objects_.end()) return it->first;
+    return nullptr;
+  }
+
   enum class Result { kFound, kAdded };
   Result FindOrAddObject(Obj* o) {
     if (auto it = std::find_if(objects_.begin(), objects_.end(), [o](auto i){ return i.first == o; });
@@ -294,18 +300,10 @@ public:
   Obj() = default;
   
   virtual ~Obj() {
-    std::remove_if(domain_->objects_.begin(), domain_->objects_.end(),
-                   [this](auto i){ return i.first == this; });
+    std::remove_if(domain_->objects_.begin(), domain_->objects_.end(), [this](auto i){ return i.first == this; });
   }
 
   virtual void OnLoaded() {}
-
-  static Obj* FindObject(ObjId obj_id, const std::shared_ptr<Domain>& domain) {
-    for (auto it : domain->objects_) {
-      if (it.first->id_ == obj_id) return it.first;
-    }
-    return nullptr;
-  }
 
   static bool IsLast(uint32_t class_id) {
     return Registry::base_to_derived_->find(class_id) == Obj::Registry::base_to_derived_->end();
@@ -478,7 +476,7 @@ template <class T> Obj::ptr DeserializeRef(T& s) {
   }
 
   // If object is already deserialized.
-  Obj* obj = Obj::FindObject(obj_id, s.custom_);
+  Obj* obj = s.custom_->Find(obj_id);
   if (obj) return obj;
 
   std::vector<uint32_t> classes = s.custom_->enumerate_facility_(obj_id);
