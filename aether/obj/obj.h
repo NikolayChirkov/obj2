@@ -24,7 +24,8 @@
 #include <unordered_set>
 #include "../../third_party/crc32/crc32.h"
 #include <random>
-#include <limits> 
+#include <limits>
+#include <memory>
 
 namespace aether {
 class Domain;
@@ -32,8 +33,8 @@ class Obj;
 }
 
 #include "mstream.h"
-#define AETHER_OMSTREAM aether::omstream<aether::Domain*>
-#define AETHER_IMSTREAM aether::imstream<aether::Domain*>
+#define AETHER_OMSTREAM aether::omstream<std::shared_ptr<aether::Domain>>
+#define AETHER_IMSTREAM aether::imstream<std::shared_ptr<aether::Domain>>
 
 namespace aether {
 
@@ -216,9 +217,9 @@ template <class T> class Ptr {
     flags_ = flags;
   }
 
-  void Serialize(StoreFacility s) const;
+  void Serialize() const;
   void Unload();
-  void Load(EnumerateFacility e, LoadFacility l);
+  void Load(std::shared_ptr<Domain> domain);
 
   // Protected section.
   void Init(T* p);
@@ -254,6 +255,7 @@ public:
   std::unordered_map<Obj*, int> objects_;
   int max_depth_ = std::numeric_limits<int>::max();
   int cur_depth_ = 0;
+
   enum class Result { kFound, kAdded };
   Result FindOrAddObject(Obj* o) {
     if (auto it = objects_.find(o); it != objects_.end()) {
@@ -276,40 +278,43 @@ protected:
   };
 
 public:
-  static Obj* CreateObjByClassId(uint32_t cls_id, ObjId obj_id) {
+  static Obj* CreateObjByClassId(std::shared_ptr<Domain> domain, uint32_t cls_id, ObjId obj_id) {
     Obj* o = Registry::CreateObjByClassId(cls_id);
     o->id_ = obj_id;
+    o->domain_ = domain;
     return o;
   }
 
-  static Obj* CreateObjByClassId(uint32_t cls_id) {
+  static Obj* CreateObjByClassId(std::shared_ptr<Domain> domain, uint32_t cls_id) {
     Obj* o = Registry::CreateObjByClassId(cls_id);
     o->id_ = ObjId::GenerateUnique();
+    o->domain_ = domain;
     return o;
   }
 
   Obj() = default;
   
   virtual ~Obj() {
-    auto it = Registry::all_objects_.find(id_);
-    if (it != Registry::all_objects_.end()) Registry::all_objects_.erase(it);
+    for (auto it = domain_->objects_.begin(); it !=  domain_->objects_.end(); ++it) {
+      if (it->first == this) {
+        domain_->objects_.erase(it);
+        break;
+      }
+    }
+    for (auto it = domain_->ordered_objects_.begin(); it !=  domain_->ordered_objects_.end(); ++it) {
+      if (*it == this) {
+        domain_->ordered_objects_.erase(it);
+        break;
+      }
+    }
   }
 
   virtual void OnLoaded() {}
 
-  static void AddObject(Obj* o) {
-    Registry::all_objects_[o->id_] = o;
-  }
-
-  static void RemoveObject(Obj* o) {
-    auto it = Registry::all_objects_.find(o->id_);
-    assert(it != Registry::all_objects_.end());
-    Registry::all_objects_.erase(it);
-  }
-
-  static Obj* FindObject(ObjId obj_id) {
-    auto it = Registry::all_objects_.find(obj_id);
-    if (it != Registry::all_objects_.end()) return it->second;
+  static Obj* FindObject(ObjId obj_id, const std::shared_ptr<Domain>& domain) {
+    for (auto it : domain->objects_) {
+      if (it.first->id_ == obj_id) return it.first;
+    }
     return nullptr;
   }
 
@@ -346,7 +351,8 @@ public:
   ObjId id_;
   ObjFlags flags_;
   int reference_count_ = 0;
-  
+  std::shared_ptr<Domain> domain_;
+
   class Registry {
   public:
     static void RegisterClass(uint32_t cls_id, uint32_t base_id, std::function<Obj*()> factory) {
@@ -387,7 +393,6 @@ public:
       return it->second();
     }
     
-    inline static std::map<ObjId, Obj*> all_objects_;
     inline static bool first_release_ = true;
     inline static bool manual_release_ = false;
     inline static std::unordered_map<uint32_t, std::vector<uint32_t>>* base_to_derived_;
@@ -398,7 +403,8 @@ public:
 
 template <class T, class T1> SerializationResult SerializeRef(T& s, const Ptr<T1>& o) {
   s << o.GetId() << o.GetFlags();
-  if (!o || s.custom_->FindOrAddObject(o.ptr_) == Domain::Result::kFound) {
+  if (!o) return SerializationResult::kReferenceOnly;
+  if (s.custom_->FindOrAddObject(o.ptr_) == Domain::Result::kFound) {
     return SerializationResult::kReferenceOnly;
   }
   return SerializationResult::kWholeObject;
@@ -414,15 +420,15 @@ template <typename T> void Ptr<T>::Release() {
     Obj::Registry::first_release_ = false;
 
     // Collect all objects reachable from the releasing pointer. Count references for objects.
-    Domain domain;
-    domain.store_facility_ = [](const ObjId&, uint32_t, const AETHER_OMSTREAM&) {};
+    auto domain = std::make_shared<Domain>();
+    domain->store_facility_ = [](const ObjId&, uint32_t, const AETHER_OMSTREAM&) {};
     AETHER_OMSTREAM os2;
-    os2.custom_ = &domain;
+    os2.custom_ = domain;
     os2 << *this;
 
     std::vector<Obj*> subgraph;
     std::vector<Obj*> externally_referenced;
-    for (auto it : domain.objects_) {
+    for (auto it : domain->objects_) {
       // Determine if the object is referenced from outside the subgraph.
       if (it.first->reference_count_ == it.second) subgraph.push_back(it.first);
       else externally_referenced.push_back(it.first);
@@ -430,10 +436,10 @@ template <typename T> void Ptr<T>::Release() {
 
     // Externally referenced objects are not released. Keep all objects referenced by the externally referenced object.
     for (auto k : externally_referenced) {
-      domain.objects_.clear();
+      domain->objects_.clear();
       k->Serialize(os2);
       for (auto it = subgraph.begin(); it != subgraph.end(); ) {
-        if (domain.objects_.find(*it) != domain.objects_.end()) it = subgraph.erase(it);
+        if (domain->objects_.find(*it) != domain->objects_.end()) it = subgraph.erase(it);
         else ++it;
       }
     }
@@ -443,10 +449,10 @@ template <typename T> void Ptr<T>::Release() {
     } else {
       os2.custom_->max_depth_ = 1;
       for (auto r : subgraph) {
-        domain.objects_.clear();
+        domain->objects_.clear();
         r->Serialize(os2);
         for (auto k : externally_referenced) {
-          if (domain.objects_.find(k) != domain.objects_.end()) {
+          if (domain->objects_.find(k) != domain->objects_.end()) {
             k->reference_count_--;
           }
         }
@@ -478,7 +484,7 @@ template <class T> Obj::ptr DeserializeRef(T& s) {
   }
 
   // If object is already deserialized.
-  Obj* obj = Obj::FindObject(obj_id);
+  Obj* obj = Obj::FindObject(obj_id, s.custom_);
   if (obj) return obj;
 
   std::vector<uint32_t> classes = s.custom_->enumerate_facility_(obj_id);
@@ -489,11 +495,10 @@ template <class T> Obj::ptr DeserializeRef(T& s) {
       break;
     }
   }
-  obj = Obj::CreateObjByClassId(class_id, obj_id);
+  obj = Obj::CreateObjByClassId(s.custom_, class_id, obj_id);
   obj->id_ = obj_id;
   obj->flags_ = obj_flags & (~ObjFlags::kUnloaded);
   // Add object to the list of already loaded before deserialization to avoid infinite loop of cyclic references.
-  Obj::AddObject(obj);
   // Track all deserialized objects.
   assert(s.custom_->FindOrAddObject(obj) == Domain::Result::kAdded);
   obj->DeserializeBase(s);
@@ -501,11 +506,12 @@ template <class T> Obj::ptr DeserializeRef(T& s) {
 }
 
 
-template <typename T> void Ptr<T>::Serialize(StoreFacility store_facility) const {
-  Domain domain;
-  domain.store_facility_ = store_facility;
+template <typename T> void Ptr<T>::Serialize() const {
+  // Create an empty domain to track already serialized objects during the serialization.
+  auto domain = std::make_shared<Domain>();
+  domain->store_facility_ = ptr_->domain_->store_facility_;
   AETHER_OMSTREAM os;
-  os.custom_ = &domain;
+  os.custom_ = domain;
   os << *this;
 }
 
@@ -516,13 +522,10 @@ template <typename T> void Ptr<T>::Unload() {
   Release();
 }
 
-template <typename T> void Ptr<T>::Load(EnumerateFacility enumerate_facility, LoadFacility load_facility) {
+template <typename T> void Ptr<T>::Load(std::shared_ptr<Domain> domain) {
   if (ptr_) return;
   AETHER_IMSTREAM is;
-  Domain domain;
-  domain.enumerate_facility_ = enumerate_facility;
-  domain.load_facility_ = load_facility;
-  is.custom_ = &domain;
+  is.custom_ = domain;
   // Preserve kUnloadedByDefault flag
   auto flags = GetFlags() & (~ObjFlags::kUnloaded);
   AETHER_OMSTREAM os;
@@ -532,7 +535,7 @@ template <typename T> void Ptr<T>::Load(EnumerateFacility enumerate_facility, Lo
   is >> *this;
   SetFlags(flags);
   Obj::Registry::first_release_ = true;
-  for (auto o : domain.ordered_objects_) {
+  for (auto o : domain->ordered_objects_) {
     o->OnLoaded();
   }
 }
