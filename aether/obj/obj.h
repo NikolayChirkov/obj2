@@ -251,19 +251,18 @@ public:
   StoreFacility store_facility_;
   EnumerateFacility enumerate_facility_;
   LoadFacility load_facility_;
-  std::vector<Obj*> ordered_objects_;
-  std::unordered_map<Obj*, int> objects_;
+  std::vector<std::pair<Obj*, int>> objects_;
   int max_depth_ = std::numeric_limits<int>::max();
   int cur_depth_ = 0;
 
   enum class Result { kFound, kAdded };
   Result FindOrAddObject(Obj* o) {
-    if (auto it = objects_.find(o); it != objects_.end()) {
+    if (auto it = std::find_if(objects_.begin(), objects_.end(), [o](auto i){ return i.first == o; });
+        it != objects_.end()) {
       it->second++;
       return Result::kFound;
     } else {
-      ordered_objects_.push_back(o);
-      objects_.insert({o, 1});
+      objects_.push_back({o, 1});
       return Result::kAdded;
     }
   }
@@ -295,18 +294,8 @@ public:
   Obj() = default;
   
   virtual ~Obj() {
-    for (auto it = domain_->objects_.begin(); it !=  domain_->objects_.end(); ++it) {
-      if (it->first == this) {
-        domain_->objects_.erase(it);
-        break;
-      }
-    }
-    for (auto it = domain_->ordered_objects_.begin(); it !=  domain_->ordered_objects_.end(); ++it) {
-      if (*it == this) {
-        domain_->ordered_objects_.erase(it);
-        break;
-      }
-    }
+    std::remove_if(domain_->objects_.begin(), domain_->objects_.end(),
+                   [this](auto i){ return i.first == this; });
   }
 
   virtual void OnLoaded() {}
@@ -439,8 +428,12 @@ template <typename T> void Ptr<T>::Release() {
       domain->objects_.clear();
       k->Serialize(os2);
       for (auto it = subgraph.begin(); it != subgraph.end(); ) {
-        if (domain->objects_.find(*it) != domain->objects_.end()) it = subgraph.erase(it);
-        else ++it;
+        if (std::find_if(domain->objects_.begin(), domain->objects_.end(),
+                      [it](auto i){ return i.first == *it; }) != domain->objects_.end()) {
+          it = subgraph.erase(it);
+        } else {
+          ++it;
+        }
       }
     }
 
@@ -452,7 +445,8 @@ template <typename T> void Ptr<T>::Release() {
         domain->objects_.clear();
         r->Serialize(os2);
         for (auto k : externally_referenced) {
-          if (domain->objects_.find(k) != domain->objects_.end()) {
+          if (std::find_if(domain->objects_.begin(), domain->objects_.end(),
+                        [k](auto i) { return i.first == k; }) != domain->objects_.end()) {
             k->reference_count_--;
           }
         }
@@ -535,8 +529,8 @@ template <typename T> void Ptr<T>::Load(std::shared_ptr<Domain> domain) {
   is >> *this;
   SetFlags(flags);
   Obj::Registry::first_release_ = true;
-  for (auto o : domain->ordered_objects_) {
-    o->OnLoaded();
+  for (auto o : domain->objects_) {
+    o.first->OnLoaded();
   }
 }
 
