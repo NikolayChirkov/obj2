@@ -33,8 +33,8 @@ class Obj;
 }
 
 #include "mstream.h"
-#define AETHER_OMSTREAM aether::omstream<std::shared_ptr<aether::Domain>>
-#define AETHER_IMSTREAM aether::imstream<std::shared_ptr<aether::Domain>>
+#define AETHER_OMSTREAM aether::omstream<aether::Domain*>
+#define AETHER_IMSTREAM aether::imstream<aether::Domain*>
 
 namespace aether {
 
@@ -219,7 +219,7 @@ template <class T> class Ptr {
 
   void Serialize() const;
   void Unload();
-  void Load(std::shared_ptr<Domain> domain);
+  void Load(Domain* domain);
 
   // Protected section.
   void Init(T* p);
@@ -246,6 +246,56 @@ template <class T, class T1> SerializationResult SerializeRef(T& s, const Ptr<T1
 template <class T> Ptr<Obj> DeserializeRef(T& s);
 
 
+class Registry {
+public:
+  static void RegisterClass(uint32_t cls_id, uint32_t base_id, std::function<Obj*()> factory) {
+    static bool initialized = false;
+    if (!initialized) {
+      initialized = true;
+      s_registry_ = new std::unordered_map<uint32_t, std::function<Obj*()>>();
+      s_base_to_derived_ = new std::unordered_map<uint32_t, std::vector<uint32_t>>();
+    }
+    if (s_registry_->find(cls_id) != s_registry_->end()) {
+      throw std::runtime_error("Class name already registered or Crc32 collision detected. Please choose another "
+                               "name for the class.");
+    }
+    (*s_registry_)[cls_id] = factory;
+    if (base_id != qcstudio::crc32::from_literal("Obj").value) (*s_base_to_derived_)[base_id].push_back(cls_id);
+  }
+  
+  std::unordered_map<uint32_t, std::vector<uint32_t>> base_to_derived_;
+  std::unordered_map<uint32_t, std::function<Obj*()>> registry_;
+  Registry() : registry_(*s_registry_), base_to_derived_(*s_base_to_derived_) {}
+  
+  void UnregisterClass(uint32_t cls_id) {
+    auto it = registry_.find(cls_id);
+    if (it != registry_.end()) registry_.erase(it);
+    for (auto it = base_to_derived_.begin(); it != base_to_derived_.end(); ) {
+      it->second.erase(std::remove(it->second.begin(), it->second.end(), cls_id), it->second.end());
+      it = it->second.empty() ? base_to_derived_.erase(it) : std::next(it);
+    }
+  }
+  
+  // Creates the most far derivative without ambiguous inheritance.
+  Obj* CreateObjByClassId(uint32_t base_id) {
+    uint32_t derived_id = base_id;
+    while (true) {
+      auto d = base_to_derived_.find(derived_id);
+      // If the derived is not found or multiple derives are found.
+      if (d == base_to_derived_.end() || d->second.size() > 1) break;
+      derived_id = d->second[0];
+    }
+    auto it = registry_.find(derived_id);
+    if (it == registry_.end()) return nullptr;
+    return it->second();
+  }
+  
+  inline static bool manual_release_ = false;
+  inline static bool first_release_ = true;
+  inline static std::unordered_map<uint32_t, std::vector<uint32_t>>* s_base_to_derived_;
+  inline static std::unordered_map<uint32_t, std::function<Obj*()>>* s_registry_;
+};
+
 class Domain {
 public:
   StoreFacility store_facility_;
@@ -255,14 +305,23 @@ public:
   int max_depth_ = std::numeric_limits<int>::max();
   int cur_depth_ = 0;
   Domain* parent_;
+  Registry registry_;
   Domain(Domain* parent) : parent_(parent) {}
-  
+  inline Obj* CreateObjByClassId(uint32_t cls_id, ObjId obj_id);
+  inline Obj* CreateObjByClassId(uint32_t cls_id);
+  bool IsLast(uint32_t class_id) {
+    return registry_.base_to_derived_.find(class_id) == registry_.base_to_derived_.end();
+  }
+  bool IsExist(uint32_t class_id) {
+    return registry_.registry_.find(class_id) != registry_.registry_.end();
+  }
+
   Obj* Find(ObjId obj_id) const {
     if (auto it = std::find_if(objects_.begin(), objects_.end(), [&obj_id](auto o) { return o.first->id_ == obj_id; });
         it != objects_.end()) return it->first;
     return nullptr;
   }
-
+  
   enum class Result { kFound, kAdded };
   Result FindOrAddObject(Obj* o) {
     if (auto it = std::find_if(objects_.begin(), objects_.end(), [o](auto i){ return i.first == o; });
@@ -276,52 +335,6 @@ public:
   }
 };
 
-class Registry {
-public:
-  static void RegisterClass(uint32_t cls_id, uint32_t base_id, std::function<Obj*()> factory) {
-    static bool initialized = false;
-    if (!initialized) {
-      initialized = true;
-      registry_ = new std::unordered_map<uint32_t, std::function<Obj*()>>();
-      base_to_derived_ = new std::unordered_map<uint32_t, std::vector<uint32_t>>();
-    }
-    if (registry_->find(cls_id) != registry_->end()) {
-      throw std::runtime_error("Class name already registered or Crc32 collision detected. Please choose another "
-                               "name for the class.");
-    }
-    (*registry_)[cls_id] = factory;
-    if (base_id != qcstudio::crc32::from_literal("Obj").value) (*base_to_derived_)[base_id].push_back(cls_id);
-  }
-  
-  static void UnregisterClass(uint32_t cls_id) {
-    auto it = registry_->find(cls_id);
-    if (it != registry_->end()) registry_->erase(it);
-    for (auto it = base_to_derived_->begin(); it != base_to_derived_->end(); ) {
-      it->second.erase(std::remove(it->second.begin(), it->second.end(), cls_id), it->second.end());
-      it = it->second.empty() ? base_to_derived_->erase(it) : std::next(it);
-    }
-  }
-  
-  // Creates the most far derivative without ambiguous inheritance.
-  static Obj* CreateObjByClassId(uint32_t base_id) {
-    uint32_t derived_id = base_id;
-    while (true) {
-      auto d = base_to_derived_->find(derived_id);
-      // If the derived is not found or multiple derives are found.
-      if (d == base_to_derived_->end() || d->second.size() > 1) break;
-      derived_id = d->second[0];
-    }
-    auto it = registry_->find(derived_id);
-    if (it == registry_->end()) return nullptr;
-    return it->second();
-  }
-  
-  inline static bool manual_release_ = false;
-  inline static bool first_release_ = true;
-  inline static std::unordered_map<uint32_t, std::vector<uint32_t>>* base_to_derived_;
-  inline static std::unordered_map<uint32_t, std::function<Obj*()>>* registry_;
-};
-
 class Obj {
 protected:
   template <class T> struct Registrar {
@@ -331,20 +344,6 @@ protected:
   };
 
 public:
-  static Obj* CreateObjByClassId(std::shared_ptr<Domain> domain, uint32_t cls_id, ObjId obj_id) {
-    Obj* o = Registry::CreateObjByClassId(cls_id);
-    o->id_ = obj_id;
-    o->domain_ = domain;
-    return o;
-  }
-
-  static Obj* CreateObjByClassId(std::shared_ptr<Domain> domain, uint32_t cls_id) {
-    Obj* o = Registry::CreateObjByClassId(cls_id);
-    o->id_ = ObjId::GenerateUnique();
-    o->domain_ = domain;
-    return o;
-  }
-
   Obj() = default;
   
   virtual ~Obj() {
@@ -352,13 +351,6 @@ public:
   }
 
   virtual void OnLoaded() {}
-
-  static bool IsLast(uint32_t class_id) {
-    return Registry::base_to_derived_->find(class_id) == Registry::base_to_derived_->end();
-  }
-  static bool IsExist(uint32_t class_id) {
-    return Registry::registry_->find(class_id) != Registry::registry_->end();
-  }
 
   typedef Ptr<Obj> ptr;
   static constexpr uint32_t kClassId = qcstudio::crc32::from_literal("Obj").value;
@@ -386,8 +378,22 @@ public:
   ObjId id_;
   ObjFlags flags_;
   int reference_count_ = 0;
-  std::shared_ptr<Domain> domain_;
+  Domain* domain_;
 };
+
+Obj* Domain::CreateObjByClassId(uint32_t cls_id, ObjId obj_id) {
+  Obj* o = registry_.CreateObjByClassId(cls_id);
+  o->id_ = obj_id;
+  o->domain_ = this;
+  return o;
+}
+
+Obj* Domain::CreateObjByClassId(uint32_t cls_id) {
+  Obj* o = registry_.CreateObjByClassId(cls_id);
+  o->id_ = ObjId::GenerateUnique();
+  o->domain_ = this;
+  return o;
+}
 
 
 template <class T, class T1> SerializationResult SerializeRef(T& s, const Ptr<T1>& o) {
@@ -411,15 +417,15 @@ template <typename T> void Ptr<T>::Release() {
     Registry::first_release_ = false;
 
     // Collect all objects reachable from the releasing pointer. Count references for objects.
-    auto domain = std::make_shared<Domain>(ptr_->domain_.get());
-    domain->store_facility_ = [](const ObjId&, uint32_t, const AETHER_OMSTREAM&) {};
+    Domain domain(ptr_->domain_);
+    domain.store_facility_ = [](const ObjId&, uint32_t, const AETHER_OMSTREAM&) {};
     AETHER_OMSTREAM os2;
-    os2.custom_ = domain;
+    os2.custom_ = &domain;
     os2 << *this;
 
     std::vector<Obj*> subgraph;
     std::vector<Obj*> externally_referenced;
-    for (auto it : domain->objects_) {
+    for (auto it : domain.objects_) {
       // Determine if the object is referenced from outside the subgraph.
       if (it.first->reference_count_ == it.second) subgraph.push_back(it.first);
       else externally_referenced.push_back(it.first);
@@ -427,11 +433,11 @@ template <typename T> void Ptr<T>::Release() {
 
     // Externally referenced objects are not released. Keep all objects referenced by the externally referenced object.
     for (auto k : externally_referenced) {
-      domain->objects_.clear();
+      domain.objects_.clear();
       k->Serialize(os2);
       for (auto it = subgraph.begin(); it != subgraph.end(); ) {
-        if (std::find_if(domain->objects_.begin(), domain->objects_.end(),
-                      [it](auto i){ return i.first == *it; }) != domain->objects_.end()) {
+        if (std::find_if(domain.objects_.begin(), domain.objects_.end(),
+                      [it](auto i){ return i.first == *it; }) != domain.objects_.end()) {
           it = subgraph.erase(it);
         } else {
           ++it;
@@ -444,11 +450,11 @@ template <typename T> void Ptr<T>::Release() {
     } else {
       os2.custom_->max_depth_ = 1;
       for (auto r : subgraph) {
-        domain->objects_.clear();
+        domain.objects_.clear();
         r->Serialize(os2);
         for (auto k : externally_referenced) {
-          if (std::find_if(domain->objects_.begin(), domain->objects_.end(),
-                        [k](auto i) { return i.first == k; }) != domain->objects_.end()) {
+          if (std::find_if(domain.objects_.begin(), domain.objects_.end(),
+                        [k](auto i) { return i.first == k; }) != domain.objects_.end()) {
             k->reference_count_--;
           }
         }
@@ -488,12 +494,12 @@ template <class T> Obj::ptr DeserializeRef(T& s) {
   std::vector<uint32_t> classes = s.custom_->enumerate_facility_(obj_id);
   uint32_t class_id = classes[0];
   for (auto c : classes) {
-    if (Obj::IsExist(c) && Obj::IsLast(c)) {
+    if (s.custom_->IsExist(c) && s.custom_->IsLast(c)) {
       class_id = c;
       break;
     }
   }
-  obj = Obj::CreateObjByClassId(s.custom_, class_id, obj_id);
+  obj = s.custom_->CreateObjByClassId(class_id, obj_id);
   obj->id_ = obj_id;
   obj->flags_ = obj_flags & (~ObjFlags::kUnloaded);
   // Add object to the list of already loaded before deserialization to avoid infinite loop of cyclic references.
@@ -506,10 +512,10 @@ template <class T> Obj::ptr DeserializeRef(T& s) {
 
 template <typename T> void Ptr<T>::Serialize() const {
   // Create an empty domain to track already serialized objects during the serialization.
-  auto domain = std::make_shared<Domain>(ptr_->domain_.get());
-  domain->store_facility_ = ptr_->domain_->store_facility_;
+  Domain domain(ptr_->domain_);
+  domain.store_facility_ = ptr_->domain_->store_facility_;
   AETHER_OMSTREAM os;
-  os.custom_ = domain;
+  os.custom_ = &domain;
   os << *this;
 }
 
@@ -520,7 +526,7 @@ template <typename T> void Ptr<T>::Unload() {
   Release();
 }
 
-template <typename T> void Ptr<T>::Load(std::shared_ptr<Domain> domain) {
+template <typename T> void Ptr<T>::Load(Domain* domain) {
   if (ptr_) return;
   AETHER_IMSTREAM is;
   is.custom_ = domain;

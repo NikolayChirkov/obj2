@@ -251,31 +251,31 @@ public:
 void Versioning1() {
   auto domain = std::make_shared<Domain>(nullptr);
   domain->store_facility_ = saver;
-  V1::ptr v1(aether::Obj::CreateObjByClassId(domain, V1::kClassId, 1));
+  V1::ptr v1(domain->CreateObjByClassId(V1::kClassId, 1));
   v1->i = 111;
-  V2::ptr v2(aether::Obj::CreateObjByClassId(domain, V2::kClassId, 2));
+  V2::ptr v2(domain->CreateObjByClassId(V2::kClassId, 2));
   v2->i = 222;
   v2->f = 2.22f;
-  V3::ptr v3(aether::Obj::CreateObjByClassId(domain, V3::kClassId, 3));
+  V3::ptr v3(domain->CreateObjByClassId(V3::kClassId, 3));
   v3->i = 333;
   v3->f = 3.33f;
   v3->s_ = "text333";
   {
     // Upgrade serialized version: v1 -> v3, v2 -> v3, v3 -> v3
-    auto domain = std::make_shared<Domain>(nullptr);
-    domain->store_facility_ = saver;
-    domain->load_facility_ = loader;
-    domain->enumerate_facility_ = enumerator;
+    Domain domain(nullptr);
+    domain.store_facility_ = saver;
+    domain.load_facility_ = loader;
+    domain.enumerate_facility_ = enumerator;
     AETHER_OMSTREAM os;
-    os.custom_ = domain;
+    os.custom_ = &domain;
     os << v3 << v2 << v1;
     // assert(os.stream_.size() == 103);
-    auto domain1 = std::make_shared<Domain>(nullptr);
-    domain1->store_facility_ = saver;
-    domain1->load_facility_ = loader;
-    domain1->enumerate_facility_ = enumerator;
+    Domain domain1(nullptr);
+    domain1.store_facility_ = saver;
+    domain1.load_facility_ = loader;
+    domain1.enumerate_facility_ = enumerator;
     AETHER_IMSTREAM is;
-    is.custom_ = domain1;
+    is.custom_ = &domain1;
     is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
     Obj::ptr o1, o2, o3;
     is >> o3 >> o2 >> o1;
@@ -298,23 +298,23 @@ void Versioning1() {
   }
   {
     // Downgrade serialized version: v3 -> v2, v2 -> v2
-    auto domain = std::make_shared<Domain>(nullptr);
-    domain->store_facility_ = saver;
-    domain->load_facility_ = loader;
-    domain->enumerate_facility_ = enumerator;
+    Domain domain(nullptr);
+    domain.store_facility_ = saver;
+    domain.load_facility_ = loader;
+    domain.enumerate_facility_ = enumerator;
     AETHER_OMSTREAM os;
-    os.custom_ = domain;
+    os.custom_ = &domain;
     os << v3 << v2;
     //REQUIRE(os.stream_.size() == 87);
-    auto domain1 = std::make_shared<Domain>(nullptr);
-    domain1->store_facility_ = saver;
-    domain1->load_facility_ = loader;
-    domain1->enumerate_facility_ = enumerator;
+    Domain domain1(nullptr);
+    domain1.store_facility_ = saver;
+    domain1.load_facility_ = loader;
+    domain1.enumerate_facility_ = enumerator;
     AETHER_IMSTREAM is;
-    is.custom_ = domain1;
+    is.custom_ = &domain1;
     is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
     Obj::ptr o2, o3;
-    aether::Registry::UnregisterClass(V3::kClassId);
+    domain1.registry_.UnregisterClass(V3::kClassId);
     is >> o3 >> o2;
     REQUIRE(is.stream_.empty());
     V2::ptr v22 = o2;
@@ -328,20 +328,20 @@ void Versioning1() {
   }
   {
     // Upgrading by loading into the pointer
-    auto domain = std::make_shared<Domain>(nullptr);
-    domain->store_facility_ = saver;
-    domain->load_facility_ = loader;
-    domain->enumerate_facility_ = enumerator;
+    Domain domain(nullptr);
+    domain.store_facility_ = saver;
+    domain.load_facility_ = loader;
+    domain.enumerate_facility_ = enumerator;
     AETHER_OMSTREAM os;
-    os.custom_ = domain;
+    os.custom_ = &domain;
     os << v2 << v1;
     // REQUIRE(os.stream_.size() == 48);
-    auto domain1 = std::make_shared<Domain>(nullptr);
-    domain1->store_facility_ = saver;
-    domain1->load_facility_ = loader;
-    domain1->enumerate_facility_ = enumerator;
+    Domain domain1(nullptr);
+    domain1.store_facility_ = saver;
+    domain1.load_facility_ = loader;
+    domain1.enumerate_facility_ = enumerator;
     AETHER_IMSTREAM is;
-    is.custom_ = domain1;
+    is.custom_ = &domain1;
     is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
     V2::ptr o2;
     V2::ptr o1;
@@ -357,23 +357,23 @@ void Versioning1() {
 
   {
     // Downgrade serialized version: v3 -> v1, v2 -> v1
-    auto domain = std::make_shared<Domain>(nullptr);
-    domain->store_facility_ = saver;
-    domain->load_facility_ = loader;
-    domain->enumerate_facility_ = enumerator;
+    Domain domain(nullptr);
+    domain.store_facility_ = saver;
+    domain.load_facility_ = loader;
+    domain.enumerate_facility_ = enumerator;
     AETHER_OMSTREAM os;
-    os.custom_ = domain;
+    os.custom_ = &domain;
     os << v3 << v2;
     // REQUIRE(os.stream_.size() == 87);
-    auto domain1 = std::make_shared<Domain>(nullptr);
-    domain1->store_facility_ = saver;
-    domain1->load_facility_ = loader;
-    domain1->enumerate_facility_ = enumerator;
+    Domain domain1(nullptr);
+    domain1.store_facility_ = saver;
+    domain1.load_facility_ = loader;
+    domain1.enumerate_facility_ = enumerator;
     AETHER_IMSTREAM is;
-    is.custom_ = domain1;
+    is.custom_ = &domain1;
     is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
     Obj::ptr o2, o3;
-    aether::Registry::UnregisterClass(V2::kClassId);
+    domain1.registry_.UnregisterClass(V2::kClassId);
     is >> o3 >> o2;
     REQUIRE(is.stream_.empty());
     V1::ptr v12 = o2;
@@ -400,24 +400,24 @@ void Pointers() {
     A_00::ptr a5(std::move(a3));
   }
   {
-    auto domain = std::make_shared<Domain>(nullptr);
-    A_00::ptr a0(aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 1));
+    Domain domain(nullptr);
+    A_00::ptr a0(domain.CreateObjByClassId(A_00::kClassId, 1));
   }
 }
 
 void SubgraphReleasing() {
   {
-    auto domain = std::make_shared<Domain>(nullptr);
-    A_00::ptr a(aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 1));
+    Domain domain(nullptr);
+    A_00::ptr a(domain.CreateObjByClassId(A_00::kClassId, 1));
     a->i_ = 1;
-    A_00::ptr b1{aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 2)};
+    A_00::ptr b1{domain.CreateObjByClassId(A_00::kClassId, 2)};
     b1->i_ = 2;
     A_00::ptr b2{b1};
 
-    A_00::ptr d1(aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 3));
+    A_00::ptr d1(domain.CreateObjByClassId(A_00::kClassId, 3));
     d1->i_ = 3;
     A_00::ptr d2{d1};
-    A_00::ptr c{aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 4)};
+    A_00::ptr c{domain.CreateObjByClassId(A_00::kClassId, 4)};
     c->i_ = 4;
 
     a->a_.reserve(1);
@@ -436,17 +436,17 @@ void SubgraphReleasing() {
     REQUIRE((erased == std::set{2, 3, 4}));
   }
   {
-    auto domain = std::make_shared<Domain>(nullptr);
-    A_00::ptr a(aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 1));
+    Domain domain(nullptr);
+    A_00::ptr a(domain.CreateObjByClassId(A_00::kClassId, 1));
     a->i_ = 1;
-    A_00::ptr b1{aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 2)};
+    A_00::ptr b1{domain.CreateObjByClassId(A_00::kClassId, 2)};
     b1->i_ = 2;
     A_00::ptr b2{b1};
 
-    A_00::ptr d1(aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 3));
+    A_00::ptr d1(domain.CreateObjByClassId(A_00::kClassId, 3));
     d1->i_ = 3;
     A_00::ptr d2{d1};
-    A_00::ptr c{aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 4)};
+    A_00::ptr c{domain.CreateObjByClassId(A_00::kClassId, 4)};
     c->i_ = 4;
 
     a->a_.reserve(1);
@@ -465,11 +465,11 @@ void SubgraphReleasing() {
     REQUIRE((erased == std::set{1, 2}));
   }
   {
-    auto domain = std::make_shared<Domain>(nullptr);
-    A_00::ptr a1(aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 1));
+    Domain domain(nullptr);
+    A_00::ptr a1(domain.CreateObjByClassId(A_00::kClassId, 1));
     a1->i_ = 1;
     A_00::ptr a2{a1};
-    A_00::ptr b{aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 2)};
+    A_00::ptr b{domain.CreateObjByClassId(A_00::kClassId, 2)};
     b->i_ = 2;
 
     b->a_.reserve(1);
@@ -482,13 +482,13 @@ void SubgraphReleasing() {
     REQUIRE((erased == std::set{1, 2}));
   }
   {
-    auto domain = std::make_shared<Domain>(nullptr);
-    A_00::ptr a1(aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 1));
+    Domain domain(nullptr);
+    A_00::ptr a1(domain.CreateObjByClassId(A_00::kClassId, 1));
     a1->i_ = 1;
     A_00::ptr a2{a1};
-    A_00::ptr b{aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 2)};
+    A_00::ptr b{domain.CreateObjByClassId(A_00::kClassId, 2)};
     b->i_ = 2;
-    A_00::ptr c1(aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 3));
+    A_00::ptr c1(domain.CreateObjByClassId(A_00::kClassId, 3));
     c1->i_ = 3;
     A_00::ptr c2{c1};
 
@@ -508,14 +508,14 @@ void SubgraphReleasing() {
   }
 
   {
-    auto domain = std::make_shared<Domain>(nullptr);
-    A_00::ptr a(aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 1));
+    Domain domain(nullptr);
+    A_00::ptr a(domain.CreateObjByClassId(A_00::kClassId, 1));
     a->i_ = 1;
-    A_00::ptr b1{aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 2)};
+    A_00::ptr b1{domain.CreateObjByClassId(A_00::kClassId, 2)};
     b1->i_ = 2;
     A_00::ptr b2{b1};
     A_00::ptr b3{b1};
-    A_00::ptr c(aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 3));
+    A_00::ptr c(domain.CreateObjByClassId(A_00::kClassId, 3));
     c->i_ = 3;
 
     a->a_.reserve(1);
@@ -537,19 +537,19 @@ void SubgraphReleasing() {
 void Serialization() {
   {
     std::filesystem::remove_all("state");
-    auto domain = std::make_shared<Domain>(nullptr);
-    domain->store_facility_ = saver;
-    A_00::ptr root(aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 666));
+    Domain domain(nullptr);
+    domain.store_facility_ = saver;
+    A_00::ptr root(domain.CreateObjByClassId(A_00::kClassId, 666));
     root->i_ = 345;
     root.Serialize();
   }
   {
+    Domain domain(nullptr);
+    domain.load_facility_ = loader;
+    domain.enumerate_facility_ = enumerator;
     A_00::ptr root;
     root.SetId(666);
-    auto domain = std::make_shared<Domain>(nullptr);
-    domain->load_facility_ = loader;
-    domain->enumerate_facility_ = enumerator;
-    root.Load(domain);
+    root.Load(&domain);
     int sdf=0;
   }
   // Serialize / Load / Unload
@@ -557,18 +557,18 @@ void Serialization() {
     std::filesystem::remove_all("state");
     erased.clear();
     {
-      auto domain = std::make_shared<Domain>(nullptr);
-      domain->store_facility_ = saver;
-      A_00::ptr root(aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 666));
+      Domain domain(nullptr);
+      domain.store_facility_ = saver;
+      A_00::ptr root(domain.CreateObjByClassId(A_00::kClassId, 666));
       root->i_ = 666;
       root->a_.reserve(3);
-      auto b1 = root->a_.emplace_back(aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 1));
+      auto b1 = root->a_.emplace_back(domain.CreateObjByClassId(A_00::kClassId, 1));
       b1->i_ = 1;
       root->a_.emplace_back(A_00::ptr{});
-      auto b3 = root->a_.emplace_back(aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 3));
+      auto b3 = root->a_.emplace_back(domain.CreateObjByClassId(A_00::kClassId, 3));
       b3->i_ = 3;
       b3.SetFlags(ObjFlags::kUnloadedByDefault);
-      auto& b4 = root->a_.emplace_back(aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 4));
+      auto& b4 = root->a_.emplace_back(domain.CreateObjByClassId(A_00::kClassId, 4));
       b4->i_ = 4;
       erased.clear();
       b4.Serialize();
@@ -581,20 +581,20 @@ void Serialization() {
     REQUIRE((erased == std::set{666, 1, 3}));
     erased.clear();
     {
-      auto domain = std::make_shared<Domain>(nullptr);
-      domain->load_facility_ = loader;
-      domain->enumerate_facility_ = enumerator;
+      Domain domain(nullptr);
+      domain.load_facility_ = loader;
+      domain.enumerate_facility_ = enumerator;
       A_00::ptr root;
       root.SetId(666);
-      root.Load(domain);
+      root.Load(&domain);
       REQUIRE(!!root);
       REQUIRE(root->i_ == 666);
-      root->a_[2].Load(domain);
+      root->a_[2].Load(&domain);
       REQUIRE(!!root->a_[2]);
       REQUIRE(root->a_[2]->i_ == 3);
 
       REQUIRE(!root->a_[3]);
-      root->a_[3].Load(domain);
+      root->a_[3].Load(&domain);
       REQUIRE(!!root->a_[3]);
       REQUIRE(root->a_[3]->i_ == 4);
     }
