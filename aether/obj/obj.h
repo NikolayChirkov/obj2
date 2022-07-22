@@ -254,7 +254,9 @@ public:
   std::vector<std::pair<Obj*, int>> objects_;
   int max_depth_ = std::numeric_limits<int>::max();
   int cur_depth_ = 0;
-
+  Domain* parent_;
+  Domain(Domain* parent) : parent_(parent) {}
+  
   Obj* Find(ObjId obj_id) const {
     if (auto it = std::find_if(objects_.begin(), objects_.end(), [&obj_id](auto o) { return o.first->id_ == obj_id; });
         it != objects_.end()) return it->first;
@@ -380,8 +382,8 @@ public:
       return it->second();
     }
     
-    inline static bool first_release_ = true;
     inline static bool manual_release_ = false;
+    inline static bool first_release_ = true;
     inline static std::unordered_map<uint32_t, std::vector<uint32_t>>* base_to_derived_;
     inline static std::unordered_map<uint32_t, std::function<Obj*()>>* registry_;
   };
@@ -396,9 +398,11 @@ template <class T, class T1> SerializationResult SerializeRef(T& s, const Ptr<T1
   }
   return SerializationResult::kWholeObject;
 }
-
+inline static bool rrr = false;
 template <typename T> void Ptr<T>::Release() {
   if (!ptr_) return;
+  // The pointer is valid but the object is already released in manual releasing mode.
+  // DON'T use 'ptr_'
   if (Obj::Registry::manual_release_) {
     ptr_ = nullptr;
     return;
@@ -407,7 +411,7 @@ template <typename T> void Ptr<T>::Release() {
     Obj::Registry::first_release_ = false;
 
     // Collect all objects reachable from the releasing pointer. Count references for objects.
-    auto domain = std::make_shared<Domain>();
+    auto domain = std::make_shared<Domain>(ptr_->domain_.get());
     domain->store_facility_ = [](const ObjId&, uint32_t, const AETHER_OMSTREAM&) {};
     AETHER_OMSTREAM os2;
     os2.custom_ = domain;
@@ -451,7 +455,9 @@ template <typename T> void Ptr<T>::Release() {
       }
       // Maually release each object without recursive releasing.
       Obj::Registry::manual_release_ = true;
-      for (auto r : subgraph) delete r;
+      for (auto r : subgraph) {
+        delete r;
+      }
       Obj::Registry::manual_release_ = false;
     }
     Obj::Registry::first_release_ = true;
@@ -500,7 +506,7 @@ template <class T> Obj::ptr DeserializeRef(T& s) {
 
 template <typename T> void Ptr<T>::Serialize() const {
   // Create an empty domain to track already serialized objects during the serialization.
-  auto domain = std::make_shared<Domain>();
+  auto domain = std::make_shared<Domain>(ptr_->domain_.get());
   domain->store_facility_ = ptr_->domain_->store_facility_;
   AETHER_OMSTREAM os;
   os.custom_ = domain;

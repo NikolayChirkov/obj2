@@ -259,7 +259,7 @@ public:
 
 
 void Versioning1() {
-  auto domain = std::make_shared<Domain>();
+  auto domain = std::make_shared<Domain>(nullptr);
   domain->store_facility_ = saver;
   V1::ptr v1(aether::Obj::CreateObjByClassId(domain, V1::kClassId, 1));
   v1->i = 111;
@@ -272,7 +272,7 @@ void Versioning1() {
   v3->s_ = "text333";
   {
     // Upgrade serialized version: v1 -> v3, v2 -> v3, v3 -> v3
-    auto domain = std::make_shared<Domain>();
+    auto domain = std::make_shared<Domain>(nullptr);
     domain->store_facility_ = saver;
     domain->load_facility_ = loader;
     domain->enumerate_facility_ = enumerator;
@@ -280,7 +280,7 @@ void Versioning1() {
     os.custom_ = domain;
     os << v3 << v2 << v1;
     // assert(os.stream_.size() == 103);
-    auto domain1 = std::make_shared<Domain>();
+    auto domain1 = std::make_shared<Domain>(nullptr);
     domain1->store_facility_ = saver;
     domain1->load_facility_ = loader;
     domain1->enumerate_facility_ = enumerator;
@@ -308,7 +308,7 @@ void Versioning1() {
   }
   {
     // Downgrade serialized version: v3 -> v2, v2 -> v2
-    auto domain = std::make_shared<Domain>();
+    auto domain = std::make_shared<Domain>(nullptr);
     domain->store_facility_ = saver;
     domain->load_facility_ = loader;
     domain->enumerate_facility_ = enumerator;
@@ -316,7 +316,7 @@ void Versioning1() {
     os.custom_ = domain;
     os << v3 << v2;
     //REQUIRE(os.stream_.size() == 87);
-    auto domain1 = std::make_shared<Domain>();
+    auto domain1 = std::make_shared<Domain>(nullptr);
     domain1->store_facility_ = saver;
     domain1->load_facility_ = loader;
     domain1->enumerate_facility_ = enumerator;
@@ -338,7 +338,7 @@ void Versioning1() {
   }
   {
     // Upgrading by loading into the pointer
-    auto domain = std::make_shared<Domain>();
+    auto domain = std::make_shared<Domain>(nullptr);
     domain->store_facility_ = saver;
     domain->load_facility_ = loader;
     domain->enumerate_facility_ = enumerator;
@@ -346,7 +346,7 @@ void Versioning1() {
     os.custom_ = domain;
     os << v2 << v1;
     // REQUIRE(os.stream_.size() == 48);
-    auto domain1 = std::make_shared<Domain>();
+    auto domain1 = std::make_shared<Domain>(nullptr);
     domain1->store_facility_ = saver;
     domain1->load_facility_ = loader;
     domain1->enumerate_facility_ = enumerator;
@@ -367,7 +367,7 @@ void Versioning1() {
 
   {
     // Downgrade serialized version: v3 -> v1, v2 -> v1
-    auto domain = std::make_shared<Domain>();
+    auto domain = std::make_shared<Domain>(nullptr);
     domain->store_facility_ = saver;
     domain->load_facility_ = loader;
     domain->enumerate_facility_ = enumerator;
@@ -375,7 +375,7 @@ void Versioning1() {
     os.custom_ = domain;
     os << v3 << v2;
     // REQUIRE(os.stream_.size() == 87);
-    auto domain1 = std::make_shared<Domain>();
+    auto domain1 = std::make_shared<Domain>(nullptr);
     domain1->store_facility_ = saver;
     domain1->load_facility_ = loader;
     domain1->enumerate_facility_ = enumerator;
@@ -410,14 +410,14 @@ void Pointers() {
     A_00::ptr a5(std::move(a3));
   }
   {
-    auto domain = std::make_shared<Domain>();
+    auto domain = std::make_shared<Domain>(nullptr);
     A_00::ptr a0(aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 1));
   }
 }
 
 void SubgraphReleasing() {
   {
-    auto domain = std::make_shared<Domain>();
+    auto domain = std::make_shared<Domain>(nullptr);
     A_00::ptr a(aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 1));
     a->i_ = 1;
     A_00::ptr b1{aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 2)};
@@ -446,7 +446,7 @@ void SubgraphReleasing() {
     REQUIRE((erased == std::set{2, 3, 4}));
   }
   {
-    auto domain = std::make_shared<Domain>();
+    auto domain = std::make_shared<Domain>(nullptr);
     A_00::ptr a(aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 1));
     a->i_ = 1;
     A_00::ptr b1{aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 2)};
@@ -475,7 +475,7 @@ void SubgraphReleasing() {
     REQUIRE((erased == std::set{1, 2}));
   }
   {
-    auto domain = std::make_shared<Domain>();
+    auto domain = std::make_shared<Domain>(nullptr);
     A_00::ptr a1(aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 1));
     a1->i_ = 1;
     A_00::ptr a2{a1};
@@ -492,7 +492,7 @@ void SubgraphReleasing() {
     REQUIRE((erased == std::set{1, 2}));
   }
   {
-    auto domain = std::make_shared<Domain>();
+    auto domain = std::make_shared<Domain>(nullptr);
     A_00::ptr a1(aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 1));
     a1->i_ = 1;
     A_00::ptr a2{a1};
@@ -518,7 +518,7 @@ void SubgraphReleasing() {
   }
 
   {
-    auto domain = std::make_shared<Domain>();
+    auto domain = std::make_shared<Domain>(nullptr);
     A_00::ptr a(aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 1));
     a->i_ = 1;
     A_00::ptr b1{aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 2)};
@@ -547,7 +547,7 @@ void SubgraphReleasing() {
 void Serialization() {
   {
     std::filesystem::remove_all("state");
-    auto domain = std::make_shared<Domain>();
+    auto domain = std::make_shared<Domain>(nullptr);
     domain->store_facility_ = saver;
     A_00::ptr root(aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 666));
     root->i_ = 345;
@@ -556,7 +556,7 @@ void Serialization() {
   {
     A_00::ptr root;
     root.SetId(666);
-    auto domain = std::make_shared<Domain>();
+    auto domain = std::make_shared<Domain>(nullptr);
     domain->load_facility_ = loader;
     domain->enumerate_facility_ = enumerator;
     root.Load(domain);
@@ -567,7 +567,7 @@ void Serialization() {
     std::filesystem::remove_all("state");
     erased.clear();
     {
-      auto domain = std::make_shared<Domain>();
+      auto domain = std::make_shared<Domain>(nullptr);
       domain->store_facility_ = saver;
       A_00::ptr root(aether::Obj::CreateObjByClassId(domain, A_00::kClassId, 666));
       root->i_ = 666;
@@ -591,7 +591,7 @@ void Serialization() {
     REQUIRE((erased == std::set{666, 1, 3}));
     erased.clear();
     {
-      auto domain = std::make_shared<Domain>();
+      auto domain = std::make_shared<Domain>(nullptr);
       domain->load_facility_ = loader;
       domain->enumerate_facility_ = enumerator;
       A_00::ptr root;
