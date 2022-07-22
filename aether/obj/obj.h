@@ -276,6 +276,52 @@ public:
   }
 };
 
+class Registry {
+public:
+  static void RegisterClass(uint32_t cls_id, uint32_t base_id, std::function<Obj*()> factory) {
+    static bool initialized = false;
+    if (!initialized) {
+      initialized = true;
+      registry_ = new std::unordered_map<uint32_t, std::function<Obj*()>>();
+      base_to_derived_ = new std::unordered_map<uint32_t, std::vector<uint32_t>>();
+    }
+    if (registry_->find(cls_id) != registry_->end()) {
+      throw std::runtime_error("Class name already registered or Crc32 collision detected. Please choose another "
+                               "name for the class.");
+    }
+    (*registry_)[cls_id] = factory;
+    if (base_id != qcstudio::crc32::from_literal("Obj").value) (*base_to_derived_)[base_id].push_back(cls_id);
+  }
+  
+  static void UnregisterClass(uint32_t cls_id) {
+    auto it = registry_->find(cls_id);
+    if (it != registry_->end()) registry_->erase(it);
+    for (auto it = base_to_derived_->begin(); it != base_to_derived_->end(); ) {
+      it->second.erase(std::remove(it->second.begin(), it->second.end(), cls_id), it->second.end());
+      it = it->second.empty() ? base_to_derived_->erase(it) : std::next(it);
+    }
+  }
+  
+  // Creates the most far derivative without ambiguous inheritance.
+  static Obj* CreateObjByClassId(uint32_t base_id) {
+    uint32_t derived_id = base_id;
+    while (true) {
+      auto d = base_to_derived_->find(derived_id);
+      // If the derived is not found or multiple derives are found.
+      if (d == base_to_derived_->end() || d->second.size() > 1) break;
+      derived_id = d->second[0];
+    }
+    auto it = registry_->find(derived_id);
+    if (it == registry_->end()) return nullptr;
+    return it->second();
+  }
+  
+  inline static bool manual_release_ = false;
+  inline static bool first_release_ = true;
+  inline static std::unordered_map<uint32_t, std::vector<uint32_t>>* base_to_derived_;
+  inline static std::unordered_map<uint32_t, std::function<Obj*()>>* registry_;
+};
+
 class Obj {
 protected:
   template <class T> struct Registrar {
@@ -308,7 +354,7 @@ public:
   virtual void OnLoaded() {}
 
   static bool IsLast(uint32_t class_id) {
-    return Registry::base_to_derived_->find(class_id) == Obj::Registry::base_to_derived_->end();
+    return Registry::base_to_derived_->find(class_id) == Registry::base_to_derived_->end();
   }
   static bool IsExist(uint32_t class_id) {
     return Registry::registry_->find(class_id) != Registry::registry_->end();
@@ -341,52 +387,6 @@ public:
   ObjFlags flags_;
   int reference_count_ = 0;
   std::shared_ptr<Domain> domain_;
-
-  class Registry {
-  public:
-    static void RegisterClass(uint32_t cls_id, uint32_t base_id, std::function<Obj*()> factory) {
-      static bool initialized = false;
-      if (!initialized) {
-        initialized = true;
-        registry_ = new std::unordered_map<uint32_t, std::function<Obj*()>>();
-        base_to_derived_ = new std::unordered_map<uint32_t, std::vector<uint32_t>>();
-      }
-      if (registry_->find(cls_id) != registry_->end()) {
-        throw std::runtime_error("Class name already registered or Crc32 collision detected. Please choose another "
-                                 "name for the class.");
-      }
-      (*registry_)[cls_id] = factory;
-      if (base_id != qcstudio::crc32::from_literal("Obj").value) (*base_to_derived_)[base_id].push_back(cls_id);
-    }
-    
-    static void UnregisterClass(uint32_t cls_id) {
-      auto it = registry_->find(cls_id);
-      if (it != registry_->end()) registry_->erase(it);
-      for (auto it = base_to_derived_->begin(); it != base_to_derived_->end(); ) {
-        it->second.erase(std::remove(it->second.begin(), it->second.end(), cls_id), it->second.end());
-        it = it->second.empty() ? base_to_derived_->erase(it) : std::next(it);
-      }
-    }
-    
-    // Creates the most far derivative without ambiguous inheritance.
-    static Obj* CreateObjByClassId(uint32_t base_id) {
-      uint32_t derived_id = base_id;
-      while (true) {
-        auto d = base_to_derived_->find(derived_id);
-        // If the derived is not found or multiple derives are found.
-        if (d == base_to_derived_->end() || d->second.size() > 1) break;
-        derived_id = d->second[0];
-      }
-      auto it = registry_->find(derived_id);
-      if (it == registry_->end()) return nullptr;
-      return it->second();
-    }
-    
-    inline static bool manual_release_ = false;
-    inline static bool first_release_ = true;
-    inline static std::unordered_map<uint32_t, std::vector<uint32_t>>* base_to_derived_;
-    inline static std::unordered_map<uint32_t, std::function<Obj*()>>* registry_;
-  };
 };
 
 
@@ -403,12 +403,12 @@ template <typename T> void Ptr<T>::Release() {
   if (!ptr_) return;
   // The pointer is valid but the object is already released in manual releasing mode.
   // DON'T use 'ptr_'
-  if (Obj::Registry::manual_release_) {
+  if (Registry::manual_release_) {
     ptr_ = nullptr;
     return;
   }
-  if (Obj::Registry::first_release_) {
-    Obj::Registry::first_release_ = false;
+  if (Registry::first_release_) {
+    Registry::first_release_ = false;
 
     // Collect all objects reachable from the releasing pointer. Count references for objects.
     auto domain = std::make_shared<Domain>(ptr_->domain_.get());
@@ -454,13 +454,13 @@ template <typename T> void Ptr<T>::Release() {
         }
       }
       // Maually release each object without recursive releasing.
-      Obj::Registry::manual_release_ = true;
+      Registry::manual_release_ = true;
       for (auto r : subgraph) {
         delete r;
       }
-      Obj::Registry::manual_release_ = false;
+      Registry::manual_release_ = false;
     }
-    Obj::Registry::first_release_ = true;
+    Registry::first_release_ = true;
     ptr_ = nullptr;
     return;
   }
@@ -529,10 +529,10 @@ template <typename T> void Ptr<T>::Load(std::shared_ptr<Domain> domain) {
   AETHER_OMSTREAM os;
   os << GetId() << (flags & (~ObjFlags::kUnloadedByDefault));
   is.stream_ = std::move(os.stream_);
-  Obj::Registry::first_release_ = false;
+  Registry::first_release_ = false;
   is >> *this;
   SetFlags(flags);
-  Obj::Registry::first_release_ = true;
+  Registry::first_release_ = true;
   for (auto o : domain->objects_) {
     o.first->OnLoaded();
   }

@@ -108,16 +108,6 @@ auto loader = [](const aether::ObjId& obj_id, uint32_t class_id, AETHER_IMSTREAM
   f.read((char*)is.stream_.data(), length);
 };
 
-namespace aether {
-class TestAccessor {
-public:
-  template<class T>
-  static void UnregisterClass() {
-    aether::Obj::Registry::UnregisterClass(T::kClassId);
-  }
-};
-}
-
 class V1 : public Obj {
 public:
   typedef Ptr<V1> ptr;
@@ -324,7 +314,7 @@ void Versioning1() {
     is.custom_ = domain1;
     is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
     Obj::ptr o2, o3;
-    aether::TestAccessor::UnregisterClass<V3>();
+    aether::Registry::UnregisterClass(V3::kClassId);
     is >> o3 >> o2;
     REQUIRE(is.stream_.empty());
     V2::ptr v22 = o2;
@@ -383,7 +373,7 @@ void Versioning1() {
     is.custom_ = domain1;
     is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
     Obj::ptr o2, o3;
-    aether::TestAccessor::UnregisterClass<V2>();
+    aether::Registry::UnregisterClass(V2::kClassId);
     is >> o3 >> o2;
     REQUIRE(is.stream_.empty());
     V1::ptr v12 = o2;
