@@ -22,6 +22,7 @@
 using namespace aether;
 
 std::set<int> erased;
+int serializator_count = 0;
 
 class A_00 : public Obj {
 public:
@@ -71,7 +72,10 @@ public:
   virtual ~A_00() {
     erased.insert(i_);
   }
-  template <typename T> void Serializator(T& s) { s & i_ & a_;}
+  template <typename T> void Serializator(T& s) {
+    s & i_ & a_;
+    serializator_count++;
+  }
   int i_ = 123;
   std::vector<A_00::ptr> a_;
 };
@@ -602,12 +606,43 @@ void Serialization() {
   }
 }
 
+// Loads an object with the first reference only and links all other references to the existing object.
+void LoadReference() {
+  {
+    Domain domain(nullptr);
+    domain.store_facility_ = saver;
+    A_00::ptr root(domain.CreateObjByClassId(A_00::kClassId, 666));
+    root->i_ = 666;
+    auto b1 = root->a_.emplace_back(domain.CreateObjByClassId(A_00::kClassId, 1));
+    b1->i_ = 1;
+    root->a_.emplace_back(root->a_.back());
+    serializator_count = 0;
+    erased.clear();
+    std::filesystem::remove_all("state");
+    root.Serialize();
+    REQUIRE(serializator_count == 2);
+  }
+  {
+    Domain domain(nullptr);
+    domain.load_facility_ = loader;
+    domain.enumerate_facility_ = enumerator;
+    A_00::ptr root;
+    root.SetId(666);
+    serializator_count = 0;
+    root.Load(&domain);
+    REQUIRE(!!root);
+    REQUIRE(root->i_ == 666);
+    REQUIRE(serializator_count == 2);
+  }
+}
+
 void Versioning() {
   std::filesystem::remove_all("state");
   Versioning1();
   Pointers();
   SubgraphReleasing();
   Serialization();
+  LoadReference();
 }
 
 
