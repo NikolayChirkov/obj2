@@ -290,8 +290,6 @@ public:
     return it->second();
   }
   
-  inline static bool manual_release_ = false;
-  inline static bool first_release_ = true;
   inline static std::unordered_map<uint32_t, std::vector<uint32_t>>* s_base_to_derived_;
   inline static std::unordered_map<uint32_t, std::function<Obj*()>>* s_registry_;
 };
@@ -306,22 +304,27 @@ public:
   int cur_depth_ = 0;
   Domain* parent_;
   Registry registry_;
+  inline static bool manual_release_ = false;
+  inline static bool first_release_ = true;
+
   Domain(Domain* parent) : parent_(parent) {}
   inline Obj* CreateObjByClassId(uint32_t cls_id, ObjId obj_id);
   inline Obj* CreateObjByClassId(uint32_t cls_id);
-  bool IsLast(uint32_t class_id) {
+  bool IsLast(uint32_t class_id) const {
     return registry_.base_to_derived_.find(class_id) == registry_.base_to_derived_.end();
   }
-  bool IsExist(uint32_t class_id) {
+  bool IsExist(uint32_t class_id) const {
     return registry_.registry_.find(class_id) != registry_.registry_.end();
   }
 
+  // Search for the object including parent domains.
   Obj* Find(ObjId obj_id) const {
     if (auto it = std::find_if(objects_.begin(), objects_.end(), [&obj_id](auto o) { return o.first->id_ == obj_id; });
         it != objects_.end()) return it->first;
     return parent_ ? parent_->Find(obj_id) : nullptr;
   }
   
+  // Find the object in the current domain only. Tracks reference count of the searches.
   enum class Result { kFound, kAdded };
   Result FindOrAddObject(Obj* o) {
     if (auto it = std::find_if(objects_.begin(), objects_.end(), [o](auto i){ return i.first == o; });
@@ -395,7 +398,6 @@ Obj* Domain::CreateObjByClassId(uint32_t cls_id) {
   return o;
 }
 
-
 template <class T, class T1> SerializationResult SerializeRef(T& s, const Ptr<T1>& o) {
   s << o.GetId() << o.GetFlags();
   if (!o) return SerializationResult::kReferenceOnly;
@@ -404,17 +406,17 @@ template <class T, class T1> SerializationResult SerializeRef(T& s, const Ptr<T1
   }
   return SerializationResult::kWholeObject;
 }
-inline static bool rrr = false;
+
 template <typename T> void Ptr<T>::Release() {
   if (!ptr_) return;
   // The pointer is valid but the object is already released in manual releasing mode.
   // DON'T use 'ptr_'
-  if (Registry::manual_release_) {
+  if (Domain::manual_release_) {
     ptr_ = nullptr;
     return;
   }
-  if (Registry::first_release_) {
-    Registry::first_release_ = false;
+  if (Domain::first_release_) {
+    Domain::first_release_ = false;
 
     // Collect all objects reachable from the releasing pointer. Count references for objects.
     Domain domain(ptr_->domain_);
@@ -449,6 +451,7 @@ template <typename T> void Ptr<T>::Release() {
       ptr_->reference_count_--;
     } else {
       os2.custom_->max_depth_ = 1;
+      // Dereference objects which are referenced externally.
       for (auto r : subgraph) {
         domain.objects_.clear();
         r->Serialize(os2);
@@ -460,13 +463,13 @@ template <typename T> void Ptr<T>::Release() {
         }
       }
       // Maually release each object without recursive releasing.
-      Registry::manual_release_ = true;
+      Domain::manual_release_ = true;
       for (auto r : subgraph) {
         delete r;
       }
-      Registry::manual_release_ = false;
+      Domain::manual_release_ = false;
     }
-    Registry::first_release_ = true;
+    Domain::first_release_ = true;
     ptr_ = nullptr;
     return;
   }
@@ -491,6 +494,7 @@ template <class T> Obj::ptr DeserializeRef(T& s) {
   Obj* obj = s.custom_->Find(obj_id);
   if (obj) return obj;
 
+  // Find the last class in the inheritabce chain.
   std::vector<uint32_t> classes = s.custom_->enumerate_facility_(obj_id);
   uint32_t class_id = classes[0];
   for (auto c : classes) {
@@ -536,10 +540,10 @@ template <typename T> void Ptr<T>::Load(Domain* domain) {
   AETHER_OMSTREAM os;
   os << GetId() << (flags & (~ObjFlags::kUnloadedByDefault));
   is.stream_ = std::move(os.stream_);
-  Registry::first_release_ = false;
+  Domain::first_release_ = false;
   is >> *this;
   SetFlags(flags);
-  Registry::first_release_ = true;
+  Domain::first_release_ = true;
   for (auto o : domain->objects_) {
     o.first->OnLoaded();
   }
