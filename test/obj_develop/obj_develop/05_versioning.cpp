@@ -636,7 +636,6 @@ void LoadReference() {
   }
 }
 
-// Loads an object with the first reference only and links all other references to the existing object.
 void Subdomain() {
   {
     std::filesystem::remove_all("state");
@@ -691,6 +690,39 @@ void Subdomain() {
   }
 }
 
+void SameObjDiffDomains() {
+  {
+    Domain domain(nullptr);
+    domain.store_facility_ = saver;
+    A_00::ptr root(domain.CreateObjByClassId(A_00::kClassId, 666));
+    root->i_ = 666;
+    std::filesystem::remove_all("state");
+    root.Serialize();
+  }
+  {
+    Domain domain1(nullptr);
+    domain1.load_facility_ = loader;
+    domain1.enumerate_facility_ = enumerator;
+    Domain domain2(nullptr);
+    domain2.load_facility_ = loader;
+    domain2.enumerate_facility_ = enumerator;
+
+    A_00::ptr root1;
+    root1.SetId(666);
+    root1.Load(&domain1);
+    REQUIRE(!!root1);
+    REQUIRE(root1->i_ == 666);
+
+    A_00::ptr root2;
+    root2.SetId(666);
+    root2.Load(&domain2);
+    REQUIRE(!!root2);
+    REQUIRE(root2->i_ == 666);
+
+    REQUIRE(root1.ptr_ != root2.ptr_);
+  }
+}
+
 void Versioning() {
   std::filesystem::remove_all("state");
   Versioning1();
@@ -699,6 +731,7 @@ void Versioning() {
   Serialization();
   LoadReference();
   Subdomain();
+  SameObjDiffDomains();
 }
 
 
