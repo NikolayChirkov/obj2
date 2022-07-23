@@ -249,30 +249,27 @@ template <class T> Ptr<Obj> DeserializeRef(T& s);
 class Registry {
 public:
   static void RegisterClass(uint32_t cls_id, uint32_t base_id, std::function<Obj*()> factory) {
-    static bool initialized = false;
-    if (!initialized) {
-      initialized = true;
-      s_registry_ = new std::unordered_map<uint32_t, std::function<Obj*()>>();
-      s_base_to_derived_ = new std::unordered_map<uint32_t, std::vector<uint32_t>>();
-    }
-    if (s_registry_->find(cls_id) != s_registry_->end()) {
+    FactoryMap& factories = GetFactory();
+    if (factories.find(cls_id) != factories.end()) {
       throw std::runtime_error("Class name already registered or Crc32 collision detected. Please choose another "
                                "name for the class.");
     }
-    (*s_registry_)[cls_id] = factory;
-    if (base_id != qcstudio::crc32::from_literal("Obj").value) (*s_base_to_derived_)[base_id].push_back(cls_id);
+    factories[cls_id] = factory;
+    if (base_id != qcstudio::crc32::from_literal("Obj").value) GetInheritance()[base_id].push_back(cls_id);
   }
   
-  std::unordered_map<uint32_t, std::vector<uint32_t>> base_to_derived_;
-  std::unordered_map<uint32_t, std::function<Obj*()>> registry_;
-  Registry() : registry_(*s_registry_), base_to_derived_(*s_base_to_derived_) {}
+  using InheritanceMap = std::unordered_map<uint32_t, std::vector<uint32_t>>;
+  InheritanceMap inheritance_;
+  using FactoryMap = std::unordered_map<uint32_t, std::function<Obj*()>>;
+  FactoryMap factory_;
+  Registry() : factory_(GetFactory()), inheritance_(GetInheritance()) {}
   
   void UnregisterClass(uint32_t cls_id) {
-    auto it = registry_.find(cls_id);
-    if (it != registry_.end()) registry_.erase(it);
-    for (auto it = base_to_derived_.begin(); it != base_to_derived_.end(); ) {
+    auto it = factory_.find(cls_id);
+    if (it != factory_.end()) factory_.erase(it);
+    for (auto it = inheritance_.begin(); it != inheritance_.end(); ) {
       it->second.erase(std::remove(it->second.begin(), it->second.end(), cls_id), it->second.end());
-      it = it->second.empty() ? base_to_derived_.erase(it) : std::next(it);
+      it = it->second.empty() ? inheritance_.erase(it) : std::next(it);
     }
   }
   
@@ -280,18 +277,24 @@ public:
   Obj* CreateObjByClassId(uint32_t base_id) {
     uint32_t derived_id = base_id;
     while (true) {
-      auto d = base_to_derived_.find(derived_id);
+      auto d = inheritance_.find(derived_id);
       // If the derived is not found or multiple derives are found.
-      if (d == base_to_derived_.end() || d->second.size() > 1) break;
+      if (d == inheritance_.end() || d->second.size() > 1) break;
       derived_id = d->second[0];
     }
-    auto it = registry_.find(derived_id);
-    if (it == registry_.end()) return nullptr;
+    auto it = factory_.find(derived_id);
+    if (it == factory_.end()) return nullptr;
     return it->second();
   }
   
-  inline static std::unordered_map<uint32_t, std::vector<uint32_t>>* s_base_to_derived_;
-  inline static std::unordered_map<uint32_t, std::function<Obj*()>>* s_registry_;
+  static InheritanceMap& GetInheritance() {
+    static InheritanceMap inheritance;
+    return inheritance;
+  }
+  static FactoryMap& GetFactory() {
+    static FactoryMap factories;
+    return factories;
+  }
 };
 
 class Domain {
@@ -311,10 +314,10 @@ public:
   inline Obj* CreateObjByClassId(uint32_t cls_id, ObjId obj_id);
   inline Obj* CreateObjByClassId(uint32_t cls_id);
   bool IsLast(uint32_t class_id) const {
-    return registry_.base_to_derived_.find(class_id) == registry_.base_to_derived_.end();
+    return registry_.inheritance_.find(class_id) == registry_.inheritance_.end();
   }
   bool IsExist(uint32_t class_id) const {
-    return registry_.registry_.find(class_id) != registry_.registry_.end();
+    return registry_.factory_.find(class_id) != registry_.factory_.end();
   }
 
   // Search for the object including parent domains.
