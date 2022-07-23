@@ -249,27 +249,27 @@ template <class T> Ptr<Obj> DeserializeRef(T& s);
 class Registry {
 public:
   static void RegisterClass(uint32_t cls_id, uint32_t base_id, std::function<Obj*()> factory) {
-    FactoryMap& factories = GetFactory();
+    Factories& factories = GetFactories();
     if (factories.find(cls_id) != factories.end()) {
       throw std::runtime_error("Class name already registered or Crc32 collision detected. Please choose another "
                                "name for the class.");
     }
     factories[cls_id] = factory;
-    if (base_id != qcstudio::crc32::from_literal("Obj").value) GetInheritance()[base_id].push_back(cls_id);
+    if (base_id != qcstudio::crc32::from_literal("Obj").value) GetRelations()[base_id].push_back(cls_id);
   }
   
-  using InheritanceMap = std::unordered_map<uint32_t, std::vector<uint32_t>>;
-  InheritanceMap inheritance_;
-  using FactoryMap = std::unordered_map<uint32_t, std::function<Obj*()>>;
-  FactoryMap factory_;
-  Registry() : factory_(GetFactory()), inheritance_(GetInheritance()) {}
+  using Relations = std::unordered_map<uint32_t, std::vector<uint32_t>>;
+  Relations relations_;
+  using Factories = std::unordered_map<uint32_t, std::function<Obj*()>>;
+  Factories factories_;
+  Registry() : factories_(GetFactories()), relations_(GetRelations()) {}
   
   void UnregisterClass(uint32_t cls_id) {
-    auto it = factory_.find(cls_id);
-    if (it != factory_.end()) factory_.erase(it);
-    for (auto it = inheritance_.begin(); it != inheritance_.end(); ) {
+    auto it = factories_.find(cls_id);
+    if (it != factories_.end()) factories_.erase(it);
+    for (auto it = relations_.begin(); it != relations_.end(); ) {
       it->second.erase(std::remove(it->second.begin(), it->second.end(), cls_id), it->second.end());
-      it = it->second.empty() ? inheritance_.erase(it) : std::next(it);
+      it = it->second.empty() ? relations_.erase(it) : std::next(it);
     }
   }
   
@@ -277,22 +277,22 @@ public:
   Obj* CreateObjByClassId(uint32_t base_id) {
     uint32_t derived_id = base_id;
     while (true) {
-      auto d = inheritance_.find(derived_id);
+      auto d = relations_.find(derived_id);
       // If the derived is not found or multiple derives are found.
-      if (d == inheritance_.end() || d->second.size() > 1) break;
+      if (d == relations_.end() || d->second.size() > 1) break;
       derived_id = d->second[0];
     }
-    auto it = factory_.find(derived_id);
-    if (it == factory_.end()) return nullptr;
+    auto it = factories_.find(derived_id);
+    if (it == factories_.end()) return nullptr;
     return it->second();
   }
   
-  static InheritanceMap& GetInheritance() {
-    static InheritanceMap inheritance;
-    return inheritance;
+  static Relations& GetRelations() {
+    static Relations relations;
+    return relations;
   }
-  static FactoryMap& GetFactory() {
-    static FactoryMap factories;
+  static Factories& GetFactories() {
+    static Factories factories;
     return factories;
   }
 };
@@ -314,10 +314,10 @@ public:
   inline Obj* CreateObjByClassId(uint32_t cls_id, ObjId obj_id);
   inline Obj* CreateObjByClassId(uint32_t cls_id);
   bool IsLast(uint32_t class_id) const {
-    return registry_.inheritance_.find(class_id) == registry_.inheritance_.end();
+    return registry_.relations_.find(class_id) == registry_.relations_.end();
   }
   bool IsExist(uint32_t class_id) const {
-    return registry_.factory_.find(class_id) != registry_.factory_.end();
+    return registry_.factories_.find(class_id) != registry_.factories_.end();
   }
 
   // Search for the object including parent domains.
