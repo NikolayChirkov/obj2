@@ -17,6 +17,196 @@
 #include <thread>
 #include "../../../aether/obj/obj.h"
 
+#include <iostream>
+#include <fstream>
+#include <map>
+#include <set>
+#include "../../../aether/obj/obj.h"
+#include <assert.h>
+#define REQUIRE assert
+
+using namespace aether;
+static int version;
+
+class Event : public Obj {
+public:
+  typedef Ptr<Event> ptr;
+  static constexpr uint32_t kClassId = qcstudio::crc32::from_literal("Event").value;
+  static constexpr uint32_t kBaseClassId = qcstudio::crc32::from_literal("Obj").value;
+  inline static Registrar<Event> registrar_ = Registrar<Event>(kClassId, kBaseClassId);
+  virtual uint32_t GetClassId() const { return kClassId; }
+  
+  virtual void* DynamicCast(uint32_t id) {
+    return id == kClassId ? static_cast<Event*>(this) : Obj::DynamicCast(id);
+  }
+  
+  virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s); }
+  virtual void SerializeBase(AETHER_OMSTREAM& s) {
+    AETHER_OMSTREAM os;
+    os.custom_ = s.custom_;
+    Serializator(os);
+    s.custom_->store_facility_(id_, kClassId, os);
+    //    if (qcstudio::crc32::from_literal("Obj").value != qcstudio::crc32::from_literal("Obj").value)
+    //      aether::Obj::SerializeBase(s, qcstudio::crc32::from_literal("Obj").value);
+  }
+  virtual void DeserializeBase(AETHER_IMSTREAM& s) {
+    AETHER_IMSTREAM is;
+    is.custom_ = s.custom_;
+    is.custom_->load_facility_(id_, kClassId, is);
+    if (!is.stream_.empty()) Serializator(is);
+    //    if (qcstudio::crc32::from_literal("Obj").value != qcstudio::crc32::from_literal(#BASE).value)
+    //      BASE::DeserializeBase(s, qcstudio::crc32::from_literal(#BASE).value);
+  }
+  friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const ptr& o) {
+    if (++s.custom_->cur_depth_ <= s.custom_->max_depth_ && SerializeRef(s, o) == SerializationResult::kWholeObject) {
+      o->SerializeBase(s);
+    }
+    s.custom_->cur_depth_--;
+    return s;
+  }
+  friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, ptr& o) {
+    o = DeserializeRef(s);
+    return s;
+  }
+  
+  
+  virtual ~Event() {}
+  template <typename T> void Serializator(T& s) {
+    s & i_;
+  }
+  int i_;
+};
+
+
+class A_03 : public Obj {
+public:
+  typedef Ptr<A_03> ptr;
+  static constexpr uint32_t kClassId = qcstudio::crc32::from_literal("A_03").value;
+  static constexpr uint32_t kBaseClassId = qcstudio::crc32::from_literal("Obj").value;
+  inline static Registrar<A_03> registrar_ = Registrar<A_03>(kClassId, kBaseClassId);
+  virtual uint32_t GetClassId() const { return kClassId; }
+  
+  virtual void* DynamicCast(uint32_t id) {
+    return id == kClassId ? static_cast<A_03*>(this) : Obj::DynamicCast(id);
+  }
+  
+  virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s); }
+  virtual void SerializeBase(AETHER_OMSTREAM& s) {
+    AETHER_OMSTREAM os;
+    os.custom_ = s.custom_;
+    Serializator(os);
+    s.custom_->store_facility_(id_, kClassId, os);
+    //    if (qcstudio::crc32::from_literal("Obj").value != qcstudio::crc32::from_literal("Obj").value)
+    //      aether::Obj::SerializeBase(s, qcstudio::crc32::from_literal("Obj").value);
+  }
+  virtual void DeserializeBase(AETHER_IMSTREAM& s) {
+    AETHER_IMSTREAM is;
+    is.custom_ = s.custom_;
+    is.custom_->load_facility_(id_, kClassId, is);
+    if (!is.stream_.empty()) Serializator(is);
+    //    if (qcstudio::crc32::from_literal("Obj").value != qcstudio::crc32::from_literal(#BASE).value)
+    //      BASE::DeserializeBase(s, qcstudio::crc32::from_literal(#BASE).value);
+  }
+  friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const ptr& o) {
+    if (++s.custom_->cur_depth_ <= s.custom_->max_depth_ && SerializeRef(s, o) == SerializationResult::kWholeObject) {
+      o->SerializeBase(s);
+    }
+    s.custom_->cur_depth_--;
+    return s;
+  }
+  friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, ptr& o) {
+    o = DeserializeRef(s);
+    return s;
+  }
+  
+  
+  virtual ~A_03() { }
+  template <typename T> void Serializator(T& s) {
+    s & i_ & a_;
+    EventsSerializator(s);
+  }
+  int i_ = 123;
+  std::vector<A_03::ptr> a_;
+  
+  // Event processing
+  int version_ = 0;
+  std::vector<Event::ptr> events_;
+  template <typename T> void EventsSerializator(T& s) {
+    s & version_ & events_;
+  }
+  bool OnEvent(const Event::ptr& e) {
+    version_++;
+    i_ = e->i_;
+    return true;
+  }
+};
+
+auto saver03 = [](const aether::ObjId& obj_id, uint32_t class_id, const AETHER_OMSTREAM& os){
+  std::filesystem::path dir = std::filesystem::path{"state03"} / std::to_string(version) / obj_id.ToString();
+  std::filesystem::create_directories(dir);
+  auto p = dir / std::to_string(class_id);
+  std::ofstream f(p.c_str(), std::ios::out | std::ios::binary | std::ios::trunc);
+  //   bool b = f.good();
+  f.write((const char*)os.stream_.data(), os.stream_.size());
+  std::cout << p.c_str() << " size: " << os.stream_.size() << "\n";
+};
+
+auto enumerator03 = [](const aether::ObjId& obj_id){
+  std::string path = obj_id.ToString();
+  auto p = std::filesystem::path{"state03"} / std::to_string(version) / path;
+  std::vector<uint32_t> classes;
+  for(auto& f: std::filesystem::directory_iterator(p)) {
+    classes.push_back(std::atoi(f.path().filename().c_str()));
+  }
+  return classes;
+};
+
+auto loader03 = [](const aether::ObjId& obj_id, uint32_t class_id, AETHER_IMSTREAM& is){
+  std::filesystem::path dir = std::filesystem::path{"state03"} / std::to_string(version) / obj_id.ToString();
+  auto p = dir / std::to_string(class_id);
+  std::ifstream f(p.c_str(), std::ios::in | std::ios::binary);
+  if (!f.good()) return;
+  f.seekg (0, f.end);
+  std::streamoff length = f.tellg();
+  f.seekg (0, f.beg);
+  is.stream_.resize(length);
+  f.read((char*)is.stream_.data(), length);
+};
+
+void EventProcessor() {
+  std::cout << "\n\n\n";
+  std::filesystem::remove_all("state03");
+  Domain domain(nullptr);
+  domain.store_facility_ = saver03;
+  A_03::ptr o(domain.CreateObjByClassId(A_03::kClassId, 666));
+  o->i_ = 0;
+  version = 0;
+  o.Serialize();
+  {
+    Domain domain(nullptr);
+    domain.load_facility_ = loader03;
+    domain.enumerate_facility_ = enumerator03;
+    A_03::ptr o;
+    o.SetId(666);
+    o.Load(&domain);
+    REQUIRE(!!o);
+    REQUIRE(o->i_ == 0);
+  }
+  o->i_ = 1;
+  version = 1;
+  o.Serialize();
+  {
+    Domain domain(nullptr);
+    domain.load_facility_ = loader03;
+    domain.enumerate_facility_ = enumerator03;
+    A_03::ptr o;
+    o.SetId(666);
+    o.Load(&domain);
+    REQUIRE(!!o);
+    REQUIRE(o->i_ == 1);
+  }
+}
+
 /*
 #define OBSERVER_DEV
 #define OBSERVER_ROOT_ID 666
