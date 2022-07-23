@@ -319,7 +319,7 @@ public:
   Obj* Find(ObjId obj_id) const {
     if (auto it = std::find_if(objects_.begin(), objects_.end(), [&obj_id](auto o) { return o.first->id_ == obj_id; });
         it != objects_.end()) return it->first;
-    return nullptr;
+    return parent_ ? parent_->Find(obj_id) : nullptr;
   }
   
   enum class Result { kFound, kAdded };

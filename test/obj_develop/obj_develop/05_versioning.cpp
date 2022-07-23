@@ -613,8 +613,8 @@ void LoadReference() {
     domain.store_facility_ = saver;
     A_00::ptr root(domain.CreateObjByClassId(A_00::kClassId, 666));
     root->i_ = 666;
-    auto b1 = root->a_.emplace_back(domain.CreateObjByClassId(A_00::kClassId, 1));
-    b1->i_ = 1;
+    auto a = root->a_.emplace_back(domain.CreateObjByClassId(A_00::kClassId, 1));
+    a->i_ = 1;
     root->a_.emplace_back(root->a_.back());
     serializator_count = 0;
     erased.clear();
@@ -636,6 +636,61 @@ void LoadReference() {
   }
 }
 
+// Loads an object with the first reference only and links all other references to the existing object.
+void Subdomain() {
+  {
+    std::filesystem::remove_all("state");
+    Domain domain(nullptr);
+    domain.store_facility_ = saver;
+    Domain domain1(&domain);
+    domain1.store_facility_ = saver;
+
+    // Root contains 'a' permanent object and
+    // 'b' - loadable object that contains reference to 'a'
+    A_00::ptr root(domain.CreateObjByClassId(A_00::kClassId, 666));
+    root->i_ = 666;
+    root->a_.emplace_back(domain.CreateObjByClassId(A_00::kClassId, 1))->i_ = 1;
+    root->a_.emplace_back(domain1.CreateObjByClassId(A_00::kClassId, 2))->i_ = 2;
+    root->a_[1]->a_.push_back(root->a_[0]);
+    root->a_[1].SetFlags(ObjFlags::kUnloadedByDefault);
+    serializator_count = 0;
+    root->a_[1].Serialize();
+    REQUIRE(serializator_count == 2);
+    root->a_[1].Unload();
+    serializator_count = 0;
+    root.Serialize();
+    REQUIRE(serializator_count == 2);
+  }
+  {
+    Domain domain(nullptr);
+    domain.load_facility_ = loader;
+    domain.enumerate_facility_ = enumerator;
+    Domain domain1(&domain);
+    domain1.load_facility_ = loader;
+    domain1.enumerate_facility_ = enumerator;
+
+    A_00::ptr root;
+    root.SetId(666);
+    serializator_count = 0;
+    root.Load(&domain);
+    REQUIRE(serializator_count == 2);
+    REQUIRE(!!root);
+    REQUIRE(root->i_ == 666);
+    REQUIRE(!root->a_[1]);
+    REQUIRE(!!root->a_[0]);
+    REQUIRE(root->a_[0]->i_ == 1);
+
+    serializator_count = 0;
+    root->a_[1].Load(&domain1);
+    // a_[1] is loaded but a_[1]->a_[0] is linked to root->a_[0]
+    REQUIRE(serializator_count == 1);
+    REQUIRE(!!root->a_[1]);
+    REQUIRE(root->a_[1]->i_ == 2);
+    REQUIRE(!!root->a_[1]->a_[0]);
+    REQUIRE(root->a_[1]->a_[0]->i_ == root->a_[0]);
+  }
+}
+
 void Versioning() {
   std::filesystem::remove_all("state");
   Versioning1();
@@ -643,6 +698,7 @@ void Versioning() {
   SubgraphReleasing();
   Serialization();
   LoadReference();
+  Subdomain();
 }
 
 
