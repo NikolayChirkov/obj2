@@ -521,6 +521,7 @@ template <typename T> void Ptr<T>::Serialize() const {
 
 template <typename T> void Ptr<T>::Unload() {
   if (!ptr_) return;
+  if (ptr_->reference_count_ > 1) throw "Unable to unload the object with multiple references to it";
   id_ = GetId();
   flags_ = GetFlags() | ObjFlags::kUnloaded;
   Release();
