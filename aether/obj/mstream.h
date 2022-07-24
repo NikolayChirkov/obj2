@@ -19,6 +19,7 @@
 #include <type_traits>
 #include <vector>
 #include <map>
+#include <deque>
 
 // If the platform doesn't support uint8_t let's define something close.
 #ifndef UINT8_MAX
@@ -346,6 +347,30 @@ istream_impl<Typed, Custom>& operator >>(istream_impl<Typed, Custom>& s, std::ma
     T2 v;
     s >> v;
     t[k] = std::move(v);
+  }
+  return s;
+}
+
+template <bool Typed, typename T, typename Custom>
+ostream_impl<Typed, Custom>& operator <<(ostream_impl<Typed, Custom>& s, const std::deque<T>& t) {
+  s.write_type(kMapTypeIndex);
+  s.write_type(TypeToIndex<T>());
+  s << uint32_t(t.size());
+  for (const auto& i : t) {
+    s << i;
+  }
+  return s;
+}
+template <bool Typed, typename T, typename Custom>
+istream_impl<Typed, Custom>& operator >>(istream_impl<Typed, Custom>& s, std::deque<T>& t) {
+  s.readTypeAndCheck(kMapTypeIndex);
+  s.readTypeAndCheck(TypeToIndex<T>());
+  uint32_t size;
+  s >> size;
+  for (int i = 0; i < size; i++) {
+    T v;
+    s >> v;
+    t.push_back(std::move(v));
   }
   return s;
 }

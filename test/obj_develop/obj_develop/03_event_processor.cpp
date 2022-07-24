@@ -72,9 +72,11 @@ public:
   
   virtual ~Event() {}
   template <typename T> void Serializator(T& s) {
-    s & i_;
+    s & pos_ & i_ & o_;
   }
+  int pos_;
   int i_;
+  Obj::ptr o_;
 };
 
 
@@ -125,18 +127,19 @@ public:
     s & i_ & a_;
     EventsSerializator(s);
   }
-  int i_ = 123;
+  std::vector<int> i_;
   std::vector<A_03::ptr> a_;
   
   // Event processing
   int version_ = 0;
-  std::vector<Event::ptr> events_;
+  std::deque<Event::ptr> events_;
   template <typename T> void EventsSerializator(T& s) {
     s & version_ & events_;
   }
   bool OnEvent(const Event::ptr& e) {
     version_++;
-    i_ = e->i_;
+    if (i_.size() < e->pos_ + 1) i_.resize(e->pos_ + 1);
+    i_[e->pos_] = e->i_;
     return true;
   }
 };
@@ -173,38 +176,98 @@ auto loader03 = [](const aether::ObjId& obj_id, uint32_t class_id, AETHER_IMSTRE
   f.read((char*)is.stream_.data(), length);
 };
 
+void PushEvent(int i, int pos, A_03::ptr o) {
+  Event::ptr e(o->domain_->CreateObjByClassId(Event::kClassId));
+  e->i_ = i;
+  e->pos_ = pos;
+  e->o_ = o;
+  o->events_.push_back(std::move(e));
+}
+
+// Applies events to the object to reach the version specified.
+void ApplyEvents(A_03::ptr o, int version) {
+  while (o->version_ < version && !o->events_.empty()) {
+    o->OnEvent(std::move(o->events_.front()));
+    o->events_.pop_front();
+  }
+}
+
 void EventProcessor() {
   std::cout << "\n\n\n";
   std::filesystem::remove_all("state03");
-  Domain domain(nullptr);
-  domain.store_facility_ = saver03;
-  A_03::ptr o(domain.CreateObjByClassId(A_03::kClassId, 666));
-  o->i_ = 0;
+  
+  Domain src_domain(nullptr);
+  src_domain.store_facility_ = saver03;
+  A_03::ptr src(src_domain.CreateObjByClassId(A_03::kClassId, 666));
+  src->i_.push_back(0);
   version = 0;
-  o.Serialize();
+  // Transfer the whole state
+  src.Serialize();
+
+  Domain dest_domain(nullptr);
+  dest_domain.load_facility_ = loader03;
+  dest_domain.enumerate_facility_ = enumerator03;
+  A_03::ptr dest;
+  dest.SetId(666);
+  dest.Load(&dest_domain);
+  REQUIRE(!!dest);
+  REQUIRE(dest->i_[0] == 0);
+  
+  PushEvent(1, 1, src);
+  PushEvent(2, 2, src);
+  ApplyEvents(src, 0);
+  REQUIRE(src->version_ == 0);
+  REQUIRE(src->events_.size() == 2);
+  
+  // Transfer events to destination
   {
-    Domain domain(nullptr);
-    domain.load_facility_ = loader03;
-    domain.enumerate_facility_ = enumerator03;
-    A_03::ptr o;
-    o.SetId(666);
-    o.Load(&domain);
-    REQUIRE(!!o);
-    REQUIRE(o->i_ == 0);
+    std::map<ObjId, std::map<uint32_t, std::vector<uint8_t>>> storage;
+    Domain domain(&src_domain);
+    domain.store_facility_ = [&src, &storage](const aether::ObjId& obj_id, uint32_t class_id, const AETHER_OMSTREAM& os){
+      // Store only events, skip all other objects' bodies and store just references instead.
+      if (std::find_if(src->events_.begin(), src->events_.end(), [obj_id](auto o) { return o->id_ == obj_id; }) !=
+          src->events_.end()) {
+        storage[obj_id][class_id] = os.stream_;
+      }
+    };
+    AETHER_OMSTREAM os;
+    os.custom_ = &domain;
+    os << src->events_;
+    // Transfer stream and storage
+    {
+      // Use destination domain to link references to existing objects.
+      dest_domain.enumerate_facility_ = [&storage](const aether::ObjId& obj_id){
+        std::vector<uint32_t> classes(storage[obj_id].size());
+        for (const auto& c : storage[obj_id]) classes.push_back(c.first);
+        return classes;
+      };
+      dest_domain.load_facility_ = [&storage](const aether::ObjId& obj_id, uint32_t class_id, AETHER_IMSTREAM& is){
+        is.stream_ = std::move(storage[obj_id][class_id]);
+      };
+
+      AETHER_IMSTREAM is;
+      is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
+      is.custom_ = &dest_domain;
+      std::deque<Event::ptr> events;
+      is >> events;
+
+      dest->events_.insert(dest->events_.end(), std::make_move_iterator(events.begin()),
+                           std::make_move_iterator(events.end()));
+    }
   }
-  o->i_ = 1;
-  version = 1;
-  o.Serialize();
-  {
-    Domain domain(nullptr);
-    domain.load_facility_ = loader03;
-    domain.enumerate_facility_ = enumerator03;
-    A_03::ptr o;
-    o.SetId(666);
-    o.Load(&domain);
-    REQUIRE(!!o);
-    REQUIRE(o->i_ == 1);
-  }
+  
+  // Destination is synchronized with source. Need to apply events.
+  REQUIRE(src->version_ == dest->version_);
+  REQUIRE(src->events_.size() == 2);
+  REQUIRE(dest->events_.size() == 2);
+  REQUIRE(src->events_[0]->i_ == dest->events_[0]->i_);
+  REQUIRE(src->events_[0]->pos_ == dest->events_[0]->pos_);
+  REQUIRE(src->events_[1]->i_ == dest->events_[1]->i_);
+  REQUIRE(src->events_[1]->pos_ == dest->events_[1]->pos_);
+  
+  ApplyEvents(src, 1);
+  REQUIRE(src->version_ == 1);
+  REQUIRE(src->events_.size() == 1);
 }
 
 /*
