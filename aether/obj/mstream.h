@@ -94,9 +94,10 @@ template<> struct TypeToIndexImpl<std::string> { enum { value = 19 }; };
 constexpr uint8_t kNonTrivialVectorTypeIndex = 255;
 constexpr uint8_t kTrivialVectorTypeIndex = 254;
 constexpr uint8_t kMapTypeIndex = 253;
+constexpr uint8_t kDequeTypeIndex = 252;
 
 template <typename T>
-constexpr uint8_t TypeToIndex() { return TypeToIndexImpl<T>::value; }
+constexpr uint8_t TypeToIndex() { return TypeToIndexImpl<typename std::remove_const<T>::type>::value; }
 
 // Base classes to simplify std::conditional checks in serialization functions.
 class ostream {};
@@ -353,7 +354,7 @@ istream_impl<Typed, Custom>& operator >>(istream_impl<Typed, Custom>& s, std::ma
 
 template <bool Typed, typename T, typename Custom>
 ostream_impl<Typed, Custom>& operator <<(ostream_impl<Typed, Custom>& s, const std::deque<T>& t) {
-  s.write_type(kMapTypeIndex);
+  s.write_type(kDequeTypeIndex);
   s.write_type(TypeToIndex<T>());
   s << uint32_t(t.size());
   for (const auto& i : t) {
@@ -363,7 +364,7 @@ ostream_impl<Typed, Custom>& operator <<(ostream_impl<Typed, Custom>& s, const s
 }
 template <bool Typed, typename T, typename Custom>
 istream_impl<Typed, Custom>& operator >>(istream_impl<Typed, Custom>& s, std::deque<T>& t) {
-  s.readTypeAndCheck(kMapTypeIndex);
+  s.readTypeAndCheck(kDequeTypeIndex);
   s.readTypeAndCheck(TypeToIndex<T>());
   uint32_t size;
   s >> size;

@@ -33,8 +33,8 @@ class Obj;
 }
 
 #include "mstream.h"
-#define AETHER_OMSTREAM aether::omstream<aether::Domain*>
-#define AETHER_IMSTREAM aether::imstream<aether::Domain*>
+#define AETHER_OMSTREAM aether::tomstream<aether::Domain*>
+#define AETHER_IMSTREAM aether::timstream<aether::Domain*>
 
 namespace aether {
 
@@ -71,8 +71,10 @@ public:
     kUnloaded = 2,
   };
   operator uint8_t&() { return value_; }
-  ObjFlags(decltype(value_) v) : value_(v) {}
+  ObjFlags(uint8_t v) : value_(v) {}
   ObjFlags() = default;
+  friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const ObjFlags& i) { return s << i.value_; }
+  friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, ObjFlags& i) { return s >> i.value_; }
 };
 
 using StoreFacility = std::function<void(const ObjId& obj_id, uint32_t class_id, const AETHER_OMSTREAM& os)>;
@@ -222,7 +224,10 @@ template <class T> class Ptr {
   void Load(Domain* domain);
 
   // Protected section.
-  void Init(T* p);
+  void Init(T* p) {
+    ptr_ = p;
+    if (ptr_) ptr_->reference_count_++;
+  }
   template <class T1> void InitCast(T1* p) { Init(p ? static_cast<T*>(p->DynamicCast(T::kClassId)) : nullptr); }
   void Release();
   static constexpr uint32_t kObjClassId = qcstudio::crc32::from_literal("Obj").value;
@@ -339,6 +344,9 @@ public:
       return Result::kAdded;
     }
   }
+  void RemoveObject(Obj* o) {
+    std::remove_if(objects_.begin(), objects_.end(), [o](auto i){ return i.first == o; });
+  }
 };
 
 class Obj {
@@ -352,9 +360,7 @@ protected:
 public:
   Obj() = default;
   
-  virtual ~Obj() {
-    std::remove_if(domain_->objects_.begin(), domain_->objects_.end(), [this](auto i){ return i.first == this; });
-  }
+  virtual ~Obj() { domain_->RemoveObject(this); }
 
   virtual void OnLoaded() {}
 
@@ -539,9 +545,9 @@ template <typename T> void Ptr<T>::Load(Domain* domain) {
   AETHER_IMSTREAM is;
   is.custom_ = domain;
   // Preserve kUnloadedByDefault flag
-  auto flags = GetFlags() & (~ObjFlags::kUnloaded);
+  ObjFlags flags = GetFlags() & (~ObjFlags::kUnloaded);
   AETHER_OMSTREAM os;
-  os << GetId() << (flags & (~ObjFlags::kUnloadedByDefault));
+  os << GetId() << ObjFlags(flags & (~ObjFlags::kUnloadedByDefault));
   is.stream_ = std::move(os.stream_);
   Domain::first_release_ = false;
   is >> *this;
@@ -550,11 +556,6 @@ template <typename T> void Ptr<T>::Load(Domain* domain) {
   for (auto o : domain->objects_) {
     o.first->OnLoaded();
   }
-}
-
-template <typename T> void Ptr<T>::Init(T* p) {
-  ptr_ = p;
-  if (ptr_) ptr_->reference_count_++;
 }
 
 }  // namespace aether
