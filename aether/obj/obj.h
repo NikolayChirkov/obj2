@@ -77,9 +77,9 @@ public:
   friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, ObjFlags& i) { return s >> i.value_; }
 };
 
-using StoreFacility = std::function<void(const ObjId& obj_id, uint32_t class_id, const AETHER_OMSTREAM& os)>;
-using EnumerateFacility = std::function<std::vector<uint32_t>(const ObjId& obj_id)>;
-using LoadFacility = std::function<void(const ObjId& obj_id, uint32_t class_id, AETHER_IMSTREAM& is)>;
+using StoreFacility = std::function<void(const aether::Domain& domain, const ObjId& obj_id, uint32_t class_id, const AETHER_OMSTREAM& os)>;
+using EnumerateFacility = std::function<std::vector<uint32_t>(const aether::Domain& domain, const ObjId& obj_id)>;
+using LoadFacility = std::function<void(const aether::Domain& domain, const ObjId& obj_id, uint32_t class_id, AETHER_IMSTREAM& is)>;
 
 template <class T> class Ptr {
  public:
@@ -126,14 +126,14 @@ template <class T> class Ptr {
     T* ptr = static_cast<T*>(p.ptr_->DynamicCast(T::kClassId));
     if (ptr) {
       ptr_ = ptr;
+      SetId(p.GetId());
+      SetFlags(p.GetFlags());
       p.ptr_ = nullptr;
     } else {
       ptr_ = nullptr;
       // Can't cast to this pointer so just release the original pointer.
       p.Release();
     }
-    SetId(p.GetId());
-    SetFlags(p.GetFlags());
     p.id_.Invalidate();
   }
 
@@ -208,7 +208,9 @@ template <class T> class Ptr {
   operator bool() const { return ptr_; }
   T* operator->() const { return ptr_; }
 
-  const ObjId& GetId() const { return ptr_ ? ptr_->id_ : id_; }
+  const ObjId& GetId() const {
+    return ptr_ ? ptr_->id_ : id_;
+  }
   void SetId(const ObjId& i) {
     if (ptr_) ptr_->id_ = i;
     id_ = i;
@@ -276,6 +278,12 @@ public:
       it->second.erase(std::remove(it->second.begin(), it->second.end(), cls_id), it->second.end());
       it = it->second.empty() ? relations_.erase(it) : std::next(it);
     }
+  }
+
+  bool AreRelated(uint32_t base_id, uint32_t derived_id) const {
+    auto d = relations_.find(base_id);
+    assert(d != relations_.end());
+    return std::find(d->second.cbegin(), d->second.cend(), derived_id) != d->second.cend();
   }
   
   // Creates the most far derivative without ambiguous inheritance.
@@ -345,7 +353,7 @@ public:
     }
   }
   void RemoveObject(Obj* o) {
-    std::remove_if(objects_.begin(), objects_.end(), [o](auto i){ return i.first == o; });
+    objects_.erase(std::remove_if(objects_.begin(), objects_.end(), [o](auto i){ return i.first == o; }));
   }
 };
 
@@ -429,7 +437,7 @@ template <typename T> void Ptr<T>::Release() {
 
     // Collect all objects reachable from the releasing pointer. Count references for objects.
     Domain domain(ptr_->domain_);
-    domain.store_facility_ = [](const ObjId&, uint32_t, const AETHER_OMSTREAM&) {};
+    domain.store_facility_ = [](const aether::Domain& domain, const ObjId&, uint32_t, const AETHER_OMSTREAM&) {};
     AETHER_OMSTREAM os2;
     os2.custom_ = &domain;
     os2 << *this;
@@ -504,7 +512,7 @@ template <class T> Obj::ptr DeserializeRef(T& s) {
   if (obj) return obj;
 
   // Find the last class in the inheritabce chain.
-  std::vector<uint32_t> classes = s.custom_->enumerate_facility_(obj_id);
+  std::vector<uint32_t> classes = s.custom_->enumerate_facility_(*s.custom_, obj_id);
   uint32_t class_id = classes[0];
   for (auto c : classes) {
     if (s.custom_->IsExist(c) && s.custom_->IsLast(c)) {

@@ -368,7 +368,7 @@ istream_impl<Typed, Custom>& operator >>(istream_impl<Typed, Custom>& s, std::de
   s.readTypeAndCheck(TypeToIndex<T>());
   uint32_t size;
   s >> size;
-  for (int i = 0; i < size; i++) {
+  for (uint32_t i = 0; i < size; i++) {
     T v;
     s >> v;
     t.push_back(std::move(v));
