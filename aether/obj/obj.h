@@ -266,33 +266,33 @@ public:
   }
   
   using Relations = std::unordered_map<uint32_t, std::vector<uint32_t>>;
-  Relations relations_;
+  Relations base_to_derived_;
   using Factories = std::unordered_map<uint32_t, std::function<Obj*()>>;
   Factories factories_;
-  Registry() : factories_(GetFactories()), relations_(GetRelations()) {}
+  Registry() : factories_(GetFactories()), base_to_derived_(GetRelations()) {}
   
   void UnregisterClass(uint32_t cls_id) {
     auto it = factories_.find(cls_id);
     if (it != factories_.end()) factories_.erase(it);
-    for (auto it = relations_.begin(); it != relations_.end(); ) {
+    for (auto it = base_to_derived_.begin(); it != base_to_derived_.end(); ) {
       it->second.erase(std::remove(it->second.begin(), it->second.end(), cls_id), it->second.end());
-      it = it->second.empty() ? relations_.erase(it) : std::next(it);
+      it = it->second.empty() ? base_to_derived_.erase(it) : std::next(it);
     }
   }
 
   bool AreRelated(uint32_t base_id, uint32_t derived_id) const {
-    auto d = relations_.find(base_id);
-    assert(d != relations_.end());
+    auto d = base_to_derived_.find(base_id);
+    assert(d != base_to_derived_.end());
     return std::find(d->second.cbegin(), d->second.cend(), derived_id) != d->second.cend();
   }
   
   // Creates the most far derivative without ambiguous inheritance.
-  Obj* CreateObjByClassId(uint32_t base_id) {
+  Obj* CreateObj(uint32_t base_id) {
     uint32_t derived_id = base_id;
     while (true) {
-      auto d = relations_.find(derived_id);
+      auto d = base_to_derived_.find(derived_id);
       // If the derived is not found or multiple derives are found.
-      if (d == relations_.end() || d->second.size() > 1) break;
+      if (d == base_to_derived_.end() || d->second.size() > 1) break;
       derived_id = d->second[0];
     }
     auto it = factories_.find(derived_id);
@@ -324,12 +324,12 @@ public:
   inline static bool first_release_ = true;
 
   Domain(Domain* parent) : parent_(parent) {}
-  inline Obj* CreateObjByClassId(uint32_t cls_id, ObjId obj_id);
-  inline Obj* CreateObjByClassId(uint32_t cls_id);
+  inline Obj* CreateObj(uint32_t cls_id, ObjId obj_id);
+  inline Obj* CreateObj(uint32_t cls_id);
   bool IsLast(uint32_t class_id) const {
-    return registry_.relations_.find(class_id) == registry_.relations_.end();
+    return registry_.base_to_derived_.find(class_id) == registry_.base_to_derived_.end();
   }
-  bool IsExist(uint32_t class_id) const {
+  bool IsExisting(uint32_t class_id) const {
     return registry_.factories_.find(class_id) != registry_.factories_.end();
   }
 
@@ -401,16 +401,16 @@ public:
   Domain* domain_;
 };
 
-Obj* Domain::CreateObjByClassId(uint32_t cls_id, ObjId obj_id) {
-  Obj* o = registry_.CreateObjByClassId(cls_id);
+Obj* Domain::CreateObj(uint32_t cls_id, ObjId obj_id) {
+  Obj* o = registry_.CreateObj(cls_id);
   o->id_ = obj_id;
   o->domain_ = this;
   objects_.emplace_back(o, 1);
   return o;
 }
 
-Obj* Domain::CreateObjByClassId(uint32_t cls_id) {
-  Obj* o = registry_.CreateObjByClassId(cls_id);
+Obj* Domain::CreateObj(uint32_t cls_id) {
+  Obj* o = registry_.CreateObj(cls_id);
   o->id_ = ObjId::GenerateUnique();
   o->domain_ = this;
   objects_.emplace_back(o, 1);
@@ -517,12 +517,12 @@ template <class T> Obj::ptr DeserializeRef(T& s) {
   std::vector<uint32_t> classes = s.custom_->enumerate_facility_(*s.custom_, obj_id);
   uint32_t class_id = classes[0];
   for (auto c : classes) {
-    if (s.custom_->IsExist(c) && s.custom_->IsLast(c)) {
+    if (s.custom_->IsExisting(c) && s.custom_->IsLast(c)) {
       class_id = c;
       break;
     }
   }
-  obj = s.custom_->CreateObjByClassId(class_id, obj_id);
+  obj = s.custom_->CreateObj(class_id, obj_id);
   obj->flags_ = obj_flags & (~ObjFlags::kUnloaded);
   obj->DeserializeBase(s);
   return obj;
