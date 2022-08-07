@@ -348,7 +348,7 @@ public:
       it->second++;
       return Result::kFound;
     } else {
-      objects_.push_back({o, 1});
+      objects_.emplace_back(o, 1);
       return Result::kAdded;
     }
   }
@@ -405,6 +405,7 @@ Obj* Domain::CreateObjByClassId(uint32_t cls_id, ObjId obj_id) {
   Obj* o = registry_.CreateObjByClassId(cls_id);
   o->id_ = obj_id;
   o->domain_ = this;
+  objects_.emplace_back(o, 1);
   return o;
 }
 
@@ -412,6 +413,7 @@ Obj* Domain::CreateObjByClassId(uint32_t cls_id) {
   Obj* o = registry_.CreateObjByClassId(cls_id);
   o->id_ = ObjId::GenerateUnique();
   o->domain_ = this;
+  objects_.emplace_back(o, 1);
   return o;
 }
 
@@ -521,11 +523,7 @@ template <class T> Obj::ptr DeserializeRef(T& s) {
     }
   }
   obj = s.custom_->CreateObjByClassId(class_id, obj_id);
-  obj->id_ = obj_id;
   obj->flags_ = obj_flags & (~ObjFlags::kUnloaded);
-  // Add object to the list of already loaded before deserialization to avoid infinite loop of cyclic references.
-  // Track all deserialized objects.
-  assert(s.custom_->FindOrAddObject(obj) == Domain::Result::kAdded);
   obj->DeserializeBase(s);
   return obj;
 }
