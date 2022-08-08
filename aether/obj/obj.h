@@ -272,18 +272,36 @@ public:
   Registry() : factories_(GetFactories()), base_to_derived_(GetRelations()) {}
   
   void UnregisterClass(uint32_t cls_id) {
-    auto it = factories_.find(cls_id);
-    if (it != factories_.end()) factories_.erase(it);
+    if (auto it = factories_.find(cls_id);  it != factories_.end()) factories_.erase(it);
+    if (auto it = base_to_derived_.find(cls_id);  it != base_to_derived_.end()) base_to_derived_.erase(it);
     for (auto it = base_to_derived_.begin(); it != base_to_derived_.end(); ) {
       it->second.erase(std::remove(it->second.begin(), it->second.end(), cls_id), it->second.end());
       it = it->second.empty() ? base_to_derived_.erase(it) : std::next(it);
     }
   }
 
-  bool AreRelated(uint32_t base_id, uint32_t derived_id) const {
+  bool IsExisting(uint32_t class_id) const {
+    return factories_.find(class_id) != factories_.end();
+  }
+
+  int GenerationDistanceInternal(uint32_t base_id, uint32_t derived_id) const {
     auto d = base_to_derived_.find(base_id);
-    assert(d != base_to_derived_.end());
-    return std::find(d->second.cbegin(), d->second.cend(), derived_id) != d->second.cend();
+    // The base class is final.
+    if (d == base_to_derived_.end()) return -1;
+    for (auto& c : d->second) {
+      if (derived_id == c) return 1;
+      int distance = GenerationDistanceInternal(c, derived_id);
+      if (distance >= 0) return distance + 1;
+    }
+    return -1;
+  }
+
+  // Calculates distance from base to derived in generations:
+  //  -1 - derived is not inherited directly or indirectly from base or any class doesn't exist.
+  int GenerationDistance(uint32_t base_id, uint32_t derived_id) const {
+    if (!IsExisting(base_id) || !IsExisting(derived_id)) return -1;
+    if (base_id == derived_id) return 0;
+    return GenerationDistanceInternal(base_id, derived_id);
   }
   
   // Creates the most far derivative without ambiguous inheritance.
@@ -330,7 +348,7 @@ public:
     return registry_.base_to_derived_.find(class_id) == registry_.base_to_derived_.end();
   }
   bool IsExisting(uint32_t class_id) const {
-    return registry_.factories_.find(class_id) != registry_.factories_.end();
+    return registry_.IsExisting(class_id);
   }
 
   // Search for the object including parent domains.
@@ -513,19 +531,47 @@ template <class T> Obj::ptr DeserializeRef(T& s) {
   Obj* obj = s.custom_->Find(obj_id);
   if (obj) return obj;
 
-  // Find the last class in the inheritabce chain.
+  // Find the last class in the inheritance chain.
   std::vector<uint32_t> classes = s.custom_->enumerate_facility_(*s.custom_, obj_id);
-  uint32_t class_id = classes[0];
-  for (auto c : classes) {
-    if (s.custom_->IsExisting(c) && s.custom_->IsLast(c)) {
-      class_id = c;
-      break;
+  // Remove all unsupported classes.
+  for (auto it = classes.begin(); it != classes.end(); ) {
+    if (s.custom_->IsExisting(*it)) ++it;
+    else it = classes.erase(it);
+  }
+  // Build inheritance chain.
+  std::deque<uint32_t> chain;
+  chain.push_back(classes.back());
+  classes.resize(classes.size() - 1);
+  while (!classes.empty()) {
+    for (auto it = classes.begin(); it != classes.end(); ++it) {
+      auto c = *it;
+      int distance = s.custom_->registry_.GenerationDistance(chain.front(), c);
+      if (distance == 1) {
+        chain.push_front(c);
+        classes.erase(it);
+        break;
+      }
+      distance = s.custom_->registry_.GenerationDistance(c, chain.back());
+      if (distance == 1) {
+        chain.push_back(c);
+        classes.erase(it);
+        break;
+      }
     }
   }
-  obj = s.custom_->CreateObj(class_id, obj_id);
-  obj->flags_ = obj_flags & (~ObjFlags::kUnloaded);
-  obj->DeserializeBase(s);
-  return obj;
+  // Find the Final class for the most derived class provided and create it.
+  for (const auto& f : s.custom_->registry_.factories_) {
+    if (s.custom_->IsLast(f.first)) {
+      int distance = s.custom_->registry_.GenerationDistance(chain.front(), f.first);
+      if (distance >= 0) {
+        obj = s.custom_->CreateObj(f.first, obj_id);
+        obj->flags_ = obj_flags & (~ObjFlags::kUnloaded);
+        obj->DeserializeBase(s);
+        return obj;
+      }
+    }
+  }
+  return nullptr;
 }
 
 
