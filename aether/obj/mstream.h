@@ -15,11 +15,11 @@
 
 #include <cstdint>
 #include <cstring>
+#include <deque>
+#include <map>
 #include <string>
 #include <type_traits>
 #include <vector>
-#include <map>
-#include <deque>
 
 // If the platform doesn't support uint8_t let's define something close.
 #ifndef UINT8_MAX
@@ -40,15 +40,15 @@ typedef unsigned char uint8_t;
 
 #ifndef AETHER_OSTREAM_CONTAINER
 #define AETHER_OSTREAM_CONTAINER std::vector<uint8_t>
-#define AETHER_CONTAINER_WRITE(stream, data, size) \
+#define AETHER_CONTAINER_WRITE(stream, data, size)                    \
   stream.insert(stream.end(), reinterpret_cast<const uint8_t*>(data), \
-  reinterpret_cast<const uint8_t*>(data) + size);
+                reinterpret_cast<const uint8_t*>(data) + size);
 #endif
 
 #ifndef AETHER_ISTREAM_CONTAINER
 #define AETHER_ISTREAM_CONTAINER std::vector<uint8_t>
 #define AETHER_CONTAINER_READ(stream, data, size) \
-  std::memcpy(data, stream.data(), size); \
+  std::memcpy(data, stream.data(), size);         \
   stream.erase(stream.begin(), stream_.begin() + size);
 #endif
 
@@ -56,48 +56,108 @@ namespace aether {
 
 // https://en.cppreference.com/w/cpp/language/types
 // Undefined types are mapped to 0.
-template <typename T> struct TypeToIndexImpl{ enum { value = 0 }; };
+template <typename T>
+struct TypeToIndexImpl {
+  enum { value = 0 };
+};
 
-template<> struct TypeToIndexImpl<bool> { enum { value = 1 }; };
-template<> struct TypeToIndexImpl<char> { enum { value = 2 }; };
+template <>
+struct TypeToIndexImpl<bool> {
+  enum { value = 1 };
+};
+template <>
+struct TypeToIndexImpl<char> {
+  enum { value = 2 };
+};
 
-template<> struct TypeToIndexImpl<signed char> { enum { value = 3 }; };
-template<> struct TypeToIndexImpl<unsigned char> { enum { value = 4 }; };
+template <>
+struct TypeToIndexImpl<signed char> {
+  enum { value = 3 };
+};
+template <>
+struct TypeToIndexImpl<unsigned char> {
+  enum { value = 4 };
+};
 
 // 16 bits.
-template<> struct TypeToIndexImpl<short int> { enum { value = 5 }; };
-template<> struct TypeToIndexImpl<unsigned short int> { enum { value = 6 }; };
-template<> struct TypeToIndexImpl<char16_t> { enum { value = 7 }; };
-template<> struct TypeToIndexImpl<wchar_t> { enum { value = 8 }; };
+template <>
+struct TypeToIndexImpl<short int> {
+  enum { value = 5 };
+};
+template <>
+struct TypeToIndexImpl<unsigned short int> {
+  enum { value = 6 };
+};
+template <>
+struct TypeToIndexImpl<char16_t> {
+  enum { value = 7 };
+};
+template <>
+struct TypeToIndexImpl<wchar_t> {
+  enum { value = 8 };
+};
 
 // 32 bits, at least 16.
-template<> struct TypeToIndexImpl<int> { enum { value = 9 }; };
-template<> struct TypeToIndexImpl<unsigned int> { enum { value = 10 }; };
+template <>
+struct TypeToIndexImpl<int> {
+  enum { value = 9 };
+};
+template <>
+struct TypeToIndexImpl<unsigned int> {
+  enum { value = 10 };
+};
 
 // 32 bits.
-template<> struct TypeToIndexImpl<long int> { enum { value = 11 }; };
-template<> struct TypeToIndexImpl<unsigned long int> { enum { value = 12 }; };
-template<> struct TypeToIndexImpl<char32_t> { enum { value = 13 }; };
+template <>
+struct TypeToIndexImpl<long int> {
+  enum { value = 11 };
+};
+template <>
+struct TypeToIndexImpl<unsigned long int> {
+  enum { value = 12 };
+};
+template <>
+struct TypeToIndexImpl<char32_t> {
+  enum { value = 13 };
+};
 
 // 64 bits.
-template<> struct TypeToIndexImpl<long long int> { enum { value = 14 }; };
-template<> struct TypeToIndexImpl<unsigned long long int> {
+template <>
+struct TypeToIndexImpl<long long int> {
+  enum { value = 14 };
+};
+template <>
+struct TypeToIndexImpl<unsigned long long int> {
   enum { value = 15 };
 };
 
-template<> struct TypeToIndexImpl<float> { enum { value = 16 }; };
-template<> struct TypeToIndexImpl<double> { enum { value = 17 }; };
-template<> struct TypeToIndexImpl<long double> { enum { value = 18 }; };
+template <>
+struct TypeToIndexImpl<float> {
+  enum { value = 16 };
+};
+template <>
+struct TypeToIndexImpl<double> {
+  enum { value = 17 };
+};
+template <>
+struct TypeToIndexImpl<long double> {
+  enum { value = 18 };
+};
 
 // Non-trivial types.
-template<> struct TypeToIndexImpl<std::string> { enum { value = 19 }; };
+template <>
+struct TypeToIndexImpl<std::string> {
+  enum { value = 19 };
+};
 constexpr uint8_t kNonTrivialVectorTypeIndex = 255;
 constexpr uint8_t kTrivialVectorTypeIndex = 254;
 constexpr uint8_t kMapTypeIndex = 253;
 constexpr uint8_t kDequeTypeIndex = 252;
 
 template <typename T>
-constexpr uint8_t TypeToIndex() { return TypeToIndexImpl<typename std::remove_const<T>::type>::value; }
+constexpr uint8_t TypeToIndex() {
+  return TypeToIndexImpl<typename std::remove_const<T>::type>::value;
+}
 
 // Base classes to simplify std::conditional checks in serialization functions.
 class ostream {};
@@ -121,15 +181,14 @@ class ostream_impl : public ostream {
     }
   };
   void write_type(uint8_t type_index) {
-    std::conditional<
-      Typed, Writer, VoidWriter>::type::write(this, type_index);
+    std::conditional<Typed, Writer, VoidWriter>::type::write(this, type_index);
   }
 
   AETHER_OSTREAM_CONTAINER stream_;
 };
-template<typename Custom>
+template <typename Custom>
 using omstream = ostream_impl<false, Custom>;
-template<typename Custom>
+template <typename Custom>
 using tomstream = ostream_impl<true, Custom>;
 
 template <bool Typed, typename Custom>
@@ -139,18 +198,20 @@ class istream_impl : public istream {
 
   void read(void* data, size_t size) {
     if (size > stream_.size()) {
-      AETHER_THROW(AETHER_TEXT(
-        "imstream: reading {0} bytes from stream containing {1} bytes"), size,
-        stream_.size());
+      AETHER_THROW(
+          AETHER_TEXT(
+              "imstream: reading {0} bytes from stream containing {1} bytes"),
+          size, stream_.size());
     }
     AETHER_CONTAINER_READ(stream_, data, size);
   }
 
   struct VoidReader {
-    static void read_type_and_check(istream_impl<Typed, Custom>*, uint8_t) { }
+    static void read_type_and_check(istream_impl<Typed, Custom>*, uint8_t) {}
   };
   struct Reader {
-    static void read_type_and_check(istream_impl<Typed, Custom>* s, uint8_t type_index) {
+    static void read_type_and_check(istream_impl<Typed, Custom>* s,
+                                    uint8_t type_index) {
       uint8_t index;
       s->read(&index, sizeof(index));
       if (index != type_index) {
@@ -160,15 +221,15 @@ class istream_impl : public istream {
     }
   };
   void readTypeAndCheck(uint8_t type_index) {
-    std::conditional<
-      Typed, Reader, VoidReader>::type::read_type_and_check(this, type_index);
+    std::conditional<Typed, Reader, VoidReader>::type::read_type_and_check(
+        this, type_index);
   }
 
   AETHER_ISTREAM_CONTAINER stream_;
 };
-template<typename Custom>
+template <typename Custom>
 using imstream = istream_impl<false, Custom>;
-template<typename Custom>
+template <typename Custom>
 using timstream = istream_impl<true, Custom>;
 
 // All other operators uses this two operators as end-points of read/write
@@ -185,12 +246,14 @@ S& WriteTrivial(S& s, const T& t) {
   s.write(&t, sizeof(T));
   return s;
 }
-template <bool Typed, typename T, typename Custom, typename = typename std::enable_if<
-            std::is_trivially_copyable<T>::value && !std::is_pointer<T>::value >::type>
-ostream_impl<Typed, Custom>& operator<<(ostream_impl<Typed, Custom>& s, const T& t) {
+template <
+    bool Typed, typename T, typename Custom,
+    typename = typename std::enable_if<std::is_trivially_copyable<T>::value &&
+                                       !std::is_pointer<T>::value>::type>
+ostream_impl<Typed, Custom>& operator<<(ostream_impl<Typed, Custom>& s,
+                                        const T& t) {
   return WriteTrivial(s, t);
 }
-
 
 template <typename T, typename S>
 S& ReadTrivial(S& s, T& t) {
@@ -204,8 +267,10 @@ S& ReadTrivial(S& s, T& t) {
   s.read(&t, sizeof(T));
   return s;
 }
-template <bool Typed, typename T, typename Custom, typename = typename std::enable_if<
-          std::is_trivially_copyable<T>::value && !std::is_pointer<T>::value >::type>
+template <
+    bool Typed, typename T, typename Custom,
+    typename = typename std::enable_if<std::is_trivially_copyable<T>::value &&
+                                       !std::is_pointer<T>::value>::type>
 istream_impl<Typed, Custom>& operator>>(istream_impl<Typed, Custom>& s, T& t) {
   return ReadTrivial(s, t);
 }
@@ -219,7 +284,8 @@ S& WriteConstChar(S& s, const char* t) {
   return s;
 }
 template <bool Typed, typename Custom>
-ostream_impl<Typed, Custom>& operator<<(ostream_impl<Typed, Custom>& s, const char* t) {
+ostream_impl<Typed, Custom>& operator<<(ostream_impl<Typed, Custom>& s,
+                                        const char* t) {
   return WriteConstChar(s, t);
 }
 
@@ -232,7 +298,8 @@ S& WriteString(S& s, const std::string& t) {
   return s;
 }
 template <bool Typed, typename Custom>
-ostream_impl<Typed, Custom>& operator<<(ostream_impl<Typed, Custom>& s, const std::string& t) {
+ostream_impl<Typed, Custom>& operator<<(ostream_impl<Typed, Custom>& s,
+                                        const std::string& t) {
   return WriteString(s, t);
 }
 
@@ -248,7 +315,8 @@ S& ReadString(S& s, std::string& t) {
   return s;
 }
 template <bool Typed, typename Custom>
-istream_impl<Typed, Custom>& operator>>(istream_impl<Typed, Custom>& s, std::string& t) {
+istream_impl<Typed, Custom>& operator>>(istream_impl<Typed, Custom>& s,
+                                        std::string& t) {
   return ReadString(s, t);
 }
 
@@ -258,8 +326,7 @@ struct VectorWriterContinuous {
     s.write_type(kTrivialVectorTypeIndex);
     s.write_type(TypeToIndex<T>());
     s << static_cast<uint32_t>(t.size());
-    if (!t.empty())
-      s.write(t.data(), t.size() * sizeof(T));
+    if (!t.empty()) s.write(t.data(), t.size() * sizeof(T));
   }
 };
 template <typename T, typename S>
@@ -276,12 +343,14 @@ struct VectorWriterPerElement {
 };
 template <typename T, typename S>
 S& WriteVector(S& s, const std::vector<T>& t) {
-  std::conditional<std::is_trivially_copyable<T>::value, VectorWriterContinuous<T, S>,
-    VectorWriterPerElement<T, S>>::type::save(s, t);
+  std::conditional<std::is_trivially_copyable<T>::value,
+                   VectorWriterContinuous<T, S>,
+                   VectorWriterPerElement<T, S>>::type::save(s, t);
   return s;
 }
 template <bool Typed, typename T, typename Custom>
-ostream_impl<Typed, Custom>& operator <<(ostream_impl<Typed, Custom>& s, const std::vector<T>& t) {
+ostream_impl<Typed, Custom>& operator<<(ostream_impl<Typed, Custom>& s,
+                                        const std::vector<T>& t) {
   return WriteVector(s, t);
 }
 
@@ -307,25 +376,26 @@ struct VectorReaderPerElement {
     if (size > 0) {
       t.resize(size);
 
-      for (T& v : t)
-        s >> v;
+      for (T& v : t) s >> v;
     }
   }
 };
 template <typename T, typename S>
 S& ReadVector(S& s, std::vector<T>& t) {
   std::conditional<std::is_trivially_copyable<T>::value,
-    VectorReaderContinuous<T, S>,
-    VectorReaderPerElement<T, S>>::type::load(s, t);
+                   VectorReaderContinuous<T, S>,
+                   VectorReaderPerElement<T, S>>::type::load(s, t);
   return s;
 }
 template <bool Typed, typename T, typename Custom>
-istream_impl<Typed, Custom>& operator >>(istream_impl<Typed, Custom>& s, std::vector<T>& t) {
+istream_impl<Typed, Custom>& operator>>(istream_impl<Typed, Custom>& s,
+                                        std::vector<T>& t) {
   return ReadVector(s, t);
 }
 
 template <bool Typed, typename T1, typename T2, typename Custom>
-ostream_impl<Typed, Custom>& operator <<(ostream_impl<Typed, Custom>& s, const std::map<T1, T2>& t) {
+ostream_impl<Typed, Custom>& operator<<(ostream_impl<Typed, Custom>& s,
+                                        const std::map<T1, T2>& t) {
   s.write_type(kMapTypeIndex);
   s.write_type(TypeToIndex<T1>());
   s.write_type(TypeToIndex<T2>());
@@ -336,7 +406,8 @@ ostream_impl<Typed, Custom>& operator <<(ostream_impl<Typed, Custom>& s, const s
   return s;
 }
 template <bool Typed, typename T1, typename T2, typename Custom>
-istream_impl<Typed, Custom>& operator >>(istream_impl<Typed, Custom>& s, std::map<T1, T2>& t) {
+istream_impl<Typed, Custom>& operator>>(istream_impl<Typed, Custom>& s,
+                                        std::map<T1, T2>& t) {
   s.readTypeAndCheck(kMapTypeIndex);
   s.readTypeAndCheck(TypeToIndex<T1>());
   s.readTypeAndCheck(TypeToIndex<T2>());
@@ -353,7 +424,8 @@ istream_impl<Typed, Custom>& operator >>(istream_impl<Typed, Custom>& s, std::ma
 }
 
 template <bool Typed, typename T, typename Custom>
-ostream_impl<Typed, Custom>& operator <<(ostream_impl<Typed, Custom>& s, const std::deque<T>& t) {
+ostream_impl<Typed, Custom>& operator<<(ostream_impl<Typed, Custom>& s,
+                                        const std::deque<T>& t) {
   s.write_type(kDequeTypeIndex);
   s.write_type(TypeToIndex<T>());
   s << uint32_t(t.size());
@@ -363,7 +435,8 @@ ostream_impl<Typed, Custom>& operator <<(ostream_impl<Typed, Custom>& s, const s
   return s;
 }
 template <bool Typed, typename T, typename Custom>
-istream_impl<Typed, Custom>& operator >>(istream_impl<Typed, Custom>& s, std::deque<T>& t) {
+istream_impl<Typed, Custom>& operator>>(istream_impl<Typed, Custom>& s,
+                                        std::deque<T>& t) {
   s.readTypeAndCheck(kDequeTypeIndex);
   s.readTypeAndCheck(TypeToIndex<T>());
   uint32_t size;
@@ -378,20 +451,23 @@ istream_impl<Typed, Custom>& operator >>(istream_impl<Typed, Custom>& s, std::de
 
 // & bi-directional operators
 template <bool Typed, typename T, typename Custom>
-ostream_impl<Typed, Custom>& operator &(ostream_impl<Typed, Custom>& s, const T& t) {
+ostream_impl<Typed, Custom>& operator&(ostream_impl<Typed, Custom>& s,
+                                       const T& t) {
   return s << t;
 }
 template <bool Typed, typename T, typename Custom>
-istream_impl<Typed, Custom>& operator &(istream_impl<Typed, Custom>& s, T& t) {
+istream_impl<Typed, Custom>& operator&(istream_impl<Typed, Custom>& s, T& t) {
   return s >> t;
 }
 
 template <bool Typed, typename T, typename Custom>
-ostream_impl<Typed, Custom>& operator &(ostream_impl<Typed, Custom>& s, const std::vector<T>& t) {
+ostream_impl<Typed, Custom>& operator&(ostream_impl<Typed, Custom>& s,
+                                       const std::vector<T>& t) {
   return s << t;
 }
 template <bool Typed, typename T, typename Custom>
-istream_impl<Typed, Custom>& operator &(istream_impl<Typed, Custom>& s, std::vector<T>& t) {
+istream_impl<Typed, Custom>& operator&(istream_impl<Typed, Custom>& s,
+                                       std::vector<T>& t) {
   return s >> t;
 }
 
