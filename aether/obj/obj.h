@@ -223,7 +223,8 @@ template <class T> class Ptr {
 
   void Serialize() const;
   void Unload();
-  void Load(Domain* domain);
+  // Returns a vector of newly created objects.
+  std::vector<Obj*> Load(Domain* domain);
 
   // Protected section.
   void Init(T* p) {
@@ -371,7 +372,8 @@ public:
     }
   }
   void RemoveObject(Obj* o) {
-    objects_.erase(std::remove_if(objects_.begin(), objects_.end(), [o](auto i){ return i.first == o; }));
+    objects_.erase(std::remove_if(objects_.begin(), objects_.end(),
+                                  [o](auto i) { return i.first == o; }));
   }
 };
 
@@ -387,8 +389,6 @@ public:
   Obj() = default;
   
   virtual ~Obj() { domain_->RemoveObject(this); }
-
-  virtual void OnLoaded() {}
 
   typedef Ptr<Obj> ptr;
   static constexpr uint32_t kClassId = qcstudio::crc32::from_literal("Obj").value;
@@ -444,6 +444,7 @@ template <class T, class T1> SerializationResult SerializeRef(T& s, const Ptr<T1
   return SerializationResult::kWholeObject;
 }
 
+// FIX: Crashes if multiple domains are used. Track domains correctly.
 template <typename T> void Ptr<T>::Release() {
   if (!ptr_) return;
   // The pointer is valid but the object is already released in manual releasing mode.
@@ -592,8 +593,9 @@ template <typename T> void Ptr<T>::Unload() {
   Release();
 }
 
-template <typename T> void Ptr<T>::Load(Domain* domain) {
-  if (ptr_) return;
+template <typename T>
+std::vector<Obj*> Ptr<T>::Load(Domain* domain) {
+  if (ptr_) return {};
   AETHER_IMSTREAM is;
   is.custom_ = domain;
   // Preserve kUnloadedByDefault flag
@@ -605,9 +607,12 @@ template <typename T> void Ptr<T>::Load(Domain* domain) {
   is >> *this;
   SetFlags(flags);
   Domain::first_release_ = true;
+  std::vector<Obj*> created_objects;
+  created_objects.resize(domain->objects_.size());
   for (auto o : domain->objects_) {
-    o.first->OnLoaded();
+    created_objects.push_back(o.first);
   }
+  return created_objects;
 }
 
 }  // namespace aether

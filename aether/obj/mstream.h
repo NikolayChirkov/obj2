@@ -342,12 +342,12 @@ istream_impl<Typed, Custom>& operator >>(istream_impl<Typed, Custom>& s, std::ma
   s.readTypeAndCheck(TypeToIndex<T2>());
   uint32_t size;
   s >> size;
-  for (int i = 0; i < size; i++) {
+  for (uint32_t i = 0; i < size; i++) {
     T1 k;
     s >> k;
     T2 v;
     s >> v;
-    t[k] = std::move(v);
+    t.emplace(k, std::move(v));
   }
   return s;
 }
