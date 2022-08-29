@@ -248,7 +248,7 @@ class Ptr {
   void Serialize() const;
   void Unload();
   // Returns a vector of newly created objects.
-  std::vector<Obj*> Load(Domain* domain);
+  void Load(Domain* domain);
 
   // Protected section.
   void Init(T* p) {
@@ -383,6 +383,9 @@ class Domain {
   EnumerateFacility enumerate_facility_;
   LoadFacility load_facility_;
   std::vector<std::pair<Obj*, int>> objects_;
+  // All newly created objects are added.
+  std::vector<Obj*> created_objects_;
+
   int max_depth_ = std::numeric_limits<int>::max();
   int cur_depth_ = 0;
   Domain* parent_;
@@ -422,6 +425,7 @@ class Domain {
       return Result::kFound;
     } else {
       objects_.emplace_back(o, 1);
+      created_objects_.push_back(o);
       return Result::kAdded;
     }
   }
@@ -485,6 +489,7 @@ Obj* Domain::CreateObj(uint32_t cls_id, ObjId obj_id) {
   o->id_ = obj_id;
   o->domain_ = this;
   objects_.emplace_back(o, 1);
+  created_objects_.push_back(o);
   return o;
 }
 
@@ -493,6 +498,7 @@ Obj* Domain::CreateObj(uint32_t cls_id) {
   o->id_ = ObjId::GenerateUnique();
   o->domain_ = this;
   objects_.emplace_back(o, 1);
+  created_objects_.push_back(o);
   return o;
 }
 
@@ -672,8 +678,8 @@ void Ptr<T>::Unload() {
 }
 
 template <typename T>
-std::vector<Obj*> Ptr<T>::Load(Domain* domain) {
-  if (ptr_) return {};
+void Ptr<T>::Load(Domain* domain) {
+  if (ptr_) return;
   AETHER_IMSTREAM is;
   is.custom_ = domain;
   // Preserve kUnloadedByDefault flag
@@ -685,12 +691,6 @@ std::vector<Obj*> Ptr<T>::Load(Domain* domain) {
   is >> *this;
   SetFlags(flags);
   Domain::first_release_ = true;
-  std::vector<Obj*> created_objects;
-  created_objects.resize(domain->objects_.size());
-  for (auto o : domain->objects_) {
-    created_objects.push_back(o.first);
-  }
-  return created_objects;
 }
 
 }  // namespace aether
