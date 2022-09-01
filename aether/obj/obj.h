@@ -247,7 +247,6 @@ class Ptr {
 
   void Serialize() const;
   void Unload();
-  // Returns a vector of newly created objects.
   void Load(Domain* domain);
 
   // Protected section.
@@ -435,6 +434,51 @@ class Domain {
   }
 };
 
+#define AETHER_OBJ(D, B)                                                   \
+  typedef aether::Ptr<D> ptr;                                              \
+  static constexpr uint32_t kClassId =                                     \
+      qcstudio::crc32::from_literal(#D).value;                             \
+  static constexpr uint32_t kBaseClassId =                                 \
+      qcstudio::crc32::from_literal(#B).value;                             \
+  inline static Registrar<D> registrar_ =                                  \
+      Registrar<D>(kClassId, kBaseClassId);                                \
+  virtual uint32_t GetClassId() const { return kClassId; }                 \
+  virtual void* DynamicCast(uint32_t id) {                                 \
+    if constexpr (kClassId == kBaseClassId)                                \
+      return id == Obj::kClassId ? static_cast<Obj*>(this) : nullptr;      \
+    else                                                                   \
+      return id == kClassId ? static_cast<D*>(this) : B::DynamicCast(id);  \
+  }                                                                        \
+  virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s); }          \
+  virtual void SerializeBase(AETHER_OMSTREAM& s) {                         \
+    if constexpr (kClassId == kBaseClassId) return;                        \
+    AETHER_OMSTREAM os;                                                    \
+    os.custom_ = s.custom_;                                                \
+    Serializator(os);                                                      \
+    s.custom_->store_facility_(*domain_, id_, kClassId, os);               \
+    B::SerializeBase(s);                                                   \
+  }                                                                        \
+  virtual void DeserializeBase(AETHER_IMSTREAM& s) {                       \
+    if constexpr (kClassId == kBaseClassId) return;                        \
+    AETHER_IMSTREAM is;                                                    \
+    is.custom_ = s.custom_;                                                \
+    is.custom_->load_facility_(*domain_, id_, kClassId, is);               \
+    if (!is.stream_.empty()) Serializator(is);                             \
+    B::DeserializeBase(s);                                                 \
+  }                                                                        \
+  friend AETHER_OMSTREAM& operator<<(AETHER_OMSTREAM& s, const ptr& o) {   \
+    if (++s.custom_->cur_depth_ <= s.custom_->max_depth_ &&                \
+        SerializeRef(s, o) == aether::SerializationResult::kWholeObject) { \
+      o->SerializeBase(s);                                                 \
+    }                                                                      \
+    s.custom_->cur_depth_--;                                               \
+    return s;                                                              \
+  }                                                                        \
+  friend AETHER_IMSTREAM& operator>>(AETHER_IMSTREAM& s, ptr& o) {         \
+    o = DeserializeRef(s);                                                 \
+    return s;                                                              \
+  }
+
 class Obj {
  protected:
   template <class T>
@@ -445,36 +489,8 @@ class Obj {
   };
 
  public:
-  Obj() = default;
-
   virtual ~Obj() { domain_->RemoveObject(this); }
-
-  typedef Ptr<Obj> ptr;
-  static constexpr uint32_t kClassId =
-      qcstudio::crc32::from_literal("Obj").value;
-  static constexpr uint32_t kBaseId =
-      qcstudio::crc32::from_literal("Obj").value;
-  virtual uint32_t GetClassId() const { return kClassId; }
-
-  virtual void* DynamicCast(uint32_t id) {
-    return id == Obj::kClassId ? static_cast<Obj*>(this) : nullptr;
-  }
-
-  virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s); }
-  virtual void SerializeBase(AETHER_OMSTREAM& s) {}
-  virtual void DeserializeBase(AETHER_IMSTREAM& s) {}
-  friend AETHER_OMSTREAM& operator<<(AETHER_OMSTREAM& s, const ptr& o) {
-    if (++s.custom_->cur_depth_ <= s.custom_->max_depth_ &&
-        SerializeRef(s, o) == SerializationResult::kWholeObject) {
-      o->SerializeBase(s);
-    }
-    s.custom_->cur_depth_--;
-    return s;
-  }
-  friend AETHER_IMSTREAM& operator>>(AETHER_IMSTREAM& s, ptr& o) {
-    o = DeserializeRef(s);
-    return s;
-  }
+  AETHER_OBJ(Obj, Obj);
   template <typename T>
   void Serializator(T& s) const {}
 
@@ -564,16 +580,11 @@ void Ptr<T>::Release() {
       ptr_->reference_count_--;
     } else {
       os2.custom_->max_depth_ = 1;
-      // Dereference objects which are referenced externally.
       for (auto r : subgraph) {
         domain.objects_.clear();
-        r->Serialize(os2);
-        for (auto k : externally_referenced) {
-          if (std::find_if(domain.objects_.begin(), domain.objects_.end(),
-                           [k](auto i) { return i.first == k; }) !=
-              domain.objects_.end()) {
-            k->reference_count_--;
-          }
+        r->SerializeBase(os2);
+        for (auto k : domain.objects_) {
+          k.first->reference_count_--;
         }
       }
       // Maually release each object without recursive releasing.
@@ -670,8 +681,9 @@ void Ptr<T>::Serialize() const {
 template <typename T>
 void Ptr<T>::Unload() {
   if (!ptr_) return;
-  if (ptr_->reference_count_ > 1)
-    throw "Unable to unload the object with multiple references to it";
+  //  if (ptr_->reference_count_ > 1)
+  //    throw "Unable to unload the object with multiple references to it";
+  // TODO: count external references only
   id_ = GetId();
   flags_ = GetFlags() | ObjFlags::kUnloaded;
   Release();

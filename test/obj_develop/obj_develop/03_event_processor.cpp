@@ -24,7 +24,9 @@
 #include "../../../aether/obj/obj.h"
 #include <assert.h>
 #define REQUIRE assert
+void EventProcessor() {}
 
+/*
 using namespace aether;
 static int version;
 
@@ -269,6 +271,7 @@ void EventProcessor() {
   REQUIRE(src->version_ == 1);
   REQUIRE(src->events_.size() == 1);
 }
+*/
 
 /*
 #define OBSERVER_DEV

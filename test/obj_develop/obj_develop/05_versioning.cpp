@@ -19,56 +19,12 @@
 #include <assert.h>
 #define REQUIRE assert
 
-using namespace aether;
-
 std::set<int> erased;
 int serializator_count = 0;
 
-class A_00 : public Obj {
+class A_00 : public aether::Obj {
 public:
-  typedef Ptr<A_00> ptr;
-  // TODO: use UUID as class ID
-  // TODO: rename to kClassId, kBaseClassId, GetClassId
-  static constexpr uint32_t kClassId = qcstudio::crc32::from_literal("A_00").value;
-  // TODO: support multiple base classes
-  static constexpr uint32_t kBaseClassId = qcstudio::crc32::from_literal("Obj").value;
-  inline static Registrar<A_00> registrar_ = Registrar<A_00>(kClassId, kBaseClassId);
-  virtual uint32_t GetClassId() const { return kClassId; }
-
-  virtual void* DynamicCast(uint32_t id) {
-    return id == kClassId ? static_cast<A_00*>(this) : Obj::DynamicCast(id);
-  }
-
-  virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s); }
-  virtual void SerializeBase(AETHER_OMSTREAM& s) {
-    AETHER_OMSTREAM os;
-    os.custom_ = s.custom_;
-    Serializator(os);
-    s.custom_->store_facility_(id_, kClassId, os);
-//    if (qcstudio::crc32::from_literal("Obj").value != qcstudio::crc32::from_literal("Obj").value)
-//      aether::Obj::SerializeBase(s, qcstudio::crc32::from_literal("Obj").value);
-  }
-  virtual void DeserializeBase(AETHER_IMSTREAM& s) {
-    AETHER_IMSTREAM is;
-    is.custom_ = s.custom_;
-    is.custom_->load_facility_(id_, kClassId, is);
-    if (!is.stream_.empty()) Serializator(is);
-//    if (qcstudio::crc32::from_literal("Obj").value != qcstudio::crc32::from_literal(#BASE).value)
-//      BASE::DeserializeBase(s, qcstudio::crc32::from_literal(#BASE).value);
-  }
-  friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const ptr& o) {
-    if (++s.custom_->cur_depth_ <= s.custom_->max_depth_ && SerializeRef(s, o) == SerializationResult::kWholeObject) {
-      o->SerializeBase(s);
-    }
-    s.custom_->cur_depth_--;
-    return s;
-  }
-  friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, ptr& o) {
-    o = DeserializeRef(s);
-    return s;
-  }
-
-  
+  AETHER_OBJ(A_00, aether::Obj);
   virtual ~A_00() {
     erased.insert(i_);
   }
@@ -80,7 +36,7 @@ public:
   std::vector<A_00::ptr> a_;
 };
 
-auto saver = [](const aether::ObjId& obj_id, uint32_t class_id, const AETHER_OMSTREAM& os){
+auto saver = [](const aether::Domain& domain, const aether::ObjId& obj_id, uint32_t class_id, const AETHER_OMSTREAM& os){
   std::filesystem::path dir = std::filesystem::path{"state"} / obj_id.ToString();
   std::filesystem::create_directories(dir);
   auto p = dir / std::to_string(class_id);
@@ -90,7 +46,7 @@ auto saver = [](const aether::ObjId& obj_id, uint32_t class_id, const AETHER_OMS
   std::cout << p.c_str() << " size: " << os.stream_.size() << "\n";
 };
 
-auto enumerator = [](const aether::ObjId& obj_id){
+auto enumerator = [](const aether::Domain& domain, const aether::ObjId& obj_id){
   std::string path = obj_id.ToString();
   auto p = std::filesystem::path{"state"} / path;
   std::vector<uint32_t> classes;
@@ -100,7 +56,7 @@ auto enumerator = [](const aether::ObjId& obj_id){
   return classes;
 };
 
-auto loader = [](const aether::ObjId& obj_id, uint32_t class_id, AETHER_IMSTREAM& is){
+auto loader = [](const aether::Domain& domain, const aether::ObjId& obj_id, uint32_t class_id, AETHER_IMSTREAM& is){
   std::filesystem::path dir = std::filesystem::path{"state"} / obj_id.ToString();
   auto p = dir / std::to_string(class_id);
   std::ifstream f(p.c_str(), std::ios::in | std::ios::binary);
@@ -112,161 +68,53 @@ auto loader = [](const aether::ObjId& obj_id, uint32_t class_id, AETHER_IMSTREAM
   f.read((char*)is.stream_.data(), length);
 };
 
-class V1 : public Obj {
+class V1 : public aether::Obj {
 public:
-  typedef Ptr<V1> ptr;
-  static constexpr uint32_t kClassId = qcstudio::crc32::from_literal("V1").value;
-  static constexpr uint32_t kBaseClassId = qcstudio::crc32::from_literal("Obj").value;
-  inline static Registrar<V1> registrar_ = Registrar<V1>(kClassId, kBaseClassId);
-  virtual uint32_t GetClassId() const { return kClassId; }
-
-  virtual void* DynamicCast(uint32_t id) {
-    return id == kClassId ? static_cast<V1*>(this) : Obj::DynamicCast(id);
-  }
-
-  virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s); }
-  virtual void SerializeBase(AETHER_OMSTREAM& s) {
-    AETHER_OMSTREAM os;
-    os.custom_ = s.custom_;
-    Serializator(os);
-    s.custom_->store_facility_(id_, kClassId, os);
-    //    if (qcstudio::crc32::from_literal("Obj").value != qcstudio::crc32::from_literal("Obj").value)
-    //      aether::Obj::SerializeBase(s, qcstudio::crc32::from_literal("Obj").value);
-  }
-  virtual void DeserializeBase(AETHER_IMSTREAM& s) {
-    AETHER_IMSTREAM is;
-    is.custom_ = s.custom_;
-    is.custom_->load_facility_(id_, kClassId, is);
-    if (!is.stream_.empty()) Serializator(is);
-    //    if (qcstudio::crc32::from_literal("Obj").value != qcstudio::crc32::from_literal(#BASE).value)
-    //      BASE::DeserializeBase(s, qcstudio::crc32::from_literal(#BASE).value);
-  }
-  friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const ptr& o) {
-    if (++s.custom_->cur_depth_ <= s.custom_->max_depth_ && SerializeRef(s, o) == SerializationResult::kWholeObject) {
-      o->SerializeBase(s);
-    }
-    s.custom_->cur_depth_--;
-    return s;
-  }
-  friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, ptr& o) {
-    o = DeserializeRef(s);
-    return s;
-  }
+  AETHER_OBJ(V1, aether::Obj);
   int i = 11;
   template <typename T>
-  T& Serializator(T& s) {
-    return s & i;
+  void Serializator(T& s) {
+    s & i;
   }
 };
 
 class V2 : public V1 {
 public:
-  typedef Ptr<V2> ptr;
-  static constexpr uint32_t kClassId = qcstudio::crc32::from_literal("V2").value;
-  static constexpr uint32_t kBaseClassId = qcstudio::crc32::from_literal("V1").value;
-  inline static Registrar<V2> registrar_ = Registrar<V2>(kClassId, kBaseClassId);
-  virtual uint32_t GetClassId() const { return kClassId; }
-
-  virtual void* DynamicCast(uint32_t id) {
-    return id == kClassId ? static_cast<V2*>(this) : V1::DynamicCast(id);
-  }
-
-  virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s); }
-  virtual void SerializeBase(AETHER_OMSTREAM& s) {
-    AETHER_OMSTREAM os;
-    os.custom_ = s.custom_;
-    Serializator(os);
-    s.custom_->store_facility_(id_, kClassId, os);
-    V1::SerializeBase(s);
-  }
-  virtual void DeserializeBase(AETHER_IMSTREAM& s) {
-    AETHER_IMSTREAM is;
-    is.custom_ = s.custom_;
-    is.custom_->load_facility_(id_, kClassId, is);
-    if (!is.stream_.empty()) Serializator(is);
-    V1::DeserializeBase(s);
-  }
-  friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const ptr& o) {
-    if (++s.custom_->cur_depth_ <= s.custom_->max_depth_ && SerializeRef(s, o) == SerializationResult::kWholeObject) {
-      o->SerializeBase(s);
-    }
-    s.custom_->cur_depth_--;
-    return s;
-  }
-  friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, ptr& o) {
-    o = DeserializeRef(s);
-    return s;
-  }
-
+  AETHER_OBJ(V2, V1);
   float f = 2.2f;
   template <typename T>
-  T& Serializator(T& s) {
-    return s & f;
+  void Serializator(T& s) {
+    s & f;
   }
 };
 
 class V3 : public V2 {
 public:
-  typedef Ptr<V3> ptr;
-  static constexpr uint32_t kClassId = qcstudio::crc32::from_literal("V3").value;
-  static constexpr uint32_t kBaseClassId = qcstudio::crc32::from_literal("V2").value;
-  inline static Registrar<V3> registrar_ = Registrar<V3>(kClassId, kBaseClassId);
-  virtual uint32_t GetClassId() const { return kClassId; }
-
-  virtual void* DynamicCast(uint32_t id) {
-    return id == kClassId ? static_cast<V3*>(this) : V2::DynamicCast(id);
-  }
-
-  virtual void Serialize(AETHER_OMSTREAM& s) { Serializator(s); }
-  virtual void SerializeBase(AETHER_OMSTREAM& s) {
-    AETHER_OMSTREAM os;
-    os.custom_ = s.custom_;
-    Serializator(os);
-    s.custom_->store_facility_(id_, kClassId, os);
-    V2::SerializeBase(s);
-  }
-  virtual void DeserializeBase(AETHER_IMSTREAM& s) {
-    AETHER_IMSTREAM is;
-    is.custom_ = s.custom_;
-    is.custom_->load_facility_(id_, kClassId, is);
-    if (!is.stream_.empty()) Serializator(is);
-    V2::DeserializeBase(s);
-  }
-  friend AETHER_OMSTREAM& operator << (AETHER_OMSTREAM& s, const ptr& o) {
-    if (++s.custom_->cur_depth_ <= s.custom_->max_depth_ && SerializeRef(s, o) == SerializationResult::kWholeObject) {
-      o->SerializeBase(s);
-    }
-    s.custom_->cur_depth_--;
-    return s;
-  }
-  friend AETHER_IMSTREAM& operator >> (AETHER_IMSTREAM& s, ptr& o) {
-    o = DeserializeRef(s);
-    return s;
-  }
+  AETHER_OBJ(V3, V2);
 
   std::string s_{"text33"};
   template <typename T>
-  T& Serializator(T& s) {
-    return s & s_;
+  void Serializator(T& s) {
+    s & s_;
   }
 };
 
 
 void Versioning1() {
-  auto domain = std::make_shared<Domain>(nullptr);
-  domain->store_facility_ = saver;
-  V1::ptr v1(domain->CreateObjByClassId(V1::kClassId, 1));
+  aether::Domain domain{nullptr};
+  domain.store_facility_ = saver;
+  V1::ptr v1(domain.CreateObj(V1::kClassId, 1));
   v1->i = 111;
-  V2::ptr v2(domain->CreateObjByClassId(V2::kClassId, 2));
+  V2::ptr v2(domain.CreateObj(V2::kClassId, 2));
   v2->i = 222;
   v2->f = 2.22f;
-  V3::ptr v3(domain->CreateObjByClassId(V3::kClassId, 3));
+  V3::ptr v3(domain.CreateObj(V3::kClassId, 3));
   v3->i = 333;
   v3->f = 3.33f;
   v3->s_ = "text333";
   {
     // Upgrade serialized version: v1 -> v3, v2 -> v3, v3 -> v3
-    Domain domain(nullptr);
+    aether::Domain domain{nullptr};
     domain.store_facility_ = saver;
     domain.load_facility_ = loader;
     domain.enumerate_facility_ = enumerator;
@@ -274,14 +122,14 @@ void Versioning1() {
     os.custom_ = &domain;
     os << v3 << v2 << v1;
     // assert(os.stream_.size() == 103);
-    Domain domain1(nullptr);
+    aether::Domain domain1{nullptr};
     domain1.store_facility_ = saver;
     domain1.load_facility_ = loader;
     domain1.enumerate_facility_ = enumerator;
     AETHER_IMSTREAM is;
     is.custom_ = &domain1;
     is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
-    Obj::ptr o1, o2, o3;
+    aether::Obj::ptr o1, o2, o3;
     is >> o3 >> o2 >> o1;
     REQUIRE(is.stream_.empty());
     V3::ptr v31 = o1;
@@ -302,7 +150,7 @@ void Versioning1() {
   }
   {
     // Downgrade serialized version: v3 -> v2, v2 -> v2
-    Domain domain(nullptr);
+    aether::Domain domain{nullptr};
     domain.store_facility_ = saver;
     domain.load_facility_ = loader;
     domain.enumerate_facility_ = enumerator;
@@ -310,14 +158,14 @@ void Versioning1() {
     os.custom_ = &domain;
     os << v3 << v2;
     //REQUIRE(os.stream_.size() == 87);
-    Domain domain1(nullptr);
+    aether::Domain domain1{nullptr};
     domain1.store_facility_ = saver;
     domain1.load_facility_ = loader;
     domain1.enumerate_facility_ = enumerator;
     AETHER_IMSTREAM is;
     is.custom_ = &domain1;
     is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
-    Obj::ptr o2, o3;
+    aether::Obj::ptr o2, o3;
     domain1.registry_.UnregisterClass(V3::kClassId);
     is >> o3 >> o2;
     REQUIRE(is.stream_.empty());
@@ -332,7 +180,7 @@ void Versioning1() {
   }
   {
     // Upgrading by loading into the pointer
-    Domain domain(nullptr);
+    aether::Domain domain{nullptr};
     domain.store_facility_ = saver;
     domain.load_facility_ = loader;
     domain.enumerate_facility_ = enumerator;
@@ -340,7 +188,7 @@ void Versioning1() {
     os.custom_ = &domain;
     os << v2 << v1;
     // REQUIRE(os.stream_.size() == 48);
-    Domain domain1(nullptr);
+    aether::Domain domain1{nullptr};
     domain1.store_facility_ = saver;
     domain1.load_facility_ = loader;
     domain1.enumerate_facility_ = enumerator;
@@ -361,7 +209,7 @@ void Versioning1() {
 
   {
     // Downgrade serialized version: v3 -> v1, v2 -> v1
-    Domain domain(nullptr);
+    aether::Domain domain{nullptr};
     domain.store_facility_ = saver;
     domain.load_facility_ = loader;
     domain.enumerate_facility_ = enumerator;
@@ -369,14 +217,14 @@ void Versioning1() {
     os.custom_ = &domain;
     os << v3 << v2;
     // REQUIRE(os.stream_.size() == 87);
-    Domain domain1(nullptr);
+    aether::Domain domain1{nullptr};
     domain1.store_facility_ = saver;
     domain1.load_facility_ = loader;
     domain1.enumerate_facility_ = enumerator;
     AETHER_IMSTREAM is;
     is.custom_ = &domain1;
     is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
-    Obj::ptr o2, o3;
+    aether::Obj::ptr o2, o3;
     domain1.registry_.UnregisterClass(V2::kClassId);
     is >> o3 >> o2;
     REQUIRE(is.stream_.empty());
@@ -404,24 +252,24 @@ void Pointers() {
     A_00::ptr a5(std::move(a3));
   }
   {
-    Domain domain(nullptr);
-    A_00::ptr a0(domain.CreateObjByClassId(A_00::kClassId, 1));
+    aether::Domain domain{nullptr};
+    A_00::ptr a0(domain.CreateObj(A_00::kClassId, 1));
   }
 }
 
 void SubgraphReleasing() {
   {
-    Domain domain(nullptr);
-    A_00::ptr a(domain.CreateObjByClassId(A_00::kClassId, 1));
+    aether::Domain domain{nullptr};
+    A_00::ptr a(domain.CreateObj(A_00::kClassId, 1));
     a->i_ = 1;
-    A_00::ptr b1{domain.CreateObjByClassId(A_00::kClassId, 2)};
+    A_00::ptr b1{domain.CreateObj(A_00::kClassId, 2)};
     b1->i_ = 2;
     A_00::ptr b2{b1};
 
-    A_00::ptr d1(domain.CreateObjByClassId(A_00::kClassId, 3));
+    A_00::ptr d1(domain.CreateObj(A_00::kClassId, 3));
     d1->i_ = 3;
     A_00::ptr d2{d1};
-    A_00::ptr c{domain.CreateObjByClassId(A_00::kClassId, 4)};
+    A_00::ptr c{domain.CreateObj(A_00::kClassId, 4)};
     c->i_ = 4;
 
     a->a_.reserve(1);
@@ -440,17 +288,17 @@ void SubgraphReleasing() {
     REQUIRE((erased == std::set{2, 3, 4}));
   }
   {
-    Domain domain(nullptr);
-    A_00::ptr a(domain.CreateObjByClassId(A_00::kClassId, 1));
+    aether::Domain domain{nullptr};
+    A_00::ptr a(domain.CreateObj(A_00::kClassId, 1));
     a->i_ = 1;
-    A_00::ptr b1{domain.CreateObjByClassId(A_00::kClassId, 2)};
+    A_00::ptr b1{domain.CreateObj(A_00::kClassId, 2)};
     b1->i_ = 2;
     A_00::ptr b2{b1};
 
-    A_00::ptr d1(domain.CreateObjByClassId(A_00::kClassId, 3));
+    A_00::ptr d1(domain.CreateObj(A_00::kClassId, 3));
     d1->i_ = 3;
     A_00::ptr d2{d1};
-    A_00::ptr c{domain.CreateObjByClassId(A_00::kClassId, 4)};
+    A_00::ptr c{domain.CreateObj(A_00::kClassId, 4)};
     c->i_ = 4;
 
     a->a_.reserve(1);
@@ -469,11 +317,11 @@ void SubgraphReleasing() {
     REQUIRE((erased == std::set{1, 2}));
   }
   {
-    Domain domain(nullptr);
-    A_00::ptr a1(domain.CreateObjByClassId(A_00::kClassId, 1));
+    aether::Domain domain{nullptr};
+    A_00::ptr a1(domain.CreateObj(A_00::kClassId, 1));
     a1->i_ = 1;
     A_00::ptr a2{a1};
-    A_00::ptr b{domain.CreateObjByClassId(A_00::kClassId, 2)};
+    A_00::ptr b{domain.CreateObj(A_00::kClassId, 2)};
     b->i_ = 2;
 
     b->a_.reserve(1);
@@ -486,13 +334,13 @@ void SubgraphReleasing() {
     REQUIRE((erased == std::set{1, 2}));
   }
   {
-    Domain domain(nullptr);
-    A_00::ptr a1(domain.CreateObjByClassId(A_00::kClassId, 1));
+    aether::Domain domain{nullptr};
+    A_00::ptr a1(domain.CreateObj(A_00::kClassId, 1));
     a1->i_ = 1;
     A_00::ptr a2{a1};
-    A_00::ptr b{domain.CreateObjByClassId(A_00::kClassId, 2)};
+    A_00::ptr b{domain.CreateObj(A_00::kClassId, 2)};
     b->i_ = 2;
-    A_00::ptr c1(domain.CreateObjByClassId(A_00::kClassId, 3));
+    A_00::ptr c1(domain.CreateObj(A_00::kClassId, 3));
     c1->i_ = 3;
     A_00::ptr c2{c1};
 
@@ -512,14 +360,14 @@ void SubgraphReleasing() {
   }
 
   {
-    Domain domain(nullptr);
-    A_00::ptr a(domain.CreateObjByClassId(A_00::kClassId, 1));
+    aether::Domain domain{nullptr};
+    A_00::ptr a(domain.CreateObj(A_00::kClassId, 1));
     a->i_ = 1;
-    A_00::ptr b1{domain.CreateObjByClassId(A_00::kClassId, 2)};
+    A_00::ptr b1{domain.CreateObj(A_00::kClassId, 2)};
     b1->i_ = 2;
     A_00::ptr b2{b1};
     A_00::ptr b3{b1};
-    A_00::ptr c(domain.CreateObjByClassId(A_00::kClassId, 3));
+    A_00::ptr c(domain.CreateObj(A_00::kClassId, 3));
     c->i_ = 3;
 
     a->a_.reserve(1);
@@ -536,19 +384,71 @@ void SubgraphReleasing() {
     b3 = nullptr;
     REQUIRE((erased == std::set{2, 3}));
   }
+  {
+    aether::Domain domain{nullptr};
+    A_00::ptr a1(domain.CreateObj(A_00::kClassId, 1));
+    a1->i_ = 1;
+    A_00::ptr a2{a1};
+    A_00::ptr b1{domain.CreateObj(A_00::kClassId, 2)};
+    b1->i_ = 2;
+    A_00::ptr b2{b1};
+    A_00::ptr c(domain.CreateObj(A_00::kClassId, 3));
+    c->i_ = 3;
+    
+    a1->a_.reserve(1);
+    a1->a_.push_back(std::move(b1));
+    c->a_.reserve(2);
+    c->a_.push_back(std::move(a2));
+    c->a_.push_back(std::move(b2));
+
+    erased.clear();
+    c.Release();
+    REQUIRE((erased == std::set{3}));
+    erased.clear();
+    a1 = nullptr;
+    REQUIRE((erased == std::set{1, 2}));
+  }
+  {
+    aether::Domain domain{nullptr};
+    A_00::ptr a1(domain.CreateObj(A_00::kClassId, 1));
+    a1->i_ = 1;
+    A_00::ptr a2{a1};
+    A_00::ptr b1{domain.CreateObj(A_00::kClassId, 2)};
+    b1->i_ = 2;
+    A_00::ptr b2{b1};
+    A_00::ptr c(domain.CreateObj(A_00::kClassId, 3));
+    c->i_ = 3;
+    A_00::ptr d(domain.CreateObj(A_00::kClassId, 4));
+    d->i_ = 4;
+
+    a1->a_.reserve(1);
+    a1->a_.push_back(std::move(b1));
+    c->a_.reserve(2);
+    c->a_.push_back(std::move(b2));
+    d->a_.reserve(1);
+    d->a_.push_back(std::move(a2));
+    c->a_.push_back(std::move(d));
+
+    erased.clear();
+    c.Release();
+    REQUIRE((erased == std::set{3, 4}));
+    erased.clear();
+    a1 = nullptr;
+    REQUIRE((erased == std::set{1, 2}));
+  }
 }
 
 void Serialization() {
   {
     std::filesystem::remove_all("state");
-    Domain domain(nullptr);
+    aether::Domain domain{nullptr};
     domain.store_facility_ = saver;
-    A_00::ptr root(domain.CreateObjByClassId(A_00::kClassId, 666));
+    A_00::ptr root(domain.CreateObj(A_00::kClassId, 666));
     root->i_ = 345;
     root.Serialize();
   }
   {
-    Domain domain(nullptr);
+    aether::Domain domain{nullptr};
     domain.load_facility_ = loader;
     domain.enumerate_facility_ = enumerator;
     A_00::ptr root;
@@ -561,18 +461,18 @@ void Serialization() {
     std::filesystem::remove_all("state");
     erased.clear();
     {
-      Domain domain(nullptr);
+      aether::Domain domain{nullptr};
       domain.store_facility_ = saver;
-      A_00::ptr root(domain.CreateObjByClassId(A_00::kClassId, 666));
+      A_00::ptr root(domain.CreateObj(A_00::kClassId, 666));
       root->i_ = 666;
       root->a_.reserve(3);
-      auto b1 = root->a_.emplace_back(domain.CreateObjByClassId(A_00::kClassId, 1));
+      auto b1 = root->a_.emplace_back(domain.CreateObj(A_00::kClassId, 1));
       b1->i_ = 1;
       root->a_.emplace_back(A_00::ptr{});
-      auto b3 = root->a_.emplace_back(domain.CreateObjByClassId(A_00::kClassId, 3));
+      auto b3 = root->a_.emplace_back(domain.CreateObj(A_00::kClassId, 3));
       b3->i_ = 3;
-      b3.SetFlags(ObjFlags::kUnloadedByDefault);
-      auto& b4 = root->a_.emplace_back(domain.CreateObjByClassId(A_00::kClassId, 4));
+      b3.SetFlags(aether::ObjFlags::kUnloadedByDefault);
+      auto& b4 = root->a_.emplace_back(domain.CreateObj(A_00::kClassId, 4));
       b4->i_ = 4;
       erased.clear();
       b4.Serialize();
@@ -585,7 +485,7 @@ void Serialization() {
     REQUIRE((erased == std::set{666, 1, 3}));
     erased.clear();
     {
-      Domain domain(nullptr);
+      aether::Domain domain{nullptr};
       domain.load_facility_ = loader;
       domain.enumerate_facility_ = enumerator;
       A_00::ptr root;
@@ -609,11 +509,11 @@ void Serialization() {
 // Loads an object with the first reference only and links all other references to the existing object.
 void LoadReference() {
   {
-    Domain domain(nullptr);
+    aether::Domain domain{nullptr};
     domain.store_facility_ = saver;
-    A_00::ptr root(domain.CreateObjByClassId(A_00::kClassId, 666));
+    A_00::ptr root(domain.CreateObj(A_00::kClassId, 666));
     root->i_ = 666;
-    auto a = root->a_.emplace_back(domain.CreateObjByClassId(A_00::kClassId, 1));
+    auto a = root->a_.emplace_back(domain.CreateObj(A_00::kClassId, 1));
     a->i_ = 1;
     root->a_.emplace_back(root->a_.back());
     serializator_count = 0;
@@ -623,7 +523,7 @@ void LoadReference() {
     REQUIRE(serializator_count == 2);
   }
   {
-    Domain domain(nullptr);
+    aether::Domain domain{nullptr};
     domain.load_facility_ = loader;
     domain.enumerate_facility_ = enumerator;
     A_00::ptr root;
@@ -639,19 +539,19 @@ void LoadReference() {
 void Subdomain() {
   {
     std::filesystem::remove_all("state");
-    Domain domain(nullptr);
+    aether::Domain domain{nullptr};
     domain.store_facility_ = saver;
-    Domain domain1(&domain);
+    aether::Domain domain1{&domain};
     domain1.store_facility_ = saver;
 
     // Root contains 'a' permanent object and
     // 'b' - loadable object that contains reference to 'a'
-    A_00::ptr root(domain.CreateObjByClassId(A_00::kClassId, 666));
+    A_00::ptr root(domain.CreateObj(A_00::kClassId, 666));
     root->i_ = 666;
-    root->a_.emplace_back(domain.CreateObjByClassId(A_00::kClassId, 1))->i_ = 1;
-    root->a_.emplace_back(domain1.CreateObjByClassId(A_00::kClassId, 2))->i_ = 2;
+    root->a_.emplace_back(domain.CreateObj(A_00::kClassId, 1))->i_ = 1;
+    root->a_.emplace_back(domain1.CreateObj(A_00::kClassId, 2))->i_ = 2;
     root->a_[1]->a_.push_back(root->a_[0]);
-    root->a_[1].SetFlags(ObjFlags::kUnloadedByDefault);
+    root->a_[1].SetFlags(aether::ObjFlags::kUnloadedByDefault);
     serializator_count = 0;
     root->a_[1].Serialize();
     REQUIRE(serializator_count == 2);
@@ -661,10 +561,10 @@ void Subdomain() {
     REQUIRE(serializator_count == 2);
   }
   {
-    Domain domain(nullptr);
+    aether::Domain domain{nullptr};
     domain.load_facility_ = loader;
     domain.enumerate_facility_ = enumerator;
-    Domain domain1(&domain);
+    aether::Domain domain1{&domain};
     domain1.load_facility_ = loader;
     domain1.enumerate_facility_ = enumerator;
 
@@ -692,18 +592,18 @@ void Subdomain() {
 
 void SameObjDiffDomains() {
   {
-    Domain domain(nullptr);
+    aether::Domain domain{nullptr};
     domain.store_facility_ = saver;
-    A_00::ptr root(domain.CreateObjByClassId(A_00::kClassId, 666));
+    A_00::ptr root(domain.CreateObj(A_00::kClassId, 666));
     root->i_ = 666;
     std::filesystem::remove_all("state");
     root.Serialize();
   }
   {
-    Domain domain1(nullptr);
+    aether::Domain domain1{nullptr};
     domain1.load_facility_ = loader;
     domain1.enumerate_facility_ = enumerator;
-    Domain domain2(nullptr);
+    aether::Domain domain2{nullptr};
     domain2.load_facility_ = loader;
     domain2.enumerate_facility_ = enumerator;
 

@@ -26,6 +26,5 @@ extern void Loadable();
 
 int main(int argc, const char * argv[]) {
   Versioning();
-  EventProcessor();
   return 0;
 }
