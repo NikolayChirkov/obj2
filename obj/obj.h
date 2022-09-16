@@ -26,7 +26,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "../../third_party/crc32/crc32.h"
+#include "../third_party/crc32/crc32.h"
 
 namespace aether {
 class Domain;
