@@ -294,8 +294,12 @@ Ptr<Obj> DeserializeRef(T& s);
 
 class Registry {
  public:
+  struct Factory {
+    std::function<Obj*()> default;
+    std::function<Obj*(Obj*, Domain*)> construct;
+  };
   static void RegisterClass(uint32_t cls_id, uint32_t base_id,
-                            std::function<Obj*()> factory) {
+                            Factory factory) {
     Factories& factories = GetFactories();
     if (factories.find(cls_id) != factories.end()) {
       throw std::runtime_error(
@@ -310,7 +314,7 @@ class Registry {
 
   using Relations = std::unordered_map<uint32_t, std::vector<uint32_t>>;
   Relations base_to_derived_;
-  using Factories = std::unordered_map<uint32_t, std::function<Obj*()>>;
+  using Factories = std::unordered_map<uint32_t, Factory>;
   Factories factories_;
   Registry() : factories_(GetFactories()), base_to_derived_(GetRelations()) {}
 
@@ -363,7 +367,19 @@ class Registry {
     }
     auto it = factories_.find(derived_id);
     if (it == factories_.end()) return nullptr;
-    return it->second();
+    return it->second.default();
+  }
+  Obj* CreateObj(uint32_t base_id, Obj* parent, Domain* domain) {
+    uint32_t derived_id = base_id;
+    while (true) {
+      auto d = base_to_derived_.find(derived_id);
+      // If the derived is not found or multiple derives are found.
+      if (d == base_to_derived_.end() || d->second.size() > 1) break;
+      derived_id = d->second[0];
+    }
+    auto it = factories_.find(derived_id);
+    if (it == factories_.end()) return nullptr;
+    return it->second.construct(parent, domain);
   }
 
   static Relations& GetRelations() {
@@ -395,6 +411,8 @@ class Domain {
   Domain(Domain* parent) : parent_(parent) {}
   inline Obj* CreateObj(uint32_t cls_id, ObjId obj_id);
   inline Obj* CreateObj(uint32_t cls_id);
+  inline Obj* CreateObj(uint32_t cls_id, ObjId obj_id, Obj*);
+  inline Obj* CreateObj(uint32_t cls_id, Obj*);
   bool IsLast(uint32_t class_id) const {
     return registry_.base_to_derived_.find(class_id) ==
            registry_.base_to_derived_.end();
@@ -484,13 +502,18 @@ class Obj {
   template <class T>
   struct Registrar {
     Registrar(uint32_t cls_id, uint32_t base_id) {
-      Registry::RegisterClass(cls_id, base_id, [] { return new T(); });
+      Registry::RegisterClass(
+          cls_id, base_id,
+          {[]() { return new T(); },
+           [](Obj* parent, Domain* domain) { return new T(parent, domain); }});
     }
   };
 
  public:
   virtual ~Obj() { domain_->RemoveObject(this); }
   AETHER_OBJ(Obj, Obj);
+  Obj() = default;
+  Obj(Obj*, Domain*) {}
   template <typename T>
   void Serializator(T& s) const {}
 
@@ -511,6 +534,24 @@ Obj* Domain::CreateObj(uint32_t cls_id, ObjId obj_id) {
 
 Obj* Domain::CreateObj(uint32_t cls_id) {
   Obj* o = registry_.CreateObj(cls_id);
+  o->id_ = ObjId::GenerateUnique();
+  o->domain_ = this;
+  objects_.emplace_back(o, 1);
+  created_objects_.push_back(o);
+  return o;
+}
+
+Obj* Domain::CreateObj(uint32_t cls_id, ObjId obj_id, Obj* parent) {
+  Obj* o = registry_.CreateObj(cls_id, parent, this);
+  o->id_ = obj_id;
+  o->domain_ = this;
+  objects_.emplace_back(o, 1);
+  created_objects_.push_back(o);
+  return o;
+}
+
+Obj* Domain::CreateObj(uint32_t cls_id, Obj* parent) {
+  Obj* o = registry_.CreateObj(cls_id, parent, this);
   o->id_ = ObjId::GenerateUnique();
   o->domain_ = this;
   objects_.emplace_back(o, 1);
