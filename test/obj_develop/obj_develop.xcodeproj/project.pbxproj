@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		012046932880EC4E00F0BBB6 /* obj.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 012046922880EC4E00F0BBB6 /* obj.cpp */; };
 		0175F8B525B497DD008F1934 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0175F8B425B497DD008F1934 /* main.cpp */; };
 		0175F8C525B49850008F1934 /* 03_event_processor.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0175F8BC25B49850008F1934 /* 03_event_processor.cpp */; };
 		0175F8C625B49850008F1934 /* 05_versioning.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0175F8BD25B49850008F1934 /* 05_versioning.cpp */; };
@@ -34,7 +33,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		012046922880EC4E00F0BBB6 /* obj.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = obj.cpp; path = ../../../aether/obj/obj.cpp; sourceTree = "<group>"; };
 		0175F8B125B497DD008F1934 /* obj_develop */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = obj_develop; sourceTree = BUILT_PRODUCTS_DIR; };
 		0175F8B425B497DD008F1934 /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
 		0175F8BC25B49850008F1934 /* 03_event_processor.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = 03_event_processor.cpp; sourceTree = "<group>"; };
@@ -79,7 +77,6 @@
 		0175F8B325B497DD008F1934 /* obj_develop */ = {
 			isa = PBXGroup;
 			children = (
-				012046922880EC4E00F0BBB6 /* obj.cpp */,
 				0175F8C225B49850008F1934 /* 00_ptr.cpp */,
 				0175F8C325B49850008F1934 /* 01_domain.cpp */,
 				0175F8C125B49850008F1934 /* 02_serialize_references.cpp */,
@@ -154,7 +151,6 @@
 				0175F8CB25B49850008F1934 /* 00_ptr.cpp in Sources */,
 				0175F8C825B49850008F1934 /* 07_app.cpp in Sources */,
 				0175F8C625B49850008F1934 /* 05_versioning.cpp in Sources */,
-				012046932880EC4E00F0BBB6 /* obj.cpp in Sources */,
 				0197998D27EC2BE3009AA766 /* 09_weak.cpp in Sources */,
 				0175F8C525B49850008F1934 /* 03_event_processor.cpp in Sources */,
 				0175F8CD25B49850008F1934 /* 06_factory.cpp in Sources */,

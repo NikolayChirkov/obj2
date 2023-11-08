@@ -18,7 +18,7 @@ include_directories(
   ../third_party/cppformat
   ../)
 set(SOURCES
-  ../aether/obj/obj_test.cpp
+  ../obj/obj_test.cpp
   ../third_party/cppformat/format.cc
 )
 

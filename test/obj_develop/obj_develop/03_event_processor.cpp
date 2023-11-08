@@ -15,7 +15,7 @@
 #include <fstream>
 #include <map>
 #include <thread>
-#include "../../../aether/obj/obj.h"
+/*#include "../../../aether/obj/obj.h"
 
 #include <iostream>
 #include <fstream>
@@ -26,7 +26,7 @@
 #define REQUIRE assert
 void EventProcessor() {}
 
-/*
+
 using namespace aether;
 static int version;
 

@@ -15,9 +15,9 @@
 #include <map>
 #include <set>
 #include <filesystem>
-#include "../../../aether/obj/obj.h"
+/*#include "../../../aether/obj/obj.h"
 #include <fstream>
-/*
+
 static std::unordered_map<aether::ObjStorage, std::string> storage_to_path_;
 static std::filesystem::path root_path_;
 

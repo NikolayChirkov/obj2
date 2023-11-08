@@ -17,12 +17,12 @@
 #include <filesystem>
 #include <locale>
 #include <type_traits>
-#include "../../../aether/obj/obj.h"
+/*#include "../../../aether/obj/obj.h"
 #ifdef __APPLE__
   #include <CoreFoundation/CoreFoundation.h>
 #endif
 
-/*#define OBSERVER_DEV
+#define OBSERVER_DEV
 #define OBSERVER_ROOT_ID 666
 
 static std::unordered_map<aether::ObjStorage, std::string> storage_to_path_;

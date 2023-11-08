@@ -11,8 +11,8 @@
 // =============================================================================
 
 #include <iostream>
-#include "../../../aether/obj/obj.h"
-/*
+/*#include "../../../aether/obj/obj.h"
+
 using namespace aether;
 
 class A00 : public Obj {

@@ -13,8 +13,8 @@
 #include <iostream>
 #include <filesystem>
 #include <fstream>
-#include "../../../aether/obj/obj.h"
-/*
+/*#include "../../../aether/obj/obj.h"
+
 using namespace aether;
 
 

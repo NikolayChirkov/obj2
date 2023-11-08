@@ -15,7 +15,7 @@
 // A path to the config file can be specified as command line argument as
 // -DAETHER_CONFIG='../test/config.h'
 
-#include <aether/obj/mstream.h>
+#include <obj/mstream.h>
 #ifndef AETHER_OMSTREAM
 //  #define AETHER_OMSTREAM aether::tomstream
 #endif

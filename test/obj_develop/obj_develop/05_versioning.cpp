@@ -15,7 +15,7 @@
 #include <fstream>
 #include <map>
 #include <set>
-#include "../../../aether/obj/obj.h"
+#include "../../../obj/obj.h"
 #include <assert.h>
 #define REQUIRE assert
 
@@ -25,6 +25,8 @@ int serializator_count = 0;
 class A_00 : public aether::Obj {
 public:
   AETHER_OBJ(A_00, aether::Obj);
+  A_00() = default;
+  A_00(Obj* parent, aether::Domain* domain) : Obj(parent, domain) {}
   virtual ~A_00() {
     erased.insert(i_);
   }
@@ -71,6 +73,8 @@ auto loader = [](const aether::Domain& domain, const aether::ObjId& obj_id, uint
 class V1 : public aether::Obj {
 public:
   AETHER_OBJ(V1, aether::Obj);
+  V1() = default;
+  V1(Obj* parent, aether::Domain* domain) : Obj(parent, domain) {}
   int i = 11;
   template <typename T>
   void Serializator(T& s) {
@@ -81,6 +85,8 @@ public:
 class V2 : public V1 {
 public:
   AETHER_OBJ(V2, V1);
+  V2() = default;
+  V2(Obj* parent, aether::Domain* domain) : V1(parent, domain) {}
   float f = 2.2f;
   template <typename T>
   void Serializator(T& s) {
@@ -91,6 +97,8 @@ public:
 class V3 : public V2 {
 public:
   AETHER_OBJ(V3, V2);
+  V3() = default;
+  V3(Obj* parent, aether::Domain* domain) : V2(parent, domain) {}
 
   std::string s_{"text33"};
   template <typename T>

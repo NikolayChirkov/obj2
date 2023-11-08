@@ -14,8 +14,8 @@
 #include <iostream>
 #include <fstream>
 #include <map>
-#include "../../../aether/obj/obj.h"
-/*
+/*#include "../../../aether/obj/obj.h"
+
 #define AETHER_DEVMODE 1
 #define AETHER_WIN 1
 #define AETHER_MAC_CPU 1
