@@ -234,6 +234,7 @@ void Versioning1() {
     is.stream_.insert(is.stream_.begin(), os.stream_.begin(), os.stream_.end());
     aether::Obj::ptr o2, o3;
     domain1.registry_.UnregisterClass(V2::kClassId);
+    domain1.registry_.UnregisterClass(V3::kClassId);
     is >> o3 >> o2;
     REQUIRE(is.stream_.empty());
     V1::ptr v12 = o2;
